@@ -110,11 +110,17 @@ trúc `hour_dow` rồi **cộng thêm** thời tiết và tháng."
 
 - Cùng một tập test, cùng một tập huấn luyện → phép so sánh **công bằng**
 - 2018 **không** dùng để chọn mô hình hay `alpha`
+- **Kèm điều kiện:** block bootstrap theo ngày lịch → hiệu MAE **+13,16**,
+  CI 95 % **[+3,80; +22,00]** (không chứa 0), Ridge thắng **8/9 tháng**
+- **Nhưng** ở 3/4 cửa sổ dev 2012–2017 thì Ridge **thua** baseline → không nói
+  chung "mô hình luôn hơn baseline"
 
-**Hình:** biểu đồ cột so sánh MAE/RMSE (vẽ từ 2 số ở trên, ghi rõ nguồn artifact).
+**Hình:** `uncertainty_bootstrap.png` (phân phối bootstrap + MAE theo tháng)
 
-**Nói:** "MAE giảm 13,17 so với baseline. Nhưng con số này nhỏ — nên phần tiếp theo quan trọng hơn:
-**làm sao biết 13,17 đó là thật** chứ không phải do ta tự lừa mình."
+**Nói:** "MAE giảm 13,16 so với baseline, và khoảng tin cậy 95 % không chứa 0 — nhưng ở các
+cửa sổ 2012–2017 thì hướng ngược lại. Nên con số này đúng cho **cửa sổ 2018 với tập huấn
+luyện 2012–2016**, không phải một tuyên bố chung. Và như phần tiếp theo cho thấy, câu hỏi
+quan trọng hơn là: **làm sao biết 13,16 đó là thật** chứ không phải do ta tự lừa mình."
 
 ---
 
@@ -225,9 +231,9 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 ## Slide 11 — Kết luận
 
 **Nội dung**
-1. **Mô hình nhỉnh hơn baseline** trên cùng tập test: MAE 259,73 so với 272,90 (−4,8 %) —
-   và đây là **vượt nhẹ trên 2018**, xem §14.5 cùng `reports/figures/uncertainty_audit.md`
-   về khoảng tin cậy 95 %
+1. **Mô hình nhỉnh hơn baseline trên 2018** — có điều kiện: MAE 259,73 so với 272,90,
+   CI 95 % của hiệu MAE [+3,80; +22,00], thắng 8/9 tháng; **nhưng** ở 3/4 cửa sổ
+   dev 2012–2017 thì ngược lại
 2. **Cách đánh giá cũng làm lệch kết luận**: random split lạc quan **5,43 ± 0,81 MAE** trên cùng
    tập dòng đánh giá (§Slide 7); khoảng cách thời gian thêm **4,15 MAE**
 3. **Biết mô hình hỏng ở đâu** cũng là kết quả: ngày lễ, tuyết, sương mù, giờ đêm
@@ -252,5 +258,5 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 325 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 336 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |

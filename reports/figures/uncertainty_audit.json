@@ -1,0 +1,860 @@
+{
+  "report_type": "uncertainty audit (CHỈ ĐO — không quyết định, không train)",
+  "trains_or_tunes": false,
+  "overwrites_evaluation_results": false,
+  "settings": {
+    "n_bootstrap": 4000,
+    "block_unit": "calendar_day",
+    "seed": 20240501,
+    "ci_level_pct": 95.0,
+    "metric_convention": "RAW MODEL (Ridge trả về trực tiếp)",
+    "difference_convention": "baseline - ridge (positive = Ridge better)",
+    "why_block_by_day": "Các giờ trong cùng một ngày lịch không độc lập (cùng thời tiết, cùng ngày làm việc) nên lấy mẫu lại theo dòng sẽ cho khoảng tin cậy hẹp hơn thực tế."
+  },
+  "final_test": {
+    "name": "FINAL TEST 2018",
+    "kind": "final_test",
+    "n_rows": 6533,
+    "range": [
+      "2018-01-01 00:00:00",
+      "2018-09-30 23:00:00"
+    ],
+    "metrics": {
+      "baseline": {
+        "MAE": 272.9,
+        "RMSE": 473.13,
+        "R2": 0.9426,
+        "n": 6533
+      },
+      "ridge": {
+        "MAE": 259.73,
+        "RMSE": 416.78,
+        "R2": 0.9554,
+        "n": 6533
+      }
+    },
+    "bootstrap": {
+      "n_rows": 6533,
+      "n_blocks_days": 273,
+      "n_bootstrap": 4000,
+      "block_unit": "calendar_day",
+      "difference_convention": "baseline - ridge (positive = Ridge better)",
+      "MAE": {
+        "unit": "vehicles/hour",
+        "point_estimate": 13.16,
+        "ci_low": 3.8,
+        "ci_high": 22.0,
+        "ci_level_pct": 95.0,
+        "boot_sd": 4.76,
+        "share_ridge_better_pct": 99.58,
+        "ci_excludes_zero": true
+      },
+      "RMSE": {
+        "unit": "vehicles/hour",
+        "point_estimate": 56.36,
+        "ci_low": 31.07,
+        "ci_high": 80.63,
+        "ci_level_pct": 95.0,
+        "boot_sd": 12.53,
+        "share_ridge_better_pct": 100.0,
+        "ci_excludes_zero": true
+      }
+    },
+    "months": {
+      "by_month": [
+        {
+          "month": 1,
+          "month_label": "Jan",
+          "n_samples": 742,
+          "MAE_baseline": 374.01,
+          "MAE_ridge": 358.18,
+          "delta_MAE": 15.82,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 2,
+          "month_label": "Feb",
+          "n_samples": 672,
+          "MAE_baseline": 255.91,
+          "MAE_ridge": 240.49,
+          "delta_MAE": 15.43,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 3,
+          "month_label": "Mar",
+          "n_samples": 733,
+          "MAE_baseline": 281.57,
+          "MAE_ridge": 259.75,
+          "delta_MAE": 21.82,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 4,
+          "month_label": "Apr",
+          "n_samples": 720,
+          "MAE_baseline": 388.21,
+          "MAE_ridge": 338.82,
+          "delta_MAE": 49.39,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 5,
+          "month_label": "May",
+          "n_samples": 743,
+          "MAE_baseline": 261.27,
+          "MAE_ridge": 243.43,
+          "delta_MAE": 17.84,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 6,
+          "month_label": "Jun",
+          "n_samples": 719,
+          "MAE_baseline": 205.61,
+          "MAE_ridge": 194.61,
+          "delta_MAE": 11.0,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 7,
+          "month_label": "Jul",
+          "n_samples": 744,
+          "MAE_baseline": 243.18,
+          "MAE_ridge": 240.93,
+          "delta_MAE": 2.25,
+          "ridge_better": true,
+          "small_sample": false
+        },
+        {
+          "month": 8,
+          "month_label": "Aug",
+          "n_samples": 740,
+          "MAE_baseline": 195.87,
+          "MAE_ridge": 214.65,
+          "delta_MAE": -18.77,
+          "ridge_better": false,
+          "small_sample": false
+        },
+        {
+          "month": 9,
+          "month_label": "Sep",
+          "n_samples": 720,
+          "MAE_baseline": 249.44,
+          "MAE_ridge": 244.75,
+          "delta_MAE": 4.69,
+          "ridge_better": true,
+          "small_sample": false
+        }
+      ],
+      "n_months": 9,
+      "n_months_ridge_better": 8,
+      "n_months_baseline_better": 1
+    },
+    "_draws_mae": "[18.12423772  8.62827798 17.51924342 ... 10.81183901 20.66223413\n 19.36549974]"
+  },
+  "dev_windows": [
+    {
+      "name": "pseudo-test 2016-2017 (train <= 2015)",
+      "kind": "dev_pseudo_test",
+      "n_rows": 16551,
+      "range": [
+        "2016-01-01 00:00:00",
+        "2017-12-31 23:00:00"
+      ],
+      "metrics": {
+        "baseline": {
+          "MAE": 294.95,
+          "RMSE": 495.71,
+          "R2": 0.9364,
+          "n": 16551
+        },
+        "ridge": {
+          "MAE": 306.48,
+          "RMSE": 472.61,
+          "R2": 0.9422,
+          "n": 16551
+        }
+      },
+      "bootstrap": {
+        "n_rows": 16551,
+        "n_blocks_days": 731,
+        "n_bootstrap": 4000,
+        "block_unit": "calendar_day",
+        "difference_convention": "baseline - ridge (positive = Ridge better)",
+        "MAE": {
+          "unit": "vehicles/hour",
+          "point_estimate": -11.53,
+          "ci_low": -19.72,
+          "ci_high": -3.79,
+          "ci_level_pct": 95.0,
+          "boot_sd": 4.03,
+          "share_ridge_better_pct": 0.18,
+          "ci_excludes_zero": true
+        },
+        "RMSE": {
+          "unit": "vehicles/hour",
+          "point_estimate": 23.1,
+          "ci_low": 4.6,
+          "ci_high": 40.7,
+          "ci_level_pct": 95.0,
+          "boot_sd": 9.16,
+          "share_ridge_better_pct": 99.35,
+          "ci_excludes_zero": true
+        }
+      },
+      "months": {
+        "by_month": [
+          {
+            "month": 1,
+            "month_label": "Jan",
+            "n_samples": 1205,
+            "MAE_baseline": 313.56,
+            "MAE_ridge": 339.74,
+            "delta_MAE": -26.17,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 2,
+            "month_label": "Feb",
+            "n_samples": 1166,
+            "MAE_baseline": 258.4,
+            "MAE_ridge": 293.08,
+            "delta_MAE": -34.68,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 3,
+            "month_label": "Mar",
+            "n_samples": 1212,
+            "MAE_baseline": 254.44,
+            "MAE_ridge": 237.09,
+            "delta_MAE": 17.36,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 4,
+            "month_label": "Apr",
+            "n_samples": 1312,
+            "MAE_baseline": 276.07,
+            "MAE_ridge": 246.68,
+            "delta_MAE": 29.39,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 5,
+            "month_label": "May",
+            "n_samples": 1464,
+            "MAE_baseline": 259.33,
+            "MAE_ridge": 237.65,
+            "delta_MAE": 21.68,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 6,
+            "month_label": "Jun",
+            "n_samples": 1433,
+            "MAE_baseline": 246.03,
+            "MAE_ridge": 220.28,
+            "delta_MAE": 25.75,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 7,
+            "month_label": "Jul",
+            "n_samples": 1476,
+            "MAE_baseline": 398.0,
+            "MAE_ridge": 411.39,
+            "delta_MAE": -13.39,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 8,
+            "month_label": "Aug",
+            "n_samples": 1486,
+            "MAE_baseline": 241.27,
+            "MAE_ridge": 309.53,
+            "delta_MAE": -68.26,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 9,
+            "month_label": "Sep",
+            "n_samples": 1427,
+            "MAE_baseline": 303.98,
+            "MAE_ridge": 309.72,
+            "delta_MAE": -5.74,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 10,
+            "month_label": "Oct",
+            "n_samples": 1468,
+            "MAE_baseline": 265.14,
+            "MAE_ridge": 308.27,
+            "delta_MAE": -43.13,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 11,
+            "month_label": "Nov",
+            "n_samples": 1434,
+            "MAE_baseline": 338.31,
+            "MAE_ridge": 360.71,
+            "delta_MAE": -22.4,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 12,
+            "month_label": "Dec",
+            "n_samples": 1468,
+            "MAE_baseline": 371.68,
+            "MAE_ridge": 386.88,
+            "delta_MAE": -15.2,
+            "ridge_better": false,
+            "small_sample": false
+          }
+        ],
+        "n_months": 12,
+        "n_months_ridge_better": 4,
+        "n_months_baseline_better": 8
+      },
+      "_draws_mae": "[-11.20566096 -13.68974556 -16.96518816 ... -15.31753337  -9.7466971\n  -8.43177625]"
+    },
+    {
+      "name": "fold 1 — test year 2015",
+      "kind": "dev_rolling_fold",
+      "test_year": 2015,
+      "n_rows": 3593,
+      "range": [
+        "2015-06-11 20:00:00",
+        "2015-12-31 23:00:00"
+      ],
+      "metrics": {
+        "baseline": {
+          "MAE": 282.86,
+          "RMSE": 502.68,
+          "R2": 0.9349,
+          "n": 3593
+        },
+        "ridge": {
+          "MAE": 325.98,
+          "RMSE": 497.93,
+          "R2": 0.9362,
+          "n": 3593
+        }
+      },
+      "bootstrap": {
+        "n_rows": 3593,
+        "n_blocks_days": 195,
+        "n_bootstrap": 4000,
+        "block_unit": "calendar_day",
+        "difference_convention": "baseline - ridge (positive = Ridge better)",
+        "MAE": {
+          "unit": "vehicles/hour",
+          "point_estimate": -43.13,
+          "ci_low": -60.91,
+          "ci_high": -25.92,
+          "ci_level_pct": 95.0,
+          "boot_sd": 8.9,
+          "share_ridge_better_pct": 0.0,
+          "ci_excludes_zero": true
+        },
+        "RMSE": {
+          "unit": "vehicles/hour",
+          "point_estimate": 4.75,
+          "ci_low": -38.44,
+          "ci_high": 52.43,
+          "ci_level_pct": 95.0,
+          "boot_sd": 23.27,
+          "share_ridge_better_pct": 55.62,
+          "ci_excludes_zero": false
+        }
+      },
+      "months": {
+        "by_month": [
+          {
+            "month": 6,
+            "month_label": "Jun",
+            "n_samples": 149,
+            "MAE_baseline": 204.84,
+            "MAE_ridge": 235.09,
+            "delta_MAE": -30.24,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 7,
+            "month_label": "Jul",
+            "n_samples": 740,
+            "MAE_baseline": 291.82,
+            "MAE_ridge": 328.44,
+            "delta_MAE": -36.62,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 8,
+            "month_label": "Aug",
+            "n_samples": 730,
+            "MAE_baseline": 218.74,
+            "MAE_ridge": 304.57,
+            "delta_MAE": -85.84,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 9,
+            "month_label": "Sep",
+            "n_samples": 652,
+            "MAE_baseline": 288.26,
+            "MAE_ridge": 289.77,
+            "delta_MAE": -1.51,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 10,
+            "month_label": "Oct",
+            "n_samples": 487,
+            "MAE_baseline": 258.01,
+            "MAE_ridge": 339.13,
+            "delta_MAE": -81.12,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 11,
+            "month_label": "Nov",
+            "n_samples": 396,
+            "MAE_baseline": 317.62,
+            "MAE_ridge": 319.0,
+            "delta_MAE": -1.38,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 12,
+            "month_label": "Dec",
+            "n_samples": 439,
+            "MAE_baseline": 389.02,
+            "MAE_ridge": 433.79,
+            "delta_MAE": -44.77,
+            "ridge_better": false,
+            "small_sample": false
+          }
+        ],
+        "n_months": 7,
+        "n_months_ridge_better": 0,
+        "n_months_baseline_better": 7
+      },
+      "_draws_mae": "[-39.24726672 -36.46917796 -41.30104088 ... -51.30194936 -29.71794595\n -40.51446398]"
+    },
+    {
+      "name": "fold 2 — test year 2016",
+      "kind": "dev_rolling_fold",
+      "test_year": 2016,
+      "n_rows": 7838,
+      "range": [
+        "2016-01-01 00:00:00",
+        "2016-12-31 23:00:00"
+      ],
+      "metrics": {
+        "baseline": {
+          "MAE": 317.29,
+          "RMSE": 533.35,
+          "R2": 0.9247,
+          "n": 7838
+        },
+        "ridge": {
+          "MAE": 343.77,
+          "RMSE": 523.66,
+          "R2": 0.9274,
+          "n": 7838
+        }
+      },
+      "bootstrap": {
+        "n_rows": 7838,
+        "n_blocks_days": 366,
+        "n_bootstrap": 4000,
+        "block_unit": "calendar_day",
+        "difference_convention": "baseline - ridge (positive = Ridge better)",
+        "MAE": {
+          "unit": "vehicles/hour",
+          "point_estimate": -26.48,
+          "ci_low": -38.32,
+          "ci_high": -14.72,
+          "ci_level_pct": 95.0,
+          "boot_sd": 5.92,
+          "share_ridge_better_pct": 0.0,
+          "ci_excludes_zero": true
+        },
+        "RMSE": {
+          "unit": "vehicles/hour",
+          "point_estimate": 9.69,
+          "ci_low": -14.74,
+          "ci_high": 34.94,
+          "ci_level_pct": 95.0,
+          "boot_sd": 12.47,
+          "share_ridge_better_pct": 76.28,
+          "ci_excludes_zero": false
+        }
+      },
+      "months": {
+        "by_month": [
+          {
+            "month": 1,
+            "month_label": "Jan",
+            "n_samples": 461,
+            "MAE_baseline": 306.68,
+            "MAE_ridge": 347.32,
+            "delta_MAE": -40.63,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 2,
+            "month_label": "Feb",
+            "n_samples": 509,
+            "MAE_baseline": 268.22,
+            "MAE_ridge": 313.2,
+            "delta_MAE": -44.99,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 3,
+            "month_label": "Mar",
+            "n_samples": 472,
+            "MAE_baseline": 235.57,
+            "MAE_ridge": 217.59,
+            "delta_MAE": 17.98,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 4,
+            "month_label": "Apr",
+            "n_samples": 601,
+            "MAE_baseline": 322.03,
+            "MAE_ridge": 281.35,
+            "delta_MAE": 40.68,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 5,
+            "month_label": "May",
+            "n_samples": 720,
+            "MAE_baseline": 258.0,
+            "MAE_ridge": 237.8,
+            "delta_MAE": 20.2,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 6,
+            "month_label": "Jun",
+            "n_samples": 713,
+            "MAE_baseline": 267.7,
+            "MAE_ridge": 223.84,
+            "delta_MAE": 43.86,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 7,
+            "month_label": "Jul",
+            "n_samples": 738,
+            "MAE_baseline": 516.36,
+            "MAE_ridge": 561.69,
+            "delta_MAE": -45.33,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 8,
+            "month_label": "Aug",
+            "n_samples": 743,
+            "MAE_baseline": 251.95,
+            "MAE_ridge": 383.39,
+            "delta_MAE": -131.44,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 9,
+            "month_label": "Sep",
+            "n_samples": 711,
+            "MAE_baseline": 316.7,
+            "MAE_ridge": 357.19,
+            "delta_MAE": -40.48,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 10,
+            "month_label": "Oct",
+            "n_samples": 724,
+            "MAE_baseline": 272.95,
+            "MAE_ridge": 364.14,
+            "delta_MAE": -91.19,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 11,
+            "month_label": "Nov",
+            "n_samples": 718,
+            "MAE_baseline": 372.74,
+            "MAE_ridge": 400.31,
+            "delta_MAE": -27.57,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 12,
+            "month_label": "Dec",
+            "n_samples": 728,
+            "MAE_baseline": 369.46,
+            "MAE_ridge": 367.97,
+            "delta_MAE": 1.48,
+            "ridge_better": true,
+            "small_sample": false
+          }
+        ],
+        "n_months": 12,
+        "n_months_ridge_better": 5,
+        "n_months_baseline_better": 7
+      },
+      "_draws_mae": "[-25.12156449 -13.47301998 -11.0207223  ... -19.17695057 -29.32860589\n -26.81340964]"
+    },
+    {
+      "name": "fold 3 — test year 2017",
+      "kind": "dev_rolling_fold",
+      "test_year": 2017,
+      "n_rows": 8713,
+      "range": [
+        "2017-01-01 00:00:00",
+        "2017-12-31 23:00:00"
+      ],
+      "metrics": {
+        "baseline": {
+          "MAE": 278.66,
+          "RMSE": 461.0,
+          "R2": 0.9459,
+          "n": 8713
+        },
+        "ridge": {
+          "MAE": 272.12,
+          "RMSE": 421.46,
+          "R2": 0.9548,
+          "n": 8713
+        }
+      },
+      "bootstrap": {
+        "n_rows": 8713,
+        "n_blocks_days": 365,
+        "n_bootstrap": 4000,
+        "block_unit": "calendar_day",
+        "difference_convention": "baseline - ridge (positive = Ridge better)",
+        "MAE": {
+          "unit": "vehicles/hour",
+          "point_estimate": 6.54,
+          "ci_low": -4.5,
+          "ci_high": 16.5,
+          "ci_level_pct": 95.0,
+          "boot_sd": 5.3,
+          "share_ridge_better_pct": 88.75,
+          "ci_excludes_zero": false
+        },
+        "RMSE": {
+          "unit": "vehicles/hour",
+          "point_estimate": 39.55,
+          "ci_low": 15.04,
+          "ci_high": 63.15,
+          "ci_level_pct": 95.0,
+          "boot_sd": 12.17,
+          "share_ridge_better_pct": 99.95,
+          "ci_excludes_zero": true
+        }
+      },
+      "months": {
+        "by_month": [
+          {
+            "month": 1,
+            "month_label": "Jan",
+            "n_samples": 744,
+            "MAE_baseline": 307.03,
+            "MAE_ridge": 301.71,
+            "delta_MAE": 5.32,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 2,
+            "month_label": "Feb",
+            "n_samples": 657,
+            "MAE_baseline": 251.13,
+            "MAE_ridge": 258.76,
+            "delta_MAE": -7.63,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 3,
+            "month_label": "Mar",
+            "n_samples": 740,
+            "MAE_baseline": 281.5,
+            "MAE_ridge": 252.41,
+            "delta_MAE": 29.09,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 4,
+            "month_label": "Apr",
+            "n_samples": 711,
+            "MAE_baseline": 246.1,
+            "MAE_ridge": 221.22,
+            "delta_MAE": 24.87,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 5,
+            "month_label": "May",
+            "n_samples": 744,
+            "MAE_baseline": 263.17,
+            "MAE_ridge": 233.5,
+            "delta_MAE": 29.68,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 6,
+            "month_label": "Jun",
+            "n_samples": 720,
+            "MAE_baseline": 223.02,
+            "MAE_ridge": 207.27,
+            "delta_MAE": 15.75,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 7,
+            "month_label": "Jul",
+            "n_samples": 738,
+            "MAE_baseline": 277.78,
+            "MAE_ridge": 279.66,
+            "delta_MAE": -1.88,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 8,
+            "month_label": "Aug",
+            "n_samples": 743,
+            "MAE_baseline": 239.35,
+            "MAE_ridge": 226.82,
+            "delta_MAE": 12.53,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 9,
+            "month_label": "Sep",
+            "n_samples": 716,
+            "MAE_baseline": 301.03,
+            "MAE_ridge": 276.63,
+            "delta_MAE": 24.41,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 10,
+            "month_label": "Oct",
+            "n_samples": 744,
+            "MAE_baseline": 269.75,
+            "MAE_ridge": 265.37,
+            "delta_MAE": 4.39,
+            "ridge_better": true,
+            "small_sample": false
+          },
+          {
+            "month": 11,
+            "month_label": "Nov",
+            "n_samples": 716,
+            "MAE_baseline": 308.06,
+            "MAE_ridge": 344.52,
+            "delta_MAE": -36.46,
+            "ridge_better": false,
+            "small_sample": false
+          },
+          {
+            "month": 12,
+            "month_label": "Dec",
+            "n_samples": 740,
+            "MAE_baseline": 371.97,
+            "MAE_ridge": 395.14,
+            "delta_MAE": -23.17,
+            "ridge_better": false,
+            "small_sample": false
+          }
+        ],
+        "n_months": 12,
+        "n_months_ridge_better": 8,
+        "n_months_baseline_better": 4
+      },
+      "_draws_mae": "[ 8.58990384 11.70953832  3.57422418 ... 11.91003077 12.96624473\n  3.80896526]"
+    }
+  ],
+  "verdict": {
+    "final_test_MAE": {
+      "point_estimate": 13.16,
+      "ci95": [
+        3.8,
+        22.0
+      ],
+      "share_ridge_better_pct": 99.58,
+      "ci_excludes_zero": true
+    },
+    "final_test_RMSE": {
+      "point_estimate": 56.36,
+      "ci95": [
+        31.07,
+        80.63
+      ],
+      "share_ridge_better_pct": 100.0,
+      "ci_excludes_zero": true
+    },
+    "months_ridge_better": "8/9",
+    "dev_windows_with_ridge_better": "1/4",
+    "dev_direction_consistent": false,
+    "verdict_2018": "Ridge tốt hơn baseline trên 2018, và khoảng tin cậy 95 % của hiệu MAE không chứa 0.",
+    "conditions_required": [
+      "Kết luận này chỉ nói về FINAL TEST 2018 (01/01–30/09), không suy rộng ra năm khác.",
+      "Nó là so sánh trên cùng một tập đánh giá và cùng một tập huấn luyện 2012–2016.",
+      "Metric là RAW MODEL; DEPLOYED PREDICTOR (max(0,·)) được báo riêng ở postprocess_audit."
+    ],
+    "verdict_overall": "Trên FINAL TEST 2018, Ridge vượt baseline 13.16 MAE (CI 95 % [3.8; 22.0], không chứa 0) và thắng ở 8/9 tháng. Trên dữ liệu dev 2012–2017, Ridge thắng ở 1/4 cửa sổ (pseudo-test 2016–2017 và 3 fold rolling-origin), nên chiều **không nhất quán** giữa các cửa sổ — vì vậy không được nói chung 'mô hình vượt baseline' một cách tuyệt đối."
+  },
+  "figure": "reports/figures/uncertainty_bootstrap.png"
+}

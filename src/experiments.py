@@ -60,9 +60,17 @@ FINAL_TEST_START = pd.Timestamp("2018-01-01 00:00:00")
 EXPERIMENT_SEEDS = [11, 23, 37, 53, 71]
 
 #: Thí nghiệm 1c — "hàng xóm" theo KHỐI LIÊN TỤC: tháng chẵn vào train,
-#: tháng lẻ làm tập test chung. Tách "cùng mức năm" khỏi "hàng xóm từng giờ".
+#: tháng lẻ làm tập test chung. Tách "cùng mức năm" khỏi "dữ liệu cùng tháng".
 BLOCK_TRAIN_MONTHS = (2, 4, 6, 8, 10, 12)
 BLOCK_TEST_MONTHS = (1, 3, 5, 7, 9, 11)
+
+#: Các fold rolling-origin. Dùng chung để `experiments.py` và `uncertainty_audit.py`
+#: đánh giá đúng những cửa sổ giống nhau — tránh hai nơi lệch định nghĩa fold.
+ROLLING_FOLDS = (
+    {"fold": 1, "train_end": "2014-12-31 23:59:59", "test_year": 2015},
+    {"fold": 2, "train_end": "2015-12-31 23:59:59", "test_year": 2016},
+    {"fold": 3, "train_end": "2016-12-31 23:59:59", "test_year": 2017},
+)
 
 MONTH_LABELS = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -467,11 +475,7 @@ def rolling_origin_evaluation(dev: pd.DataFrame, alpha: float) -> dict:
     """
     assert_no_final_test_rows(dev, "exp3:rolling")
 
-    folds = [
-        {"fold": 1, "train_end": "2014-12-31 23:59:59", "test_year": 2015},
-        {"fold": 2, "train_end": "2015-12-31 23:59:59", "test_year": 2016},
-        {"fold": 3, "train_end": "2016-12-31 23:59:59", "test_year": 2017},
-    ]
+    folds = [dict(spec) for spec in ROLLING_FOLDS]
 
     results = []
     pooled_parts = []

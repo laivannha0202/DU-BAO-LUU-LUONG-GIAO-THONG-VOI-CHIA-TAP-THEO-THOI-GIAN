@@ -28,6 +28,7 @@ Dữ liệu: Metro Interstate Traffic Volume (UCI, CC BY 4.0). Xem `data/README.
 - [x] **Serving policy đã đóng băng** (`src/freeze_serving_policy.py` → `models/serving_policy.json`)
       — quyết định chỉ trên TRAIN + VALIDATION, có đường bỏ clamp nếu điều kiện không đạt
 - [x] **Báo cáo tác động** của policy trên 2018 (`src/postprocess_audit.py`) — chạy SAU, chỉ đo
+- [x] **Kiểm toán bất định** (`src/uncertainty_audit.py`) — block bootstrap theo khối ngày lịch (4.000 lần, seed cố định) cho hiệu MAE/RMSE, MAE theo từng tháng; chạy SAU `evaluate.py`, chỉ đo
 - [x] **Test: `py -m pytest tests\ -v` → 317 passed, 0 failed**
       (con số này được **tự kiểm chứng** bởi `tests/test_report.py::test_documented_test_count_matches_real_collection`)
 - [x] Báo cáo, slide, kịch bản demo, câu hỏi viva (`reports/final_report.md`, `docs/`)
@@ -46,6 +47,7 @@ py src\experiments.py       :: thí nghiệm phát triển, CHỈ 2012-2017 (kh�
 py src\freeze_serving_policy.py :: ĐÓNG BĂNG chính sách max(0,·) — CHỈ dùng TRAIN + VALIDATION
 py src\evaluate.py          :: FINAL TEST 2018 — mở 2018 ra đánh giá lần đầu
 py src\postprocess_audit.py :: báo cáo tác động của policy trên 2018 — chạy SAU, KHÔNG quyết định gì
+py src\uncertainty_audit.py :: bootstrap + MAE theo tháng trên 2018 — chạy SAU, CHỈ đo
 py -m pytest tests\ -v
 py -m uvicorn app.main:app --reload
 ```
@@ -62,7 +64,8 @@ Sau đó mở trình duyệt: **http://localhost:8000** (OpenAPI docs: http://lo
 > | 6 | **`freeze_serving_policy`** | **Đóng băng** chính sách `max(0,·)` **chỉ từ TRAIN + VALIDATION** |
 > | 7 | **`evaluate`** | Mở FINAL TEST 2018 ra **sau khi** mọi lựa chọn đã chốt xong |
 > | 8 | `postprocess_audit` | **Chỉ đo** tác động của policy đã đóng băng lên metric 2018 |
-> | 9–10 | `pytest` → `uvicorn` | Kiểm chứng rồi mới phục vụ |
+> | 9 | `uncertainty_audit` | **Chỉ đo** độ bất định quanh kết quả 2018 (bootstrap theo ngày, MAE theo tháng) |
+> | 10–11 | `pytest` → `uvicorn` | Kiểm chứng rồi mới phục vụ |
 >
 > Nếu đảo bước 6 và 7 (chạy `evaluate` trước `freeze_serving_policy`) thì chính sách hậu xử lý
 > sẽ trở thành **test-informed postprocessing** — tức ta chọn cách hậu xử lý *vì* nhìn thấy kết quả
@@ -84,7 +87,14 @@ Sau đó mở trình duyệt: **http://localhost:8000** (OpenAPI docs: http://lo
 | **Ridge pipeline** (alpha = 0,001) | **259,73** | **416,78** | **0,9554** | 6.533 |
 
 Chi tiết: `reports/figures/evaluation_report.md` (2018), `reports/figures/experiments_report.md` (2012–2017),
-báo cáo đầy đủ: `reports/final_report.md`.
+`reports/figures/uncertainty_audit.md` (độ bất định), báo cáo đầy đủ: `reports/final_report.md`.
+
+**Đọc kết quả này kèm điều kiện** — không được nói chung "mô hình luôn hơn baseline":
+
+- Trên 2018, Ridge nhỉnh hơn baseline **13,16 MAE**; block bootstrap theo ngày lịch cho
+  CI 95 % **[+3,80; +22,00]** (không chứa 0), Ridge thắng ở **8/9 tháng**.
+- **Nhưng** trên dữ liệu dev 2012–2017, Ridge chỉ thắng ở **1/4 cửa sổ** (pseudo-test 2016–2017
+  và 3 fold rolling-origin). Ở 3 cửa sổ kia, khoảng tin cậy nằm hẳn về phía baseline.
 
 ---
 
@@ -268,6 +278,7 @@ src/
   freeze_serving_policy.py # ĐÓNG BĂNG chính sách max(0,·) — chỉ TRAIN + VALIDATION
   evaluate.py             # FINAL TEST 2018 — chạy SAU khi policy đã đóng băng
   postprocess_audit.py    # báo cáo tác động trên 2018 — chạy SAU, không quyết định gì
+  uncertainty_audit.py    # bootstrap + MAE theo tháng trên 2018 — chạy SAU, chỉ đo
 app/
   __init__.py
   config.py               # hằng số + đường dẫn artifact (có thể override bằng biến môi trường)
@@ -305,12 +316,15 @@ reports/
     serving_policy.md          # quyết định policy (train+val) + lập luận
     postprocess_audit.md       # tác động policy lên metric sau khi đóng băng
     postprocess_audit.json
+    uncertainty_audit.md       # độ bất định: bootstrap theo ngày + MAE theo tháng
+    uncertainty_audit.json
+    uncertainty_bootstrap.png
     *.png
 docs/
   project-log.md         # NHẬT KÝ DỰ ÁN (thời gian · người · giờ · kết quả · vấn đề)
   slides-outline.md       # 11 slide
   demo-script.md          # kịch bản demo 5-7 phút
-  viva-questions.md       # 32 câu hỏi + đáp án
+  viva-questions.md       # 33 câu hỏi + đáp án
 tests/
   conftest.py             # fixture dùng chung
   test_data.py            # holiday, duplicate, outlier, invariant, lịch tất định
@@ -334,7 +348,7 @@ release/
 ```
 
 **Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
-Con số tổng **325 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+Con số tổng **336 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
 và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
 
 ---

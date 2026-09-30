@@ -101,8 +101,13 @@ Mở sẵn `/docs`. Để terminal chạy uvicorn ở góc màn hình để th�
 > có test quét HTML/JS để bảo đảm không có số nào được gõ tay."
 
 **Câu chuyển (quan trọng):**
-> "Tuy nhiên 13,17 điểm cải thiện đó là nhỏ. Nên câu hỏi tiếp theo quan trọng hơn: **làm sao biết
-> 13,17 đó là thật** chứ không phải do ta tự lừa mình?"
+> "Tuy nhiên 13,16 điểm cải thiện đó là nhỏ. Nhóm em đã chạy thêm một kiểm toán bất định:
+> lấy mẫu lại theo **ngày lịch** 4.000 lần. Khoảng tin cậy 95 % của hiệu MAE là
+> **[+3,80; +22,00]** — không chứa 0, và Ridge thắng ở 8/9 tháng. **Nhưng** khi áp dụng đúng
+> phép đó đó cho các cửa sổ 2012–2017 thì Ridge chỉ thắng 1/4. Nên con số này đúng cho cửa sổ
+> 2018, không phải một tuyên bố chung.
+>
+> Và câu hỏi còn khó hơn: **làm sao biết 13,16 đó là thật** chứ không phải do ta tự lừa mình?"
 
 ---
 
@@ -114,7 +119,7 @@ Mở sẵn `/docs`. Để terminal chạy uvicorn ở góc màn hình để th�
 > "Baseline là trung bình lưu lượng theo giờ × thứ trong tuần, fit chỉ trên train. Nó mạnh vì EDA
 > cho thấy lưu lượng có hai đỉnh rõ rệt và hình dạng ngày làm việc khác hẳn cuối tuần.
 >
-> Ridge vượt baseline ở **cả 7/7 ngày trong tuần** và **17/24 giờ**. Nhưng — và đây là điều nhóm em
+> Ridge nhỉnh hơn baseline ở **cả 7/7 ngày trong tuần** và **17/24 giờ**. Nhưng — và đây là điều nhóm em
 > muốn nói trung thực — ở các giờ đêm 0 đến 4 giờ thì **baseline lại thắng**, ví dụ 3 giờ: baseline
 > 31,14 so với Ridge 142,14. Ở vùng lưu lượng thấp và ít biến động, bảng trung bình gần như đã
 > tối ưu, còn Ridge bị kéo bởi biến thời tiết."
@@ -294,11 +299,12 @@ Gọi `POST /api/traffic-forecast` với:
 
 **Câu kết (nói chậm, nhìn GV):**
 > "Bài học lớn nhất của nhóm em: trên cùng một bộ dữ liệu, **cách ta đánh giá** đã làm MAE chênh
-> nhau đáng kể — random split lạc quan 5,43 điểm trên cùng tập dòng đánh giá, và khoảng cách thời
-> gian thêm 4,15 điểm — gần bằng cả cải thiện mà mô hình đạt được so với baseline là 13,17 điểm.
-> Nói cách khác: **cách ta đánh giá quan trọng ngang với việc ta chọn mô hình**, và nói trung thực
-> về giới hạn — kể cả việc phải sửa lại chính kết luận của mình — là một phần của kết quả chứ
-> không phải điểm trừ."
+> nhau đáng kể — random split lạc quan 5,43 điểm trên cùng tập dòng đánh giá, khoảng cách thời
+> gian thêm 4,15 điểm, và bản thân việc Ridge hơn baseline cũng **không nhất quán** giữa các năm —
+> tất cả đều gần bằng cả cải thiện 13,16 điểm mà mô hình đạt được trên 2018. Nói cách khác:
+> **cách ta đánh giá quan trọng ngang với việc ta chọn mô hình**, và nói trung thực về giới hạn —
+> kể cả việc phải sửa lại chính kết luận của mình — là một phần của kết quả chứ không phải
+> điểm trừ."
 
 ---
 
@@ -315,6 +321,7 @@ py src\experiments.py
 py src\freeze_serving_policy.py   :: đóng băng policy TRƯỚC khi mở 2018
 py src\evaluate.py                :: FINAL TEST 2018
 py src\postprocess_audit.py       :: chỉ đo tác động policy
+py src\uncertainty_audit.py       :: chỉ đo độ bất định (bootstrap + theo tháng)
 py -m pytest tests\ -v
 py -m uvicorn app.main:app --reload
 ```
@@ -325,14 +332,14 @@ py -m uvicorn app.main:app --reload
 ```bat
 py -m pytest tests\ -v
 ```
-> "325 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
+> "336 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
 > theo đường dẫn của web, rồi so **từng cột** với feature sinh ra lúc huấn luyện — bảo đảm không có
 > train-serving skew."
 
 ## Dự phòng — nếu mạng hoặc server chết giữa chừng
 
 1. Dừng demo web, chuyển sang chỉ slide 6, 7, 8 (vẫn đủ thông điệp chính).
-2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 325 test, em trình bày lại bằng slide."
+2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 336 test, em trình bày lại bằng slide."
 3. **Không** bịa số liệu thay thế.
 
 ## Danh sách câu hỏi GV hay hỏi (chuẩn bị sẵn)
@@ -345,6 +352,7 @@ Xem đầy đủ tại `docs/viva-questions.md`. Các câu **chắc chắn** rơ
 | 2018 có bị dùng để tune không? | Không. Mọi lựa chọn chốt trên 2012–2017, có `assert_no_final_test_rows()` chặn bằng mã nguồn. |
 | Vì sao không dùng lag feature? | Lag của `traffic_volume` là đường nghiệm dễ rơi vào rò rỉ thời gian; đề tài tập trung vào phương pháp đánh giá. |
 | Baseline có công bằng không? | Có — cùng tập huấn luyện 2012–2016, cùng tập test 2018. |
+| Mô hình có luôn hơn baseline không? | Không. Trên 2018 thì có (13,16 MAE, CI 95 % [+3,80; +22,00]), nhưng ở 3/4 cửa sổ dev 2012–2017 thì baseline lại thắng. |
 | MAE ngày lễ cao vì sao? | Dữ liệu chỉ có 53 giờ ngày lễ, mẫu 2018 chỉ 167 giờ; hành vi ngày lễ khác hẳn. |
 | Web có train lại không? | Không. Chỉ `predict` trên `ridge_pipeline.joblib`; test kiểm tra `scaler.mean_` không đổi sau nhiều lần gọi. |
 | Nếu dự báo cho năm 2025 thì sao? | API vẫn trả kết quả nhưng kèm cảnh báo `in_dataset_range = false`. |

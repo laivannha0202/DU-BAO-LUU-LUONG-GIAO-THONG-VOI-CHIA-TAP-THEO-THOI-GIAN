@@ -1,4 +1,4 @@
-# CÂU HỎI VIVA — 32 câu
+# CÂU HỎI VIVA — 33 câu
 
 > **Cách dùng:** mỗi câu có *đáp án ngắn* đủ để trả lời trong 30–60 giây, kèm *gợi ý mở rộng*
 > nếu GV hỏi sâu. Số liệu trong đáp án đều lấy từ artifact.
@@ -152,7 +152,7 @@ py -m uvicorn app.main:app --reload
 
 ---
 
-# D. Mô hình & đánh giá (22–27)
+# D. Mô hình & đánh giá (22–28)
 
 ### Câu 22
 **Baseline là gì, và vì sao nó là baseline hợp lý?**
@@ -160,12 +160,14 @@ py -m uvicorn app.main:app --reload
 *Gợi ý mở rộng:* nhấn mạnh cả hai mô hình **cùng fit trên 2012–2016, cùng test trên 2018** → phép so sánh công bằng.
 
 ### Câu 23
-**Kết quả FINAL TEST 2018 là gì?**
-**Đáp án:** Ridge (alpha = 0,001): **MAE 259,73 · RMSE 416,78 · R² 0,9554** trên 6.533 giờ. Baseline: MAE 272,90 · RMSE 473,13 · R² 0,9426. Cải thiện **13,17 MAE, tức 4,8 %**.
+**Kết quả FINAL TEST 2018 là gì — và nói thật, mô hình có hơn baseline không?**
+**Đáp án:** Ridge (alpha = 0,001): **MAE 259,73 · RMSE 416,78 · R² 0,9554** trên 6.533 giờ. Baseline: MAE 272,90 · RMSE 473,13 · R² 0,9426. Nhỉnh hơn **13,16 MAE, tức 4,8 %**.
+
+**Phải kèm điều kiện:** đây là kết luận **cho cửa sổ 2018** với tập huấn luyện 2012–2016, **không phải** tuyên bố chung. Xem Câu 28.
 
 ### Câu 24
 **MAE hay RMSE phù hợp hơn ở đây? Vì sao chọn MAE làm tiêu chí chọn alpha?**
-**Đáp án:** Cả hai đều báo cáo. Nhóm chọn **MAE** làm tiêu chí vì đơn vị cùng với mục tiêu (xe/giờ) và **diễn giải trực tiếp** là "trung bình sai lệch bao nhiêu xe/giờ" — quan trọng với người lập kế hoạch. RMSE nhạy với outlier hơn; ở đây RMSE của Ridge (416,78) thấp hơn baseline (473,13) nên cả hai chỉ số cùng kết luận.
+**Đáp án:** Cả hai đều báo cáo. Nhóm chọn **MAE** làm tiêu chí vì đơn vị cùng với mục tiêu (xe/giờ) và **diễn giải trực tiếp** là "trung bình sai lệch bao nhiêu xe/giờ" — quan trọng với người lập kế hoạch. RMSE nhạy với outlier hơn; ở đây RMSE của Ridge (416,78) thấp hơn baseline (473,13) nên cả hai chỉ số cùng kết luận. **Lưu ý:** trên pseudo-test 2016–2017 thì hai chỉ số **không** đồng ý (baseline thắng MAE, Ridge thắng RMSE) — vì vậy nhóm không bao giờ dùng một chỉ số đơn lẻ.
 
 ### Câu 25
 **`alpha` được chọn thế nào? Kết quả có nhạy cảm không?**
@@ -180,29 +182,50 @@ py -m uvicorn app.main:app --reload
 **Có drift không? Làm sao biết mà không trộn metric in-sample với out-of-sample?**
 **Đáp án:** Rolling-origin 3 fold, tất cả đều out-of-sample: 2015 → 325,98; 2016 → 343,77; 2017 → 272,12. MAE giảm 53,86 (16,5 %) nhưng **không kết luận được là mô hình tiến bộ** — có thể chỉ vì 2017 dễ hơn. Nhóm còn đo **PSI** cho phân bố biến đầu vào: `traffic_volume` rất ổn định (PSI < 0,035 mọi năm), còn `temp` và `clouds_all` dịch chuyểch mạnh ở 2012 và 2015 (PSI 0,70–1,10). Hai khái niệm được tách bạch: *performance theo tập* vs *drift phân bố*.
 
+### Câu 28
+**Chắc chắn 13,16 MAE cải thiện đó là thật chứ không phải ngẫu nhiên? Nhóm kiểm tra thế nào?**
+**Đáp án:** Nhóm chạy **block bootstrap theo khối ngày lịch** (`src/uncertainty_audit.py`, 4.000 lần, seed cố định) cho **hiệu cặp** baseline − Ridge.
+
+- Vì sao theo **ngày** chứ không theo dòng: các giờ trong cùng một ngày lịch không độc lập (cùng thời tiết, cùng ngày làm việc), lấy mẫu lại từng dòng sẽ cho CI **hẹp hơn thực tế**.
+- Kết quả 2018: hiệu MAE **+13,16**, CI 95 % **[+3,80; +22,00]** — **không chứa 0**; 99,58 % lần lấy mẫu Ridge thắng. Hiệu RMSE +56,36, CI [+31,07; +80,63].
+- Theo tháng: Ridge thắng **8/9 tháng**, thua ở tháng 8 (−18,77).
+
+**Quan trọng — hiệu ứng này không nhất quán:** áp dụng đúng phép đó cho dữ liệu dev 2012–2017, Ridge chỉ thắng ở **1/4 cửa sổ**:
+
+| Cửa sổ | Hiệu MAE | CI 95 % |
+| --- | --- | --- |
+| pseudo-test 2016–2017 | −11,53 | [−19,72; −3,79] |
+| fold 1 (2015) | −43,13 | [−60,91; −25,92] |
+| fold 2 (2016) | −26,48 | [−38,32; −14,72] |
+| fold 3 (2017) | +6,54 | [−4,50; +16,50] |
+
+**Kết luận trung thực:** "Ridge hơn baseline **trên 2018**" thì đúng; "mô hình luôn hơn baseline" thì **sai**. Các cửa sổ mà Ridge thua đều có tập huấn luyện rất thưa (2014 kết thúc 08/08, 2015 bắt đầu 11/06) — Ridge cần dữ liệu đủ dày, baseline thì không.
+
+*Nếu GV hỏi "vậy có nên dùng mô hình không":* vẫn nên, vì 2012–2016 là tập huấn luyện đầy đủ nhất mà dữ liệu cho phép, và đó đúng là tình huống sử dụng thật. Nhưng phải nói kèm điều kiện.
+
 ---
 
-# E. Web/API & triển khai (28–32)
+# E. Web/API & triển khai (29–33)
 
-### Câu 28
+### Câu 29
 **Ứng dụng web có huấn luyện lại mô hình không?**
 **Đáp án:** **Không.** Ứng dụng chỉ `predict` trên `models/ridge_pipeline.joblib` đã đóng băng. Không tune alpha, không fit lại encoder/imputer/scaler, không đọc target từ dataset. Có test `test_pipeline_is_not_refit_at_serving` gọi API 8 lần rồi kiểm tra `scaler.mean_` và `encoder.categories_` **không đổi**, và test `test_server_reads_no_target_at_serving` trỏ thư mục dữ liệu vào chỗ trống rồi chứng minh API vẫn dự báo được.
 
-### Câu 29
+### Câu 30
 **Làm sao chắc chắn không có train-serving skew?**
 **Đáp án:** Mọi feature kỹ thuật hoá ở tầng serving được sinh bằng **CHUNG hàm `src.features.build_features`** với lúc huấn luyện. Có test `test_no_train_serving_skew_on_real_rows` chọn 3 timestamp thật (gồm một ngày lễ), dựng feature theo đường dẫn serving, rồi so **từng cột** với đường dẫn huấn luyện — không cột nào lệch.
 *Gợi ý mở rộng:* giải thích 3 nơi dễ sai: `is_holiday` (phải từ lịch, không quét dataset), nhiệt độ (phải cùng phép °C→K), và multi-hot thời tiết (phải cùng cách gộp).
 
-### Câu 30
+### Câu 31
 **Ứng dụng có dùng được cho nhiều trạm / nhiều thành phố không?**
 **Đáp án:** **Không.** Dữ liệu chỉ có một trạm (ATR 301, I-94 westbound). Mô hình học đặc trưng riêng của trạm đó, và việc mở rộng sang trạm khác cần huấn luyện lại từ đầu với dữ liệu trạm đó. Đây là hạn chế được ghi rõ trong Model Card.
 
-### Câu 31
+### Câu 32
 **Nếu người dùng nhập sai (mây 150 %, thời tiết gõ sai) thì hệ thống xử lý ra sao?**
 **Đáp án:** Trả **HTTP 422** kèm JSON nêu rõ trường và lý do, ví dụ `{"field": "clouds_all", "message": "Input should be less than or equal to 100"}`. Hệ thống **không tự sửa** — không tự đặt mây về 100, không tự sửa `clear` thành `Clear` — vì sửa âm thầm là che lỗi nhập. Server không crash: có test gửi liên tiếp 5 payload sai rồi xác nhận request hợp lệ vẫn trả 200.
 *Gợi ý mở rộng:* nếu xóa file model, `/health` trả **503** kèm đúng tên file thiếu và lệnh cần chạy, **không** phải 500 mơ hồ, và **không** tự huấn luyện lại.
 
-### Câu 32
+### Câu 33
 **Nếu dự báo cho năm 2025, hệ thống có báo không?**
 **Đáp án:** **Có, và nó báo rõ thay vì đoán.** Dataset chỉ phủ 2012-10-02 → 2018-09-30, nên API trả kèm `in_dataset_range: false` và cảnh báo rằng độ tin cậy ngoài phạm vi không được đảm bảo. Ngoài ra bảng lịch **State Fair** chỉ có năm **2012–2020**; nếu năm nằm ngoài, API trả cảnh báo `state_fair_calendar_unknown` và cho phép người dùng truyền `state_fair_start_date` để tính đúng — **không tự suy đoán** ngày khai mạc.
 *Gợi ý mở rộng — câu GV hay đặt ra nhất về chính sách hậu xử lý:*
@@ -224,7 +247,7 @@ Trả lời theo thứ tự 4 bước:
 
 ---
 
-## Câu bổ sung hay gặp (không tính vào 32 câu chính)
+## Câu bổ sung hay gặp (không tính vào 33 câu chính)
 
 | Câu | Trả lời ngắn |
 | --- | --- |
@@ -233,6 +256,6 @@ Trả lời theo thứ tự 4 bước:
 | Có thể dùng mô hình này để điều khiển tín hiệu giao thông không? | **Không** — tuyệt đối không dùng cho mục đích safety-critical. Sai số ở ngày lễ gấp 4,3 lần, mẫu chỉ 7 ngày lễ; chỉ có một trạm; dữ liệu là lịch sử 2012–2018. |
 | Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rỉ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
 | Hạn chế lớn nhất của nghiên cứu này? | Chỉ có một trạm đo, một hướng đi, dữ liệu lịch sử 2012–2018, và test 2018 chỉ 9 tháng. Kết luận **không** suy rộng được ra toàn thành phố. |
-| 325 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
+| 336 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
 | Nếu được làm lại, nhóm sẽ đổi gì? | (1) Thêm lag feature nhưng **backtest nghiêm** trên nhiều kỳ; (2) thử mô hình phi tuyến nhưng giữ nguyên time split; (3) mô hình riêng cho ngày lễ — dù có nguy cơ overfit vì chỉ 7 ngày lễ trong 2018; (4) dự báo xác suất (quantile) để có khoảng tin cậy cho lập kế hoạch. |
 | Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: **năm 2018 không tham gia hyperparameter tuning hoặc model selection; pipeline và serving policy được đóng băng từ dữ liệu 2012–2017; kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.** Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |

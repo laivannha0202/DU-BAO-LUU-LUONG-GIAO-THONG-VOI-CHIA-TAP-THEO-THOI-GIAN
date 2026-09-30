@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 325 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 336 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -62,8 +62,11 @@ Kết quả chính trên **FINAL TEST 2018** (6.533 giờ, hoàn toàn ngoài m�
 
 Ba kết luận quan trọng nhất:
 
-1. **Mô hình vượt baseline trên cùng một tập kiểm định.** Cả hai mô hình được đánh giá trên
-   *đúng một tập dữ liệu* 2018, đều fit trên *đúng một tập* 2012–2016 → phép so sánh công bằng.
+1. **Trên 2018, mô hình nhỉnh hơn baseline — với điều kiện đi kèm.** Cả hai mô hình được đánh giá
+   trên *đúng một tập dữ liệu* 2018, đều fit trên *đúng một tập* 2012–2016. Block bootstrap theo
+   ngày lịch cho thấy hiệu MAE **+13,16** với CI 95 % **[+3,80; +22,00]** (không chứa 0), Ridge
+   thắng ở **8/9 tháng**. **Nhưng** trên dữ liệu dev 2012–2017 Ridge chỉ thắng ở **1/4 cửa sổ** →
+   không được nói chung "mô hình luôn hơn baseline" (§9.3).
 2. **Sai số tập trung ở ngày lễ và thời tiết cực đoan.** MAE ngày lễ là 1.031,44 (n = 167) so với
    239,49 ở ngày thường; MAE khi có tuyết là 524,50 so với 235,96 khi không có. Đây là giới hạn
    thật, không phải lỗi mã nguồn.
@@ -429,7 +432,56 @@ ngay trên tập dùng để chọn tham số. Sự thật này được kiểm 
 Hai mô hình được đánh giá trên **cùng một tập dữ liệu**, được xây trên **cùng một tập huấn luyện**,
 và **không mô hình nào được chọn bằng cách nhìn năm 2018**.
 
-## 9.3 So với validation — dấu hiệu tích cực
+## 9.3 Bất định của phép so sánh — kết luận có điều kiện
+
+Nguồn: `reports/figures/uncertainty_audit.md` và `.json` (sinh bởi `src/uncertainty_audit.py`,
+chạy **sau** `src/evaluate.py`, chỉ đo — không quyết định gì).
+
+Block bootstrap **cặp theo khối ngày lịch** (4.000 lần, seed cố định). Vì sao theo ngày: các
+giờ trong cùng một ngày lịch không độc lập (cùng thời tiết, cùng ngày làm việc), nên lấy mẫu lại
+từng dòng sẽ cho khoảng tin cậy **hẹp hơn thực tế**. Quy ước hiệu: **baseline − Ridge**, dương =
+Ridge tốt hơn.
+
+| Chỉ số | Ước lượng | CI 95 % | % lần lấy mẫu Ridge thắng | CI có chứa 0? |
+| --- | --- | --- | --- | --- |
+| **Hiệu MAE** | **+13,16** | **[+3,80; +22,00]** | **99,58 %** | **không** |
+| **Hiệu RMSE** | **+56,36** | **[+31,07; +80,63]** | **100,00 %** | **không** |
+
+**Theo từng tháng của 2018:** Ridge thắng ở **8/9 tháng**; thua rõ nhất ở **tháng 8**
+(hiệu MAE **−18,77**).
+
+### Nhưng hiệu ứng này KHÔNG nhất quán qua các năm
+
+Cùng phép đo, áp dụng cho các cửa sổ chỉ dùng dữ liệu dev 2012–2017:
+
+| Cửa sổ | n | MAE baseline | MAE Ridge | Hiệu MAE | CI 95 % | % Ridge thắng |
+| --- | --- | --- | --- | --- | --- | --- |
+| pseudo-test 2016–2017 (train ≤ 2015) | 16.551 | 294,95 | 306,48 | **−11,53** | [−19,72; −3,79] | 0,18 % |
+| fold 1 — test 2015 | 3.593 | 282,86 | 325,98 | **−43,13** | [−60,91; −25,92] | 0,00 % |
+| fold 2 — test 2016 | 7.838 | 317,29 | 343,77 | **−26,48** | [−38,32; −14,72] | 0,00 % |
+| fold 3 — test 2017 | 8.713 | 278,66 | 272,12 | +6,54 | [−4,50; +16,50] | 88,75 % |
+
+**[QUYẾT ĐỊNH] Kết luận viết đúng theo số liệu, không nói quá:**
+
+> Trên **FINAL TEST 2018**, Ridge vượt baseline **13,16 MAE** (CI 95 % [+3,80; +22,00], **không chứa
+> 0**) và thắng ở **8/9 tháng**. Tuy nhiên trên dữ liệu dev 2012–2017, Ridge chỉ thắng ở **1/4
+> cửa sổ** (pseudo-test 2016–2017 và 3 fold rolling-origin), và ở 3 cửa sổ kia khoảng tin cậy
+> **nằm hẳn về phía baseline**. Chiều ưu thế **không nhất quán** giữa các cửa sổ.
+
+**Vì sao lại thế?** Các cửa sổ mà Ridge thua đều có **tập huấn luyện rất thưa** (2014 kết thúc
+08/08, 2015 bắt đầu 11/06) — Ridge cần dữ liệu đủ dày để học mức lưu lượng, trong khi baseline
+(trung bình theo `giờ × thứ`) không cần học mức nào. Trên FINAL TEST, tập huấn luyện 2012–2016 là
+bản đầy đủ nhất của dự án, nên đó là nơi Ridge có cơ hội thể hiện.
+
+### Điều kiện bắt buộc khi trích dẫn kết luận "Ridge vượt baseline"
+
+1. Chỉ nói về **FINAL TEST 2018 (01/01 – 30/09)**, không suy rộng ra năm khác.
+2. Là so sánh trên **cùng một tập đánh giá** và **cùng một tập huấn luyện 2012–2016**.
+3. Metric là **RAW MODEL**; `DEPLOYED PREDICTOR` (`max(0,·)`) được báo riêng ở §12.5.
+4. **Không** được dùng như một tuyên bố tổng quát rằng "mô hình luôn hơn baseline" — số liệu
+   2012–2017 nói ngược lại ở 3/4 cửa sổ.
+
+## 9.4 So với validation — dấu hiệu tích cực
 
 | Tập | MAE | RMSE | R² | n |
 | --- | --- | --- | --- | --- |
@@ -442,7 +494,7 @@ giảm** khi dữ liệu dài thêm một năm — dấu hiệu mô hình không
 Cần thận trọng khi diễn giải: có thể năm 2017 đơn giản hơn 2018, nên chưa thể kết luận "mô hình đang
 tiến bộ". Đây cũng là kết luận mà thí nghiệm rolling-origin (§11.4) nêu thẳng.
 
-## 9.4 Tính trung thực khi nói về FINAL TEST 2018
+## 9.5 Tính trung thực khi nói về FINAL TEST 2018
 
 Phát biểu chính xác (dùng nguyên văn trong bảo vệ):
 
@@ -995,7 +1047,8 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
 | `test_report.py` | 89 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, chính tả "rò rỉ", không lộ đường dẫn cá nhân |
-| **Tổng** | **325** | |
+| `test_uncertainty_audit.py` | 11 | Bootstrap cặp theo khối ngày lịch tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018 |
+| **Tổng** | **336** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
 chạy `pytest --collect-only` trên chính bộ test rồi bắt README, báo cáo, slide, kịch bản demo
@@ -1079,6 +1132,12 @@ Không đưa MAE trên tập train vào bảng này: train là **in-sample**, ha
 **Bốn dòng trên là số của RAW MODEL** — Ridge trả về trực tiếp. Đó là metric của *mô hình*
 và là kết luận chính thức.
 
+**[HẠN CHẾ] Đọc 4 dòng này như thế nào cho đúng.** Ở FINAL TEST 2018, Ridge nhỉnh hơn baseline
+13,16 MAE và khoảng tin cậy 95 % không chứa 0 (§9.3). Nhưng trên dữ liệu 2012–2017 (pseudo-test
+2016–2017 và 3 fold rolling-origin), Ridge chỉ thắng ở **1/4 cửa sổ**. Vì vậy Model Card này
+**không** tuyên bố "mô hình tốt hơn baseline nói chung" — chỉ tuyên bố về cửa sổ 2018 và về một
+tập huấn luyện có dữ liệu đầy đủ.
+
 Tầng phục vụ áp dụng thêm **DEPLOYED PREDICTOR** = `max(0, ·)` ∘ Ridge (chính sách đã đóng băng,
 xem §12.5). Số của nó được báo ở §12.5.7 và **không được gọi chung tên** với số ở bảng này:
 
@@ -1120,10 +1179,15 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 8. **Mô hình tuyến tính** — không nắm hiệu ứng phi tuyến phức tạp, và có thể lệch đáng kể ở tình
    huống chưa từng xuất hiện trong dữ liệu huấn luyện.
 9. Ở **giờ đêm** (00:00–04:00, 22:00–23:00) baseline lại tốt hơn Ridge (ví dụ 03:00: baseline
-   31,14 so với Ridge 142,14) → Ridge không phải lựa chọn tối ưu cho mọi khung giờ.
+   31,14 so với Ridge 142,14) → Ridge không phải lựa chọn tối ưu cho mọi khung giờ. Chi tiết ở
+   §10.7.
 10. **Dự báo thô âm** ở 34/6.533 dòng của FINAL TEST (đều giờ 0–4 ban đêm, 32/34 là ngày lễ, thấp
     nhất −911,35). API chặn về 0 theo policy `max(0, ·)` và báo cờ `clipped_to_zero`; số liệu ở
     §14.5 tính trên dự báo **thô** (MAE 259,73), sau khi chặn là 257,54.
+11. **Hiệu ưu thế so với baseline không nhất quán theo thời gian.** Trên 2018 Ridge thắng
+    13,16 MAE (CI 95 % [+3,80; +22,00]); trên 3/4 cửa sổ dev 2012–2017 Ridge **thua** baseline
+    với khoảng tin cậy nằm hẳn về phía baseline (§9.3). Mô hình chỉ đáng tin hơn khi tập
+    huấn luyện đủ dày.
 
 ## 14.9 Cách dùng ở thời điểm phục vụ
 
@@ -1152,7 +1216,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 325 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
+| Đo lường được bằng máy | 336 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1170,11 +1234,13 @@ Tóm tắt các điểm cần nói rõ khi bảo vệ:
 6. **Lịch State Fair:** giới hạn 2012–2020, ngoài đó hệ thống báo rõ chứ không đoán.
 7. **An toàn:** không dùng cho mục đích safety-critical.
 8. **Mô hình tuyến tính:** không nắm hiệu ứng phi tuyến phức tạp.
-9. **Theo khung giờ:** Ridge không tốt ở giờ đêm — baseline thắng ở 7/24 giờ.
+9. **Theo khung giờ:** Ridge không tốt ở giờ đêm — baseline thắng ở 7/24 giờ (§10.7).
 10. **Dự báo âm:** 34/6.533 dòng của FINAL TEST có dự báo thô âm (đều giờ 0–4 ban đêm, 32/34 là
     ngày lễ). API chặn về 0, nhưng đó là policy tạm thời chứ không phải sửa gốc vấn đề.
 11. **Phụ thuộc mô hình tuyến tính ở giá trị biên:** ngoài phạm vi dữ liệu huấn luyện, dự báo có
     thể lệch mạnh dù API vẫn cảnh báo.
+12. **Hiệu ưu thế không nhất quán:** trên 2018 Ridge hơn baseline 13,16 MAE, nhưng ở 3/4 cửa sổ
+    dev 2012–2017 thì ngược lại (§9.3).
 
 ---
 
@@ -1188,7 +1254,8 @@ Nhóm đã hoàn thành đề tài với kết quả:
    tiền xử lý tất định, bộ tiền xử lý fit trên TRAIN duy nhất, time split có assert chặn, và
    FINAL TEST được bảo vệ bằng mã nguồn chứ không chỉ bằng lời hứa.
 2. **Về kết quả:** Ridge (alpha = 0,001) đạt **MAE 259,73 / RMSE 416,78 / R² 0,9554** trên FINAL
-   TEST 2018, **vượt baseline 13,17 MAE (4,8 %)** trên cùng một tập dữ liệu.
+   TEST 2018, **nhỉnh hơn baseline 13,16 MAE (4,8 %)** trên cùng một tập dữ liệu — kèm điều kiện
+   ở §9.3: hiệu ưu thế này **không nhất quán** qua các cửa sổ 2012–2017.
 3. **Về hiểu biết:** khoảng cách thời gian giữa tập huấn luyện và tập dự báo **làm thay đổi đáng
    kể** con số đánh giá (Thí nghiệm 1b/1c: chênh 4,15 MAE chỉ từ việc dữ liệu 2017 nằm ở cùng
    tháng hay tháng khác với dòng cần dự báo). Nhóm **không** khẳng định cơ chế là "mô hình nhìn
@@ -1196,7 +1263,7 @@ Nhóm đã hoàn thành đề tài với kết quả:
    mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
    của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 325 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 336 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1241,7 +1308,7 @@ reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
             viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      325 test
+tests/      336 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1290,7 +1357,7 @@ nằm trong `models/environment.json`. Seed cố định: `42`.
 | `models/environment.json` | Phiên bản Python & thư viện + seed, đọc được bằng máy |
 | `requirements-export.txt` | Công cụ xuất DOCX/PDF/PPTX |
 | `docs/demo-script.md` | Kịch bản demo 5–7 phút |
-| `docs/viva-questions.md` | 32 câu hỏi + đáp án |
+| `docs/viva-questions.md` | 33 câu hỏi + đáp án |
 
 ## 17.4 Nhật ký phát triển
 
@@ -1304,7 +1371,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 325 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 6 | FastAPI + 3 màn hình + 336 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 
@@ -1336,7 +1403,7 @@ Các tài liệu đi kèm (giữ nguyên dạng Markdown vì nhóm còn phải �
 | `docs/project-log.md` | nhật ký dự án theo tuần — **cần người dùng điền** tên + giờ thật |
 | `docs/slides-outline.md` | dàn ý 11 slide + phụ lục trình chiếu |
 | `docs/demo-script.md` | kịch bản demo 6 phút 40 giây, 11 bước |
-| `docs/viva-questions.md` | 32 câu hỏi + đáp án, và 9 câu bổ sung |
+| `docs/viva-questions.md` | 33 câu hỏi + đáp án, và 9 câu bổ sung |
 
 ## 17.6 Nhóm & phân công
 
