@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 356 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 366 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -71,13 +71,12 @@ Ba kết luận quan trọng nhất:
    239,49 ở ngày thường; MAE khi có tuyết là 524,50 so với 235,96 khi không có. Đây là giới hạn
    thật, không phải lỗi mã nguồn.
 3. **Khoảng cách thời gian làm thay đổi con số đánh giá, nhưng cơ chế không phải "nhìn thấy hàng
-   xóm".** Thí nghiệm 1b/1c (4 arm, chung một tập test, 5 seed cố định) cho thấy: đưa dữ liệu
-   2017 vào tập huấn luyện làm MAE giảm **6,55 ± 0,37** điểm, và phần giảm đó **không** do
-   nhiều dòng hơn (ép cùng kích thước vẫn còn 6,76 ± 0,39) mà gắn với việc dữ liệu 2017 nằm ở
-   **cùng tháng** với dòng cần dự báo (chênh 4,15 điểm so với khi chỉ lấy các tháng khác). Mô
-   hình **không có đặc trưng lag** nên không thể *nhớ* giá trị dòng lân cận — đây là mô tả hiệu
-   ứng, **không phải** bằng chứng nhân quả. Đây là lý do mọi kết luận trong báo cáo này đều dựa
-   trên time split.
+   xóm".** Thí nghiệm 1b/1c (4 arm, chung một tập test, 5 seed cố định): đưa dữ liệu 2017 vào tập
+   huấn luyện làm MAE giảm **6,55 ± 0,37** điểm, và phần giảm đó **không** do nhiều dòng hơn (ép
+   cùng kích thước vẫn còn 6,76 ± 0,39) mà gắn với việc dữ liệu 2017 nằm ở **cùng tháng** với dòng
+   cần dự báo (chênh 4,15 điểm so với khi chỉ lấy các tháng khác). Mô hình **không có đặc trưng
+   lag** nên không thể *nhớ* giá trị dòng lân cận — đây là mô tả hiệu ứng, **không phải** bằng chứng
+   nhân quả, và là lý do mọi kết luận trong báo cáo này đều dựa trên time split.
 
 Ứng dụng web chạy tại `http://localhost:8000` với 3 màn hình và 4 endpoint; ứng dụng **chỉ nạp
 artifact đã đóng băng**, không huấn luyện lại, không tinh chỉnh tham số, không fit lại bộ tiền xử lý.
@@ -149,23 +148,22 @@ tạo ra quan sát giả; việc thiếu dữ liệu được phản ánh trong 
 
 ### (a) Trùng `date_time` — bẫy lớn nhất
 
-Dataset gốc có 5.445 timestamp xuất hiện 2–6 lần. Mỗi giờ có thể có **nhiều mô tả thời tiết
+Dataset gốc có 5.445 timestamp xuất hiện 2–6 lần, mỗi giờ có thể mang **nhiều mô tả thời tiết
 khác nhau** (ví dụ một bản ghi "mưa nhẹ" và một bản ghi "mưa vừa").
 
-**[QUYẾT ĐỊNH]** Không dùng `drop_duplicates(keep="first")`. Vì:
-- `keep="first"` phụ thuộc **thứ tự dòng trong file** → không tất định, khó tái lập;
-- nó **vứt bỏ thông tin thời tiết** của các dòng bị loại.
-
-Cách nhóm xử lý (tất định, không học thống kê từ dữ liệu):
+**[QUYẾT ĐỊNH]** Không dùng `drop_duplicates(keep="first")`: nó phụ thuộc **thứ tự dòng trong
+file** (không tất định, khó tái lập) và **vứt bỏ thông tin thời tiết** của các dòng bị loại. Cách
+nhóm xử lý (tất định, không học thống kê từ dữ liệu):
 - phép đo (`traffic_volume`, `temp`, `rain_1h`, `snow_1h`, `clouds_all`): lấy **trung vị**;
 - `weather_main`: **multi-hot** — giữ mọi hiện tượng xuất hiện; nhãn đại diện là giá trị xuất hiện
   nhiều nhất, hoà thì lấy theo thứ tự alphabet;
-- `weather_description`: nén 38 chuỗi thô về 11 nhóm gia đình bằng quy tắc keyword, lấy nhóm nghiêm trọng nhất.
+- `weather_description`: nén 38 chuỗi thô về 11 nhóm gia đình bằng quy tắc keyword, lấy nhóm
+  nghiêm trọng nhất.
 
 **Bằng chứng an toàn:** `traffic_volume` và `holiday` **bất biến 100 %** trong mọi nhóm trùng
-(n = 5.445). Nghĩa là collapse không làm thay đổi mục tiêu ở bất kỳ dòng nào. `weather_main` và
-`weather_description` biến thiên ở lần lượt 5.349 và 5.386 nhóm — đúng lý do phải multi-hot
-thay vì lấy một dòng.
+(n = 5.445) — collapse không làm thay đổi mục tiêu ở bất kỳ dòng nào. `weather_main` và
+`weather_description` biến thiên ở lần lượt 5.349 và 5.386 nhóm — đúng lý do phải multi-hot thay
+vì lấy một dòng.
 
 ### (b) Giá trị vô lý
 
@@ -190,16 +188,15 @@ Cột `holiday` chứa chuỗi `"None"` (không phải ngày lễ), không phả
 
 *Hình 1 — Phân bố `traffic_volume` trên TRAIN. Nguồn: `src/eda.py`.*
 
-Ngoài ra, cột `holiday` gốc **chỉ ghi tên ở giờ 00:00** của ngày lễ. Nếu suy ra cờ ngày lễ bằng cách
-quét các dòng khác trong cùng ngày thì:
-1. ở thời điểm dự báo ta chỉ có *một* dòng → không làm được (đó chính là train-serving skew);
-2. để biết ngày X có lễ hay không, ta đã phải "nhìn" dữ liệu của chính ngày X → **rò rỉ**.
+Ngoài ra, cột `holiday` gốc **chỉ ghi tên ở giờ 00:00** của ngày lễ. Suy ra cờ ngày lễ bằng cách
+quét các dòng khác trong cùng ngày thì vừa **không làm được** lúc dự báo (ta chỉ có *một* dòng —
+đó chính là train-serving skew), vừa **rò rỉ** (để biết ngày X có lễ hay không, ta đã phải "nhìn" dữ
+liệu của chính ngày X).
 
-**[QUYẾT ĐỊNH]** Xây dựng **lịch ngày lễ tất định** trong `src/holidays.py`, tính thuần từ ngày tháng:
-10 ngày lễ liên bang theo quy tắc lịch + bảng ngày khai mạc Minnesota State Fair do bang công bố.
-
-**Đối chiếu với dataset:** lịch khớp **53/53** ngày lễ mà dataset ghi nhận, bỏ sót **0** ngày,
-không sai tên. Đây là bằng chứng lịch tất định là đúng, không phải giả định.
+**[QUYẾT ĐỊNH]** Xây dựng **lịch ngày lễ tất định** trong `src/holidays.py`, tính thuần từ ngày
+tháng: 10 ngày lễ liên bang theo quy tắc lịch + bảng ngày khai mạc Minnesota State Fair do bang
+công bố. **Đối chiếu với dataset:** lịch khớp **53/53** ngày lễ mà dataset ghi nhận, bỏ sót **0**
+ngày, không sai tên — bằng chứng lịch tất định là đúng, không phải giả định.
 
 > Lịch ngày lễ là **thông tin công cộng biết trước**: ai cũng biết 4/7 là ngày lễ trước khi nó tới.
 > Vì vậy dùng nó làm feature là hợp lệ, **không phải rò rỉ**.
@@ -254,13 +251,11 @@ nhiên hoá sẽ đưa các giờ của năm 2018 vào tập huấn luyện, khi
 chính dòng cần dự báo — đây chính là dạng rò rỉ mà đề tài muốn chỉ ra. Mục 11.1 đo lại mức độ
 lạc quan do random split, có tách riêng kích thước tập huấn luyện và khoảng cách thời gian.
 
-**[HẠN CHẾ]** FINAL TEST chỉ kéo dài tới **30/09/2018** — không có dữ liệu tháng 10–12/2018. Ba
-tháng cuối năm lại là những tháng khó nhất: trên VALIDATION 2017, MAE tháng 11 là 344,52 và
-tháng 12 là 395,14, so với 272,12 cho cả năm. Định lượng hệ quả bằng chính validation: chấm
-cùng mô hình trên Jan–Sep 2017 cho MAE 250,96, tức **thấp hơn cả năm 21,16** — nghĩa là số
-259,73 của FINAL TEST được đo trên **phần dễ hơn** của năm. Phép so sánh với baseline vẫn
-công bằng (cùng thiếu quý IV), nhưng mọi kết luận về 2018 chỉ áp dụng cho 9 tháng đầu năm.
-Chi tiết ở §10.9.
+**[HẠN CHẾ]** FINAL TEST chỉ kéo dài tới **30/09/2018** — không có dữ liệu tháng 10–12/2018, và ba
+tháng cuối năm lại là những tháng khó nhất. Định lượng hệ quả bằng chính validation: chấm cùng mô
+hình trên Jan–Sep 2017 cho MAE 250,96, tức **thấp hơn cả năm 21,16** — nghĩa là số 259,73 của FINAL
+TEST được đo trên **phần dễ hơn** của năm. Phép so sánh với baseline vẫn công bằng (cùng thiếu quý
+IV). Chi tiết ở §10.9.
 
 ---
 
@@ -400,9 +395,10 @@ Ghi chú thiết kế:
 
 **Kết quả:** `alpha = 0,001`.
 
-Diễn giải: Ở vùng alpha nhỏ (0,001–0,3) hiệu năng gần như nhau — dữ liệu không bị quá nhiễu nên
-hiệu chuẩn không cần mạnh. Từ alpha ≥ 10 mô hình bị co quá nặng và MAE tăng vọt. Chọn biên nhỏ
-nhất là lựa chọn ít giả định nhất, và nó cũng cho MAE tốt nhất trên validation.
+Diễn giải: Ở vùng alpha nhỏ hiệu năng gần như nhau — dữ liệu không bị quá nhiễu nên hiệu chuẩn
+không cần mạnh. Từ alpha ≥ 10 mô hình bị co quá nặng và MAE tăng vọt (alpha = 30 → 429,00;
+alpha = 1.000 → 1.461,15). Chọn biên nhỏ nhất là lựa chọn ít giả định nhất, và nó cũng cho MAE
+tốt nhất trên validation.
 
 **MAE trên VALIDATION của Ridge: 272,12** so với **baseline 278,66**.
 
@@ -415,25 +411,12 @@ VALIDATION 2017**.*
 xem đó là lựa chọn hợp lý hay chỉ vì lưới bị hẹp. Vì vậy nhóm chạy lại với **lưới mở rộng**,
 thêm cả `alpha = 0` (tức **OLS** — hồi quy tuyến tính không hiệu chuẩn):
 
-| alpha | MAE (val) | RMSE (val) | R² | Chênh so với alpha đóng băng |
-| --- | --- | --- | --- | --- |
-| **0 (OLS)** | **272,05** | 421,36 | 0,9548 | **−0,07** |
-| 0,000001 | 272,12 | 421,45 | 0,9548 | +0,00 |
-| 0,00001 | 272,12 | 421,45 | 0,9548 | +0,00 |
-| 0,0001 | 272,12 | 421,45 | 0,9548 | +0,00 |
-| **0,001 (đóng băng)** | **272,12** | 421,46 | 0,9548 | +0,00 |
-| 0,003 | 272,13 | 421,46 | 0,9548 | +0,01 |
-| 0,01 | 272,14 | 421,46 | 0,9548 | +0,02 |
-| 0,03 | 272,19 | 421,47 | 0,9548 | +0,07 |
-| 0,1 | 272,35 | 421,50 | 0,9548 | +0,23 |
-| 0,3 | 272,81 | 421,59 | 0,9548 | +0,69 |
-| 1,0 | 274,58 | 422,04 | 0,9547 | +2,46 |
-| 3,0 | 280,77 | 424,37 | 0,9542 | +8,65 |
-| 10,0 | 312,13 | 442,39 | 0,9502 | +40,01 |
-| 30,0 | 429,00 | 539,15 | 0,9260 | +156,88 |
-| 100,0 | 751,03 | 882,70 | 0,8017 | +478,91 |
-| 300,0 | 1.146,97 | 1.332,33 | 0,5483 | +874,85 |
-| 1.000,0 | 1.461,15 | 1.688,71 | 0,2744 | +1.189,03 |
+| alpha | 0 (OLS) | 0,000001 | 0,0001 | **0,001 (đóng băng)** | 0,01 | 0,1 | 1,0 | 10,0 | 30,0 | 1.000,0 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| MAE (val) | 272,05 | 272,12 | 272,12 | **272,12** | 272,14 | 272,35 | 274,58 | 312,13 | 429,00 | 1.461,15 |
+| Chênh so với đóng băng | **−0,07** | +0,00 | +0,00 | +0,00 | +0,02 | +0,23 | +2,46 | +40,01 | +156,88 | +1.189,03 |
+
+*(Bảng đầy đủ 17 giá trị nằm trong `alpha_sensitivity.json`.)*
 
 **[QUYẾT ĐỊNH] Kết luận — và đây là một phát hiện trung thực, không phải điều đẹp:**
 
@@ -483,8 +466,8 @@ holdout mới**.
 | Tập đánh giá | 2018-01-01 → 2018-09-30 (6.533 dòng) | **cùng** |
 | Có dùng năm 2018 để lựa chọn không? | Không | Không |
 
-Hai mô hình được đánh giá trên **cùng một tập dữ liệu**, được xây trên **cùng một tập huấn luyện**,
-và **không mô hình nào được chọn bằng cách nhìn năm 2018**.
+Hai mô hình được đánh giá trên **cùng một tập dữ liệu**, xây trên **cùng một tập huấn luyện**, và
+**không mô hình nào được chọn bằng cách nhìn năm 2018**.
 
 ## 9.3 Bất định của phép so sánh — kết luận có điều kiện
 
@@ -529,11 +512,10 @@ bản đầy đủ nhất của dự án, nên đó là nơi Ridge có cơ hội
 
 ### Điều kiện bắt buộc khi trích dẫn kết luận "Ridge vượt baseline"
 
-1. Chỉ nói về **FINAL TEST 2018 (01/01 – 30/09)**, không suy rộng ra năm khác.
-2. Là so sánh trên **cùng một tập đánh giá** và **cùng một tập huấn luyện 2012–2016**.
-3. Metric là **RAW MODEL**; `DEPLOYED PREDICTOR` (`max(0,·)`) được báo riêng ở §12.5.
-4. **Không** được dùng như một tuyên bố tổng quát rằng "mô hình luôn hơn baseline" — số liệu
-   2012–2017 nói ngược lại ở 3/4 cửa sổ.
+Chỉ nói về **FINAL TEST 2018 (01/01 – 30/09)**, không suy rộng ra năm khác; phải là so sánh trên
+**cùng một tập đánh giá** và **cùng một tập huấn luyện 2012–2016**; metric là **RAW MODEL**
+(`DEPLOYED PREDICTOR` được báo riêng ở §12.5); và **không** được dùng như tuyên bố tổng quát rằng
+"mô hình luôn hơn baseline" — số liệu 2012–2017 nói ngược lại ở 3/4 cửa sổ.
 
 ## 9.4 So với validation — dấu hiệu tích cực
 
@@ -563,9 +545,9 @@ Cụ thể hóa từng vế:
 - **Pipeline được đóng băng trước khi 2018 được mở ra.** Thứ tự chạy bắt buộc là
   `train` → `experiments` → `freeze_serving_policy` → `evaluate` → `postprocess_audit` (§17.2).
 - **Serving policy cũng được đóng băng từ 2012–2017.** `src/freeze_serving_policy.py` chỉ đọc
-  TRAIN + VALIDATION; `src/postprocess_audit.py` chỉ **đo** hậu quả trên 2018 và **từ chối chạy**
-  nếu policy chưa được đóng băng. Như vậy policy `max(0,·)` không phải test-informed
-  postprocessing (§12.5).
+  TRAIN + VALIDATION; `src/postprocess_audit.py` và `src/uncertainty_audit.py` chỉ **đo** hậu quả
+  trên 2018 và **từ chối chạy** nếu policy chưa đóng băng. Vì vậy policy `max(0,·)` không phải
+  test-informed postprocessing (§12.5).
 - **Kết quả 2018 không quay ngược lại điều chỉnh mô hình.** Sau khi đọc số 2018, nhóm không sửa
   feature, không sửa `alpha`, không đổi mô hình, và không sửa lại gói đánh giá để khớp API
   (§12.5.8).
@@ -598,10 +580,10 @@ phát triển.
 **Đọc kết quả:**
 - MAE lớn nhất rơi vào **16:00 (408,80)** và **08:00 (376,07)** — cũng là hai lúc lưu lượng lớn
   nhất. Sai số **tương đối** ở đây nhỏ (≈ 7 %) nhưng **tuyệt đối** lớn.
-- Ở giờ đêm, **baseline lại tốt hơn Ridge** ở 7/24 giờ (00:00, 01:00, 02:00, 03:00, 04:00, 22:00,
-  23:00). Ví dụ rõ nhất là 03:00: baseline 31,14 so với Ridge 142,14. Đây là phát hiện trung thực:
-  ở vùng lưu lượng thấp và ít biến động, bảng trung bình theo `giờ × thứ` đã gần như tối ưu, còn
-  Ridge bị kéo bởi biến thời tiết.
+- Ở giờ đêm, **baseline lại tốt hơn Ridge** ở 7/24 giờ (00:00–04:00, 22:00–23:00); rõ nhất là
+  03:00: baseline 31,14 so với Ridge 142,14. Đây là phát hiện trung thực: ở vùng lưu lượng thấp và
+  ít biến động, bảng trung bình theo `giờ × thứ` đã gần như tối ưu, còn Ridge bị kéo bởi biến thời
+  tiết. Kiểm chứng trên dev + hướng phát triển: **§10.7**.
 - Ridge vượt baseline ở **17/24 giờ**, và vượt rõ ở vùng cao điểm — nơi giá trị thực tế tập trung.
 
 ![MAE theo giờ và ngày trong tuần trên FINAL TEST 2018](reports/figures/final_mae_by_hour_dow.png)
@@ -643,32 +625,29 @@ từng ngày lễ cho thấy các ngày lễ khác nhau gần gấp 3 lần (518
 
 ## 10.4 Thời tiết
 
-| Thời tiết | n mẫu | MAE Ridge | MAE baseline | Bias | Ghi chú |
-| --- | --- | --- | --- | --- | --- |
-| Clear | 2.328 | 245,15 | 256,64 | −23,27 | Mẫu đủ |
-| Clouds | 1.996 | 243,39 | 254,11 | −57,30 | Mẫu đủ |
-| Drizzle | 278 | 207,16 | 211,26 | +31,50 | Mẫu đủ |
-| Rain | 992 | 246,88 | 254,91 | +14,83 | Mẫu đủ |
-| Thunderstorm | 268 | 266,76 | 269,18 | +79,74 | Mẫu đủ |
-| Mist | 1.099 | 295,41 | 319,87 | +79,46 | Mẫu đủ |
-| Haze | 272 | 313,56 | 332,90 | +3,60 | Mẫu đủ |
-| **Fog** | 192 | **536,05** | 640,17 | **+315,75** | Mẫu đủ — bias dương lớn nhất |
-| **Snow** | 521 | **524,50** | 585,36 | **+238,88** | Mẫu đủ |
-| Smoke | 2 | 137,93 | 88,11 | +137,93 | **Mẫu nhỏ — thận trọng** |
-| Squall | **0** | — | — | — | **Không có mẫu — không đánh giá được** |
+| Thời tiết | n mẫu | MAE Ridge | MAE baseline | Bias |
+| --- | --- | --- | --- | --- |
+| Clear · Clouds | 2.328 · 1.996 | 245,15 · 243,39 | 256,64 · 254,11 | −23,27 · −57,30 |
+| Rain · Drizzle · Thunderstorm | 992 · 278 · 268 | 246,88 · 207,16 · 266,76 | 254,91 · 211,26 · 269,18 | +14,83 · +31,50 · +79,74 |
+| Mist · Haze | 1.099 · 272 | 295,41 · 313,56 | 319,87 · 332,90 | +79,46 · +3,60 |
+| **Fog** | 192 | **536,05** | 640,17 | **+315,75** |
+| **Snow** | 521 | **524,50** | 585,36 | **+238,88** |
+| Smoke | 2 | 137,93 | 88,11 | +137,93 |
+| Squall | **0** | — | — | — |
+
+*Các phân khúc còn lại đều có mẫu đủ, trừ `Smoke` (2 mẫu — thận trọng) và `Squall` (0 mẫu — không
+đánh giá được).*
+
+*(Bảng đầy đủ 11 danh mục nằm ở `evaluation_report.md` và trên màn Dashboard.)*
 
 Các phân khúc dùng **multi-hot** nên chúng có thể trùng nhau (một giờ vừa mưa vừa tuyết được tính
 vào cả hai), tổng `n` có thể vượt 6.533.
 
-**Ba phát hiện đáng chú ý:**
-
-- **Sương mù (Fog) là phân khúc tệ nhất về bias**: +315,75 xe/giờ, tức mô hình dự báo cao hơn thực
-  tế hơn 315 xe/giờ trong những giờ có sương mù. Có thể vì khi sương mù, tầm nhìn giảm nhưng cách
-  lưu lượng thay đổi không được mô tả bởi 5 biến thời tiết mà mô hình đang có.
-- **Phân khúc Squall có `n = 0`** → báo cáo ghi rõ **"không có mẫu trong FINAL TEST — không đánh giá
-  được"** thay vì báo số 0. Đây là nguyên tắc: *không có dữ liệu ≠ dự báo bằng 0*.
-- **Phân khúc Smoke chỉ có 2 mẫu**, và ở đó baseline còn tốt hơn → artifact gắn nhãn *"mẫu nhỏ — thận
-  trọng"*. Số 137,93 không mang thông tin.
+**Hai phát hiện đáng chú ý:** **Sương mù (Fog)** tệ nhất về bias (+315,75 xe/giờ) — có thể vì khi
+sương mù, cách lưu lượng thay đổi không được mô tả bởi 5 biến thời tiết mà mô hình đang có. Và
+nguyên tắc **không có dữ liệu ≠ dự báo bằng 0**: `Squall` có `n = 0` nên báo *"không có mẫu trong
+FINAL TEST — không đánh giá được"*, còn `Smoke` chỉ có 2 mẫu (baseline còn tốt hơn) nên artifact gắn
+nhãn *"mẫu nhỏ — thận trọng"* và số 137,93 không mang thông tin.
 
 ![MAE theo nhóm thời tiết trên FINAL TEST 2018](reports/figures/final_mae_by_weather.png)
 
@@ -700,13 +679,9 @@ khuya:
 
 | Giờ | n | Lưu lượng thực TB | MAE Ridge | MAE baseline | MAE tương đối R / B |
 | --- | --- | --- | --- | --- | --- |
-| 00:00 | 273 | 830,62 | 176,39 | 110,72 | 0,2124 / 0,1333 |
-| 01:00 | 273 | 505,97 | 160,99 | 69,01 | 0,3182 / 0,1364 |
-| 02:00 | 264 | 380,31 | 157,06 | 52,95 | 0,4130 / 0,1392 |
-| **03:00** | 270 | 371,57 | **142,14** | **31,14** | 0,3825 / 0,0838 |
-| 04:00 | 272 | 735,43 | 120,63 | 77,22 | 0,1640 / 0,1050 |
-| 22:00 | 273 | 2.233,71 | 348,61 | 323,83 | 0,1561 / 0,1450 |
-| 23:00 | 273 | 1.512,34 | 308,77 | 256,17 | 0,2042 / 0,1694 |
+| 00:00 · 01:00 | 273 · 273 | 830,62 · 505,97 | 176,39 · 160,99 | 110,72 · 69,01 | 0,2124 · 0,3182 / 0,1333 · 0,1364 |
+| **02:00 · 03:00** | 264 · 270 | 380,31 · 371,57 | **157,06 · 142,14** | **52,95 · 31,14** | 0,4130 · 0,3825 / 0,1392 · 0,0838 |
+| 04:00 · 22:00 · 23:00 | 272 · 273 · 273 | 735,43 · 2.233,71 · 1.512,34 | 120,63 · 348,61 · 308,77 | 77,22 · 323,83 · 256,17 | 0,1640 · 0,1561 · 0,2042 / 0,1050 · 0,1450 · 0,1694 |
 
 **MAE tương đối** (MAE chia cho lưu lượng thực trung bình của chính giờ đó) cho thấy đây
 **không chỉ** là hiệu ứng quy mô: ở giờ 00–04, sai số tương đối của Ridge là **0,2674** so với
@@ -715,8 +690,8 @@ baseline 0,0807).
 
 ### Bằng chứng: hiện tượng này CÓ THẬT, không chỉ riêng năm 2018
 
-Đây là bước kiểm chứng quan trọng: một mẫu duy nhất (2018) không đủ để nói đó là đặc tính của
-mô hình. Vì vậy nhóm đo lại **cùng một phép so sánh** trên các cửa sổ dev out-of-sample:
+Đây là bước kiểm chứng quan trọng: một mẫu duy nhất (2018) không đủ để nói đó là đặc tính của mô
+hình. Vì vậy nhóm đo lại **cùng một phép so sánh** trên các cửa sổ dev out-of-sample:
 
 | Cửa sổ dev | n | Ridge kém ở mấy giờ | Trong đó giờ đêm | MAE đêm R / B | MAE tương đối đêm R / B | MAE tương đối ban ngày R / B |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -730,43 +705,39 @@ baseline ở những giờ có lưu lượng lớn và biến động mạnh.
 
 ### Giả thuyết
 
-> **Mô hình cộng tuyến tính** nên hiệu ứng của tháng và thời tiết được cộng thêm với một
-> lượng **tuyệt đối** gần như không đổi ở mọi giờ. Nhưng thực tế, một cơn mưa làm giảm lưu
-> lượng **tương đối** (ví dụ 20 %), và 20 % của 3.500 xe/giờ là 700 xe, còn 20 % của 400 xe/giờ
-> chỉ là 80 xe. Vì thế ở giờ đêm — nơi lưu lượng thấp — cùng một hệ số tuyệt đối lại **quá
-> lớn**, kéo dự báo lệch nhiều hơn. Baseline thì không có hiệu ứng thời tiết nào để bị kéo
-> theo, nên ở vùng lưu lượng thấp và ít biến động, bảng trung bình gần như đã tối ưu.
+> Mô hình **cộng tuyến tính** nên hiệu ứng tháng và thời tiết được cộng thêm một lượng **tuyệt
+> đối** gần như không đổi ở mọi giờ. Thực tế một cơn mưa giảm lưu lượng **tương đối** (ví dụ
+> 20 %): 20 % của 3.500 xe/giờ là 700 xe, còn 20 % của 400 xe/giờ chỉ là 80 xe. Ở giờ đêm — nơi
+> lưu lượng thấp — cùng hệ số tuyệt đối ấy lại **quá lớn**, kéo dự báo lệch nhiều hơn. Baseline
+> không có hiệu ứng thời tiết nào để bị kéo theo, nên ở vùng lưu lượng thấp và ít biến động,
+> bảng trung bình gần như đã tối ưu.
 
 ⚠️ **Đây vẫn là giả thuyết.** Nhóm đã thử kiểm chứng nó bằng log-target.
 
 ### Kiểm chứng giả thuyết: log-target (khám phá hậu nghiệm, KHÔNG thay mô hình chính)
 
-Nếu hiệu ứng thật sự là *tương đối*, thì biến đổi `log1p(traffic_volume)` làm cho nó trở thành
-tương đối, và MAE giờ đêm phải giảm mạnh. Nhóm thử trên **chỉ dữ liệu dev**:
+Nếu hiệu ứng thật sự là *tương đối*, biến đổi `log1p(traffic_volume)` làm nó thành tương đối, và
+MAE giờ đêm phải giảm mạnh. Nhóm thử trên **chỉ dữ liệu dev**:
 
-| Cửa sổ dev | Biến đích | MAE | RMSE | R² | **MAE giờ đêm** |
-| --- | --- | --- | --- | --- | --- |
-| VALIDATION 2017 | tuyến tính (mô hình chính) | **272,12** | 421,46 | 0,9548 | 160,81 |
-| VALIDATION 2017 | log1p | 295,00 | 445,73 | 0,9494 | **85,84** |
-| pseudo-test 2016–2017 | tuyến tính (mô hình chính) | **306,48** | 472,61 | 0,9422 | 176,97 |
-| pseudo-test 2016–2017 | log1p | 320,09 | 486,48 | 0,9388 | **93,52** |
+| Cửa sổ dev · biến đích | MAE | **MAE giờ đêm** |
+| --- | --- | --- |
+| VALIDATION 2017 · tuyến tính (mô hình chính) | **272,12** | 160,81 |
+| VALIDATION 2017 · log1p | 295,00 | **85,84** |
+| pseudo-test 2016–2017 · tuyến tính (mô hình chính) | **306,48** | 176,97 |
+| pseudo-test 2016–2017 · log1p | 320,09 | **93,52** |
 
-**Đọc kết quả — giả thuyết chỉ được ủng hộ một nửa:**
+*(RMSE và R² đi cùng chiều MAE — xem mục 5 của `experiments_report.md`.)*
 
-- ✅ **Ủng hộ:** MAE giờ đêm **giảm gần một nửa** (160,81 → 85,84 và 176,97 → 93,52). Điều
-  này đúng như giả thuyết dự đoán.
-- ❌ **Không giải quyết được toàn bộ:** MAE **tổng thể lại xấu hơn** (272,12 → 295,00 và
-  306,48 → 320,09), vì `log1p` nén thang lưu lượng cao và làm mô hình sai ở vùng cao điểm —
-  nơi chiếm phần lớn sai số tuyệt đối.
+**Đọc kết quả — giả thuyết chỉ được ủng hộ một nửa:** MAE giờ đêm **giảm gần một nửa** (160,81 →
+85,84 và 176,97 → 93,52) — đúng như giả thuyết dự đoán — nhưng MAE **tổng thể lại xấu hơn**
+(272,12 → 295,00 và 306,48 → 320,09), vì `log1p` nén thang lưu lượng cao và làm mô hình sai ở vùng
+cao điểm, nơi chiếm phần lớn sai số tuyệt đối.
 
-**[QUYẾT ĐỊNH] Vì sao nhóm KHÔNG đổi mô hình chính:**
-
-1. Giả thuyết này được nêu ra **sau khi đã nhìn** FINAL TEST 2018. Chọn log-target bây giờ
-   là **test-informed model selection** — đúng thứ mà toàn bộ phương pháp đồ án này cảnh báo.
-2. Kết quả còn phụ thuộc mô hình: log-target đổi trade-off giữa giờ đêm và giờ cao điểm, nên
-   cần một quyết định dài hạn về ưu tiên vận hành mà nhóm **không** có cơ sở để đưa ra từ dữ
-   liệu hiện có.
-3. Muốn dùng thì phải đánh giá lại trên **một holdout mới**, không phải trên 2018 đã xem.
+**[QUYẾT ĐỊNH] Vì sao nhóm KHÔNG đổi mô hình chính:** (1) giả thuyết này được nêu ra **sau khi đã
+nhìn** FINAL TEST 2018, nên chọn log-target bây giờ là **test-informed model selection** — đúng thứ
+mà toàn bộ phương pháp đồ án này cảnh báo; (2) kết quả còn phụ thuộc mô hình và cần một quyết định
+dài hạn về ưu tiên vận hành mà nhóm **không** có cơ sở để đưa ra từ dữ liệu hiện có; (3) muốn dùng
+thì phải đánh giá lại trên **một holdout mới**, không phải trên 2018 đã xem.
 
 ### Hướng phát triển (chưa thực hiện)
 
@@ -783,13 +754,8 @@ sinh bởi `src/uncertainty_audit.py` (mục 4).*
 
 ### (a) FINAL TEST không có tháng 10–12 — và điều đó làm số liệu *thuận lợi*
 
-FINAL TEST 2018 kết thúc **30/09**. Trong khi đó, ba tháng tệ nhất của năm lại rơi vào cuối năm:
-
-| Tháng của 2017 | MAE (validation, train ≤ 2016) |
-| --- | --- |
-| Nov | 344,52 |
-| Dec | 395,14 |
-| Jan | 301,71 |
+FINAL TEST 2018 kết thúc **30/09**, trong khi ba tháng tệ nhất của năm lại rơi vào cuối năm (MAE
+validation 2017: Dec 395,14 · Nov 344,52 · Jan 301,71).
 
 **Định lượng hệ quả** — dùng chính VALIDATION 2017 làm phép thử, cùng một mô hình, chỉ khác
 khoảng thời gian chấm:
@@ -800,13 +766,12 @@ khoảng thời gian chấm:
 | **Chỉ Jan–Sep 2017** (cùng phạm vi với FINAL TEST 2018) | 6.513 | **250,96** |
 | Chỉ Oct–Dec 2017 | 2.200 | 334,78 |
 
-**Chênh lệch: −21,16 xe/giờ.** MAE của Jan–Sep **thấp hơn** cả năm gần 8 %.
+**Chênh lệch: −21,16 xe/giờ** — MAE của Jan–Sep **thấp hơn** cả năm gần 8 %.
 
-**[QUYẾT ĐỊNH] Cách đọc đúng:** con số MAE 259,73 của FINAL TEST 2018 có xu hướng **thấp hơn**
-so với một bài toán cả năm. Điều này **không** làm sai lệch phép so sánh với baseline (cả hai
-cùng bị thiếu quý IV, nên chênh lệch 13,16 vẫn công bằng), nhưng **không được** so sánh tuyệt đối
-con số 259,73 này với một benchmark đánh giá cả năm. Mọi kết luận về 2018 chỉ áp dụng cho
-**9 tháng đầu năm**.
+**[QUYẾT ĐỊNH] Cách đọc đúng:** số 259,73 của FINAL TEST 2018 có xu hướng **thấp hơn** so với một
+bài toán cả năm. Điều này **không** làm sai lệch phép so sánh với baseline (cả hai cùng bị thiếu
+quý IV, nên chênh lệch 13,16 vẫn công bằng), nhưng **không được** so sánh tuyệt đối con số này với
+một benchmark đánh giá cả năm. Mọi kết luận về 2018 chỉ áp dụng cho **9 tháng đầu năm**.
 
 ### (b) Ngày lễ trong FINAL TEST chỉ có 7 ngày lịch (167 giờ)
 
@@ -821,21 +786,19 @@ con số 259,73 này với một benchmark đánh giá cả năm. Mọi kết lu
 | 2018-09-03 | Labor Day | 24 | 971,69 | 1.080,85 |
 
 ⚠️ **Cảnh báo khi diễn giải:** con số "MAE ngày lễ = 1.031,44" ở §10.3 là **trung bình của 7 ngày
-lịch**, mỗi ngày chỉ khoảng 24 mẫu giờ. Bảng trên cho thấy các ngày lễ **khác nhau rất xa**:
-từ 518,33 (Washingtons Birthday) tới 1.508,73 (Independence Day) — gần gấp 3 lần. Vì vậy:
-
-1. Độ bất định của ước lượng này **lớn**; không nên coi 1.031,44 là một giá trị ổn định.
-2. Hành vi ngày lễ **không đồng nhất** — mô hình chỉ có một cờ nhị phân `is_holiday`, nên nó học
-   được "một mức dịch chuyển trung bình" cho tất cả ngày lễ, trong khi thực tế mỗi ngày lễ một
-   kiểu (State Fair khác hẳn ngày lễ liên bang).
-3. Ở **State Fair (2018-08-23)** baseline tốt hơn Ridge rất nhiều (258,48 so với 985,11) — một
-   trong 7 ngày, nhưng đủ để thấy mô hình xử lý ngày lễ **không đồng đều**.
+lịch**, mỗi ngày chỉ khoảng 24 mẫu giờ. Bảng trên cho thấy các ngày lễ **khác nhau rất xa** — từ
+518,33 (Washingtons Birthday) tới 1.508,73 (Independence Day), gần gấp 3 lần — nên **độ bất định
+của ước lượng này lớn**, không nên coi 1.031,44 là một giá trị ổn định. Nguyên nhân: mô hình chỉ có
+một cờ nhị phân `is_holiday`, nên nó học được "một mức dịch chuyển trung bình" cho tất cả ngày lễ,
+trong khi mỗi ngày lễ một kiểu (State Fair khác hẳn ngày lễ liên bang). Ở **State Fair
+(2018-08-23)** baseline tốt hơn Ridge rất nhiều (258,48 so với 985,11) — chỉ một trong 7 ngày, nhưng
+đủ để thấy mô hình xử lý ngày lễ **không đồng đều**.
 
 ### (c) Phân khúc thời tiết không có mẫu
 
-**`Squall` có 0 mẫu trong FINAL TEST.** Báo cáo ghi rõ *"không có mẫu — không đánh giá được"* chứ
-**không** báo số 0. Nguyên tắc: *không có dữ liệu ≠ dự báo bằng 0*. Cơ chế bảo vệ này được kiểm
-tra bằng `test_error_segments_include_sample_sizes`.
+**`Squall` có 0 mẫu trong FINAL TEST** — báo cáo ghi *"không có mẫu — không đánh giá được"* chứ
+**không** báo số 0, và cơ chế này được kiểm tra bằng `test_error_segments_include_sample_sizes`
+(giống phân khúc Smoke 2 mẫu ở §10.4).
 
 ## 10.10 Kết luận phân tích lỗi
 
@@ -849,7 +812,7 @@ ba nơi, đều có lý do giải thích được**:
 | Có tuyết / có sương mù | 525 / 536 | Dữ liệu thời tiết chỉ 1 giờ, không đủ mô tả việc nhiều xe không ra đường |
 
 Cả ba đều là **hạn chế thật của mô hình**, được báo cáo trung thực thay vì giấu bằng cách chỉ trích
-chỉ số tổng.
+chỉ số tổng. Riêng điểm giờ đêm đã được tách riêng và kiểm chứng trên 3/3 cửa sổ dev ở **§10.7**.
 
 ---
 
@@ -870,13 +833,15 @@ RMSE 472,61, R² 0,9422.
 
 **Random split** (mỗi seed một tập test ngẫu nhiên rải rác 2012–2017, n = 5.107):
 
-| seed | MAE | RMSE | R² | Thành phần năm của tập test |
-| --- | --- | --- | --- | --- |
-| 11 | 296,75 | 479,64 | 0,9415 | 2012: 288 · 2013: 1.148 · 2014: 679 · 2015: 515 · 2016: 1.192 · 2017: 1.285 |
-| 23 | 292,09 | 475,82 | 0,9430 | 2012: 306 · 2013: 1.099 · 2014: 708 · 2015: 559 · 2016: 1.164 · 2017: 1.271 |
-| 37 | 291,58 | 476,43 | 0,9420 | 2012: 333 · 2013: 1.105 · 2014: 643 · 2015: 535 · 2016: 1.202 · 2017: 1.289 |
-| 53 | 284,94 | 456,88 | 0,9476 | 2012: 316 · 2013: 1.062 · 2014: 678 · 2015: 545 · 2016: 1.233 · 2017: 1.273 |
-| 71 | 293,11 | 469,48 | 0,9432 | 2012: 305 · 2013: 1.070 · 2014: 701 · 2015: 565 · 2016: 1.193 · 2017: 1.273 |
+| seed | MAE | RMSE | R² |
+| --- | --- | --- | --- |
+| 11 | 296,75 | 479,64 | 0,9415 |
+| 23 | 292,09 | 475,82 | 0,9430 |
+| 37 | 291,58 | 476,43 | 0,9420 |
+| 53 | 284,94 | 456,88 | 0,9476 |
+| 71 | 293,11 | 469,48 | 0,9432 |
+
+*(Phân bố n dòng theo từng tháng của từng tập test nằm ở `experiments_report.md` mục 1.)*
 
 **Hai phép đo, hai ý nghĩa khác nhau:**
 
@@ -886,12 +851,12 @@ RMSE 472,61, R² 0,9422.
 | (b) **Cùng một tập dòng đánh giá** | **−5,43 ± 0,81** | −6,72 | −4,65 |
 
 - **(a)** là cách so sánh "tự nhiên": mỗi arm dùng tập test của chính nó. Nhưng **hai tập test
-  khác nhau về thành phần năm** (time split test = 2016–2017 còn nguyên; random split test =
-  mẫu ngẫu nhiên rải rác 2012–2017), nên một phần chênh lệch đến từ việc đây là **hai bài toán
-  khác nhau** — con số này không chứng minh được rò rỉ.
-- **(b)** là phép so sánh **công bằng về cách chọn tập huấn luyện**: hai mô hình (một cái train
-  theo thời gian, một cái train ngẫu nhiên) được chấm trên **đúng cùng một tập dòng** — tập test
-  của random split.
+  khác nhau về thành phần năm** (time split test = 2016–2017 còn nguyên; random split test = mẫu
+  ngẫu nhiên rải rác 2012–2017), nên một phần chênh lệch đến từ việc đây là **hai bài toán khác
+  nhau** — con số này không chứng minh được rò rỉ.
+- **(b)** là phép so sánh **công bằng về cách chọn tập huấn luyện**: hai mô hình (một train theo
+  thời gian, một train ngẫu nhiên) được chấm trên **đúng cùng một tập dòng** — tập test của random
+  split.
 
 **[QUYẾT ĐỊNH] Cách trả lời câu hỏi nghiên cứu:** trên cùng một tập dòng đánh giá, random split
 cho MAE thấp hơn **5,43 ± 0,81** điểm — tức đánh giá bằng random split **lạc quan quá mức** một
@@ -926,17 +891,17 @@ và báo trung bình ± độ lệch chuẩn.
 
 **Đây là kết quả quan trọng nhất của mục này, và nó không ủng hộ cách kết luận cũ:**
 
-> Thêm dữ liệu 2017 làm MAE giảm 6,55 điểm. Nhưng khi **ép cho tập huấn luyện có đúng bằng số
-> dòng của arm B** (arm D — cùng kích thước, chỉ khác ở chỗ dữ liệu 2017 lấy ngẫu nhiên), hiệu
-> ứng vẫn còn **6,76** điểm. Phần chênh giữa hai cái chỉ **+0,21** điểm — gần bằng không.
+> Thêm dữ liệu 2017 làm MAE giảm 6,55 điểm. Nhưng khi **ép cho tập huấn luyện có đúng bằng số dòng
+> của arm B** (arm D — cùng kích thước, chỉ khác ở chỗ dữ liệu 2017 lấy ngẫu nhiên), hiệu ứng vẫn
+> còn **6,76** điểm. Phần chênh giữa hai cái chỉ **+0,21** điểm — gần bằng không.
 
 **[QUYẾT ĐỊNH] Đọc đúng như sau — mô tả cái đo được, không khẳng định nhân quả:**
 
-1. Cải thiện đo được **không** giải thích được bằng "nhiều dòng hơn": nó xuất hiện ngay khi tập
-   huấn luyện đã có dữ liệu của chính năm 2017, dù số dòng không đổi.
-2. **Không** được gọi phần còn lại là "mô hình nhìn thấy hàng xóm". Mô hình không dùng đặc trưng
-   lag nên **không thể nhớ** giá trị của dòng lân cận. Các yếu tố còn lẫn trong phần dư gồm
-   mức lưu lượng riêng của năm 2017, và việc có dữ liệu ở đúng các tháng của tập test.
+1. Cải thiện đo được **không** giải thích được bằng "nhiều dòng hơn": nó xuất hiện ngay khi tập huấn
+   luyện đã có dữ liệu của chính năm 2017, dù số dòng không đổi.
+2. **Không** được gọi phần còn lại là "mô hình nhìn thấy hàng xóm". Mô hình không dùng đặc trưng lag
+   nên **không thể nhớ** giá trị của dòng lân cận. Các yếu tố còn lẫn trong phần dư gồm mức lưu
+   lượng riêng của năm 2017, và việc có dữ liệu ở đúng các tháng của tập test.
 
 ## 11.3 Thí nghiệm 1c — "hàng xóm" theo khối liên tục
 
@@ -967,17 +932,16 @@ với việc tập huấn luyện có dữ liệu ở **cùng tháng và gần g
 thay vào tập huấn luyện, và vì mô hình không dùng đặc trưng lag nên nó không thể "nhớ" giá trị
 dòng lân cận — cơ chế nào trong hai khả năng đều còn là **giả thuyết**.
 
-**Kết luận thay đổi so với cách diễn giải trước đây.** Bản báo cáo cũ kết luận rằng "MAE giảm
-7,55 **chỉ vì** mô hình nhìn thấy hàng xóm". Thí nghiệm mới **không** ủng hộ phát biểu đó:
-
-- con số cũ gộp lẫn ba yếu tố (kích thước tập huấn luyện, mức năm, khoảng cách thời gian);
-- sau khi tách, phần lớn hiệu ứng **không** phải do kích thước;
-- và cơ chế "nhìn thấy hàng xóm" **không khả thi với mô hình không có lag** — mô hình không
-  nhìn thấy *giá trị* của dòng lân cận, chỉ thấy *đặc trưng lịch và thời tiết* của nó.
+**Kết luận thay đổi so với cách diễn giải trước đây.** Bản báo cáo cũ kết luận "MAE giảm 7,55
+**chỉ vì** mô hình nhìn thấy hàng xóm". Thí nghiệm mới **không** ủng hộ phát biểu đó: con số cũ gộp
+lẫn ba yếu tố (kích thước tập huấn luyện, mức năm, khoảng cách thời gian); sau khi tách, phần lớn
+hiệu ứng **không** phải do kích thước; và cơ chế "nhìn thấy hàng xóm" **không khả thi với mô hình
+không có lag** — mô hình không nhìn thấy *giá trị* của dòng lân cận, chỉ thấy *đặc trưng lịch và thời
+tiết* của nó.
 
 Điều Thí nghiệm 1b/1c **vẫn** chứng minh được là: **khoảng cách thời gian giữa tập huấn luyện và
-tập dự báo làm thay đổi đáng kể con số đánh giá** (4,15 MAE chỉ từ việc dữ liệu 2017 nằm ở
-cùng tháng hay tháng khác). Đó mới là lý do trung thực để giữ FINAL TEST 2018 nguyên vẹn.
+tập dự báo làm thay đổi đáng kể con số đánh giá** (4,15 MAE chỉ từ việc dữ liệu 2017 nằm ở cùng
+tháng hay tháng khác). Đó mới là lý do trung thực để giữ FINAL TEST 2018 nguyên vẹn.
 
 ## 11.4 Thí nghiệm 3 — rolling origin (drift, chỉ out-of-sample)
 
@@ -996,9 +960,9 @@ Tổng hợp 20.144 giờ out-of-sample (2015–2017): **MAE = 309,61**.
 > Chất lượng được cải thiện, **có thể** do năm gần nhất (2017) dễ hơn, **không nhất thiết** là mô hình
 > tiến bộ. Ba điểm dữ liệu không đủ để phân biệt "mô hình tốt lên" với "năm 2017 dễ hơn".
 
-**[QUYẾT ĐỊNH]** Tách bạch hai khái niệm mà nhiều báo cáo hay trộn:
-- **Performance theo tập** — mô hình tốt hơn không (so sánh ngoài mẫu trên cùng điều kiện);
-- **Drift** — dữ liệu có đổi không (kiểm tra phân bố, xem §11.7).
+**[QUYẾT ĐỊNH]** Tách bạch hai khái niệm mà nhiều báo cáo hay trộn: **performance theo tập** — mô hình
+tốt hơn không (so sánh ngoài mẫu trên cùng điều kiện) — và **drift** — dữ liệu có đổi không (kiểm tra
+phân bố, xem §11.7).
 
 ## 11.6 Thí nghiệm 8 — mở rộng lag (thí nghiệm độc lập, KHÔNG vào serving)
 
@@ -1006,13 +970,11 @@ Tổng hợp 20.144 giờ out-of-sample (2015–2017): **MAE = 309,61**.
 
 ### Cách dựng lag — và vì sao đây là toàn bộ vấn đề
 
-Dữ liệu thiếu **22,79 %** số giờ. Nếu dùng `df[target].shift(k)` theo **dòng**, "lag 1 giờ" thực chất
-là "1 dòng trước" — có thể cách nhau 1 giờ, 2 giờ, hay cả một tuần. Vì vậy nhóm dựng lag **đúng
-cách**: ghép theo **thời điểm** (`date_time − k giờ`) trên chuỗi đã sắp xếp, để NaN khi giờ đó
-không có quan sát, và **không** nội suy.
-
-Lag dùng: **1 giờ, 24 giờ, 168 giờ**. Lọc bỏ **5.796 dòng (17,03 %)** vì thiếu giá trị lag (tức
-không có quan sát tại thời điểm đã qua) — **không** loại dòng nào vì dữ liệu thiếu sẵn.
+Dữ liệu thiếu **22,79 %** số giờ, nên `df[target].shift(k)` theo **dòng** không hề là "lag k giờ" —
+đó là "k dòng trước", có thể cách nhau 1 giờ, 2 giờ, hay cả một tuần. Vì vậy nhóm dựng lag **đúng
+cách**: ghép theo **thời điểm** (`date_time − k giờ`) trên chuỗi đã sắp xếp, để NaN khi giờ đó không
+có quan sát, và **không** nội suy. Lag dùng: **1 giờ, 24 giờ, 168 giờ**; lọc bỏ **5.796 dòng
+(17,03 %)** vì thiếu giá trị lag — **không** loại dòng nào vì dữ liệu thiếu sẵn.
 
 ### Kết quả — và kết quả này **không ủng hộ** giả thuyết của nhóm
 
@@ -1027,31 +989,30 @@ giá**, lặp 5 seed. Giá trị **âm** = random split trông tốt hơn = lạ
 
 **Đọc đúng, theo đúng những gì đo được:**
 
-1. ❌ **Lag dựng đúng KHÔNG làm tăng lạc quan** — nó *giảm* độ lạc quan (từ −3,48 xuống −0,55).
-   Giả thuyết ban đầu của nhóm ("thêm lag thì random split sẽ lạc quan hơn nữa") **sai**. Lý do:
-   lag-1 tại thời điểm dự báo là một **quan sát quá khứ thật**, sẵn có ở cả hai cách chia. Nếu lag
-   được tính đúng và **trước** khi tách tập, nó không phải là thông tin tương lai.
+1. ❌ **Lag dựng đúng KHÔNG làm tăng lạc quan** — nó *giảm* độ lạc quan (−3,48 → −0,55). Giả thuyết
+   ban đầu của nhóm ("thêm lag thì random split sẽ lạc quan hơn nữa") **sai**: lag-1 tại thời điểm dự
+   báo là một **quan sát quá khứ thật**, sẵn có ở cả hai cách chia, nên nếu tính đúng và **trước** khi
+   tách tập thì nó không phải thông tin tương lai.
 2. ✅ **Nhưng kết quả này làm nổi bật đúng rủi ro thật:** chỉ cần dựng lag **sai** (`shift()` theo
-   dòng) thì độ lạc quan **tăng gần gấp đôi** (−3,48 → −7,17). Cơ chế: với random split, dòng
-   ngay trước dòng test nằm trong tập huấn luyện, nên `traffic_volume` của nó vừa là **nhãn huấn
-   luyện** vừa là **đặc trưng** của dòng test.
+   dòng) thì độ lạc quan **tăng gần gấp đôi** (−3,48 → −7,17) — với random split, dòng ngay trước
+   dòng test nằm trong tập huấn luyện, nên `traffic_volume` của nó vừa là **nhãn huấn luyện** vừa là
+   **đặc trưng** của dòng test.
 
-> **Kết luận phương pháp quan trọng:** thứ cần kiểm soát là **cách tính lag**, không phải bản
-> thân việc dùng lag. Đề tài vẫn giữ đúng quan điểm "lag là đường nghiệm dễ rơi vào rò rỉ
-> thời gian" — nhưng bằng lý do **đo được**, không phải bằng phỏng đoán.
+> **Kết luận phương pháp quan trọng:** thứ cần kiểm soát là **cách tính lag**, không phải bản thân
+> việc dùng lag. Đề tài vẫn giữ đúng quan điểm "lag là đường nghiệm dễ rơi vào rò rỉ thời gian" —
+> nhưng bằng lý do **đo được**, không phải bằng phỏng đoán.
 
 ### Lag có giúp không? Có — rất nhiều (và nhóm vẫn không dùng)
 
 Trên **time split**, MAE giảm từ **298,74** (không lag) xuống **172,66** (lag đúng theo thời
 điểm) — giảm khoảng **42 %**. Đây là cải thiện rất lớn và có thật trên dữ liệu dev.
 
-**[QUYẾT ĐỊNH] Vì sao nhóm KHÔNG đưa lag vào mô hình chính:**
-
-1. FINAL TEST 2018 **đã được xem**. Biết rằng lag "có vẻ giúp nhiều" rồi thêm lag vào mô hình là
-   **test-informed model selection** — đúng thứ toàn bộ phương pháp của đồ án này cảnh báo.
-2. Thêm lag còn kéo theo bài toán **train-serving skew**: tầng phục vụ phải nhận lưu lượng của
-   `k` giờ trước, tức không còn là dự báo "chỉ từ lịch và thời tiết" như đề tài định nghĩa.
-3. 5.796 dòng bị loại (17,03 %) khi thiếu lag — cần xử lý ở tầng phục vụ.
+**[QUYẾT ĐỊNH] Vì sao nhóm KHÔNG đưa lag vào mô hình chính:** (1) FINAL TEST 2018 **đã được
+xem**, nên biết lag "có vẻ giúp nhiều" rồi thêm lag vào mô hình là **test-informed model
+selection** — đúng thứ toàn bộ phương pháp của đồ án này cảnh báo; (2) thêm lag còn kéo theo bài
+toán **train-serving skew**: tầng phục vụ phải nhận lưu lượng của `k` giờ trước, tức không còn là
+dự báo "chỉ từ lịch và thời tiết" như đề tài định nghĩa; (3) 5.796 dòng bị loại (17,03 %) khi
+thiếu lag — cần xử lý ở tầng phục vụ.
 
 **Hướng đúng cho công sau:** đánh giá lại toàn bộ trên **một holdout mới**, có kiểm soát rõ cách
 dựng lag và kiểm thử train-serving skew cho đặc trưng lag.
@@ -1112,29 +1073,26 @@ Người dùng chỉ cần nhập **thông tin thực sự có ở thời điể
 }
 ```
 
-Backend tự suy ra: giờ, thứ, tháng, `is_weekend`, `hour_dow`, **`is_holiday`** (từ lịch — người
-dùng **không** nhập tay), `weather_main_mode`, `weather_family`, `weather_severity`, 11 cột multi-hot.
-
-- `rain_1h_mm` / `snow_1h_mm` **tuỳ chọn**, mặc định 0.
-- `weather` nhận **nhiều hiện tượng cùng lúc** → mã hoá multi-hot, ví dụ
-  `"weather": ["Rain", "Snow", "Thunderstorm"]`.
-- Nhiệt độ nhập **°C**, backend cộng 273,15 → Kelvin.
-- `state_fair_start_date` là **tuỳ chọn**, chỉ dùng khi dự báo nằm ngoài bảng lịch State Fair.
+Backend tự suy ra toàn bộ đặc trưng kỹ thuật hoá: giờ, thứ, tháng, `is_weekend`, `hour_dow`,
+**`is_holiday`** (từ lịch tất định — người dùng **không** nhập tay), `weather_main_mode`,
+`weather_family`, `weather_severity` và 11 cột multi-hot. `rain_1h_mm` / `snow_1h_mm` **tuỳ chọn**
+(mặc định 0); `weather` nhận **nhiều hiện tượng cùng lúc**; nhiệt độ nhận **°C** và backend cộng
+273,15 ra Kelvin; `state_fair_start_date` **tuỳ chọn**, chỉ dùng khi dự báo nằm ngoài bảng lịch.
 
 ## 12.3 Ba màn hình
 
 | Màn | Đường dẫn | Nội dung |
 | --- | --- | --- |
-| 1 | `/` | Tên đề tài, dữ liệu, vị trí I-94 westbound / ATR 301, 2012–2018, mục tiêu, đơn vị xe/giờ, phạm vi sử dụng, giới hạn |
-| 2 | `/du-bao` | Form ngày/giờ/nhiệt độ/mưa/tuyết/mây/thời tiết → gọi **thật** `POST /api/traffic-forecast`; có trạng thái loading, thành công, lỗi validation, lỗi server |
+| 1 | `/` | Tên đề tài, dữ liệu, vị trí I-94 westbound / ATR 301, mục tiêu, đơn vị xe/giờ, phạm vi dùng, giới hạn |
+| 2 | `/du-bao` | Form → gọi **thật** `POST /api/traffic-forecast`; có trạng thái loading / thành công / lỗi validation / lỗi server |
 | 3 | `/dashboard` | Toàn bộ số liệu đánh giá, phân tích lỗi, thí nghiệm, Model Card |
 
 Giao diện tiếng Việt, không thư viện ngoài, responsive (đã kiểm tra ở 1440 px và 820 px).
 
 **Không có số liệu nào được hard-code trong HTML/JS.** Màn 3 lấy mọi con số từ
-`GET /api/dashboard-metrics`, và màn 2 lấy danh mục thời tiết hợp lệ từ `GET /api/model-info`.
-Có test `test_no_final_test_metric_is_hardcoded_in_frontend` quét từng file frontend và đối chiếu
-với giá trị trong artifact để bảo đảm điều này không thoát.
+`GET /api/dashboard-metrics`, màn 2 lấy danh mục thời tiết hợp lệ từ `GET /api/model-info`. Có test
+`test_no_final_test_metric_is_hardcoded_in_frontend` quét từng file frontend và đối chiếu với giá trị
+trong artifact để bảo đảm điều này không thoát.
 
 ## 12.4 Validation
 
@@ -1169,17 +1127,15 @@ Câu hỏi phương pháp: tầng phục vụ có được phép cắt dự báo
 "cắt đi, MAE đẹp hơn" rồi mới quyết định cắt, thì kết luận 2018 mất ý nghĩa. Nhóm xử lý
 bằng cách **tách quyết định khỏi đo lường**, và đóng băng quyết định trước.
 
-### 12.5.1 Hai thứ phải phân biệt
+### 12.5.1 Hai thứ phải phân biệt, và quy trình quyết định trước – đo sau
 
 | | Là gì | Ý nghĩa |
 | --- | --- | --- |
 | **RAW MODEL** | Ridge(`alpha` = 0,001, solver `lsqr`) trả về trực tiếp | **Metric của mô hình.** Đây là kết luận chính thức, xuất hiện ở §9 và §14.5. |
 | **DEPLOYED PREDICTOR** | `max(0, ·)` ∘ Ridge | Giá trị mà API trả về. Là **wrapper phục vụ**, KHÔNG phải mô hình khác. |
 
-Hai hàng số này **không phải cùng một model metric** và không được gọi chung tên. Mọi con số
-trong báo cáo nêu là "kết quả của mô hình" đều là số của **RAW MODEL**.
-
-### 12.5.2 Quy trình: quyết định trước, đo sau
+Hai hàng số này **không phải cùng một model metric** và không được gọi chung tên. Mọi con số trong
+báo cáo nêu là "kết quả của mô hình" đều là số của **RAW MODEL**.
 
 Thứ tự chạy **bắt buộc** của nhóm là: `train` → `experiments` → **`freeze_serving_policy`** →
 **`evaluate`** → `postprocess_audit`. Nói riêng về chính sách phục vụ:
@@ -1190,17 +1146,14 @@ Thứ tự chạy **bắt buộc** của nhóm là: `train` → `experiments` �
 | 2 | `src/evaluate.py` | FINAL TEST 2018 | Mở 2018 ra đánh giá — **sau khi** policy đã đóng băng |
 | 3 | `src/postprocess_audit.py` | FINAL TEST, chạy **sau** bước 2 | **Chỉ đo lại** hậu quả để báo cáo minh bạch |
 
-Nếu đảo bước 1 và 2 (chạy `evaluate` trước `freeze_serving_policy`) thì chính sách hậu xử lý
-sẽ trở thành **test-informed postprocessing**: ta chọn cách hậu xử lý *vì* đã nhìn thấy kết quả
-2018, và khi đó FINAL TEST không còn là tập đánh giá độc lập nữa. Chính vì vậy:
-- `postprocess_audit.py` **từ chối chạy** nếu chưa có policy đã đóng băng;
-- `postprocess_audit.py` **từ chối chạy** nếu
-  artifact tự ghi `final_test_used_for_selection` khác `False`;
-- có test
-`test_freeze_script_source_never_reads_final_test` kiểm tra ở mức mã nguồn rằng
-`build_policy()` chỉ gọi bằng chứng cho `train` và `validation`;
-- `tests/test_report.py::test_pipeline_order_freezes_policy_before_final_test` kiểm tra
-mọi tài liệu bàn giao đều mô tả đúng thứ tự này.
+Nếu đảo bước 1 và 2 thì chính sách hậu xử lý thành **test-informed postprocessing**: ta chọn cách
+hậu xử lý *vì* đã nhìn thấy kết quả 2018, và FINAL TEST không còn là tập đánh giá độc lập nữu. Chính
+vì vậy `postprocess_audit.py` **từ chối chạy** nếu chưa có policy đã đóng băng hoặc nếu artifact tự
+ghi `final_test_used_for_selection` khác `False`; `uncertainty_audit.py` cũng từ chối chạy theo cùng
+điều kiện. Ngoài ra có test `test_freeze_script_source_never_reads_final_test` kiểm tra ở mức mã
+nguồn rằng `build_policy()` chỉ gọi bằng chứng cho `train` và `validation`, và
+`tests/test_report.py::test_pipeline_order_freezes_policy_before_final_test` kiểm tra mọi tài liệu
+bàn giao đều mô tả đúng thứ tự này.
 
 ### 12.5.3 Quy tắc quyết định (viết trước khi chạy)
 
@@ -1213,20 +1166,16 @@ TRAIN + VALIDATION:
 | **D2** | Mô hình có thực sự trả dự báo thô < 0 | **PASS** (TRAIN 187 dòng, VALIDATION 58 dòng) |
 | **D3** | MAE sau khi cắt <= MAE thô trên **VALIDATION 2017** | **PASS** (272,12 → 269,55) |
 
-Nếu một điều kiện FAIL, script ghi `policy = "none"` — **không cắt**, và negative prediction
-được ghi thẳng là limitation. Nhóm đã viết sẵn nhánh này
-(`test_freeze_script_has_fallback_to_no_policy`).
+Nếu một điều kiện FAIL, script ghi `policy = "none"` — **không cắt**, và negative prediction được
+ghi thẳng là limitation (đã viết sẵn nhánh này: `test_freeze_script_has_fallback_to_no_policy`).
 
-### 12.5.4 Căn cứ (a) — miền giá trị
+### 12.5.4 Căn cứ đo được — miền giá trị và VALIDATION 2017
 
-`traffic_volume` là số xe đi qua một trạm đo trong một giờ. Số xe **không thể âm**.
+`traffic_volume` là số xe đi qua một trạm đo trong một giờ, nên **không thể âm**; min trên **TRAIN** =
+**0,00** ⇒ sàn miền giá trị đúng là 0 (min trên VALIDATION = 186,0; min trên FINAL TEST = 151,0 —
+**không** dùng để quyết định).
 
-- min(`traffic_volume`) trên **TRAIN** = **0,00** → sàn miền giá trị đúng là 0.
-- min trên VALIDATION = 186,0. (min trên FINAL TEST = 151,0 — **không** dùng để quyết định.)
-
-### 12.5.5 Căn cứ (b) — VALIDATION 2017
-
-| Chỉ số | RAW MODEL | DEPLOYED PREDICTOR (`max(0,·)`) |
+| Chỉ số trên VALIDATION 2017 | RAW MODEL | DEPLOYED PREDICTOR (`max(0,·)`) |
 | --- | --- | --- |
 | Số dự báo thô âm | **58** / 8.713 (0,67 %) | — |
 | Dự báo thô nhỏ nhất | **−790,56** | — |
@@ -1234,8 +1183,8 @@ Nếu một điều kiện FAIL, script ghi `policy = "none"` — **không cắt
 | RMSE | 421,46 | 416,73 |
 | R² | 0,9548 | 0,9558 |
 
-Lưu lượng thực trung bình trên các dòng có dự báo âm: **529,91** — sự thật vẫn **dương**, nên
-cắt về 0 là sửa sai lệch của mô hình, không phải xoá sự thật.
+Lưu lượng thực trung bình trên các dòng có dự báo âm: **529,91** — sự thật vẫn **dương**, nên cắt về
+0 là sửa sai lệch của mô hình, không phải xoá sự thật.
 
 ### 12.5.6 Căn cứ bổ sung — lập luận toán học (không cần dữ liệu)
 
@@ -1245,11 +1194,9 @@ cắt về 0 là sửa sai lệch của mô hình, không phải xoá sự thậ
 > `|y − ŷ| = y − ŷ > y`.
 
 Kiểm chứng thực nghiệm trên VALIDATION 2017: sai số tuyệt đối **không tăng ở bất kỳ dòng nào**
-(`pointwise_abs_error_never_increases = True`), và **đúng 58 dòng** bị thay đổi — bằng đúng số
-dòng có dự báo âm.
-
-Đây là **phép chiếu đúng theo miền giá trị**, không phải siêu tham số được học từ dữ liệu. Vì
-vậy nó không vi phạm nguyên tắc "không học gì từ tập test".
+(`pointwise_abs_error_never_increases = True`), và **đúng 58 dòng** bị thay đổi — bằng đúng số dòng
+có dự báo âm. Đây là **phép chiếu đúng theo miền giá trị**, không phải siêu tham số được học từ dữ
+liệu, nên không vi phạm nguyên tắc "không học gì từ tập test".
 
 ### 12.5.7 Báo cáo tác động trên FINAL TEST (chạy SAU khi đã đóng băng)
 
@@ -1258,27 +1205,21 @@ vậy nó không vi phạm nguyên tắc "không học gì từ tập test".
 | VALIDATION 2017 | 58 (0,67 %) | −790,56 | 272,12 | 269,55 | 421,46 | 416,73 |
 | **FINAL TEST 2018** | **34 (0,52 %)** | **−911,35** | **259,73** | **257,54** | **416,78** | **412,25** |
 
-Cả 34 dòng ở FINAL TEST đều rơi vào **giờ 0–4 ban đêm**, và **32/34 là ngày lễ**; lưu lượng thực
-trung bình 572,56 xe/giờ. Điều này cho thấy policy **không phải hình thức**, đồng thời chỉ ra
-điểm yếu đã nêu ở §10.3: mô hình chưa học được việc lưu lượng đêm ngày lễ gần bằng 0.
+Cả 34 dòng ở FINAL TEST đều rơi vào **giờ 0–4 ban đêm**, **32/34 là ngày lễ**, lưu lượng thực
+trung bình 572,56 xe/giờ. Policy vì thế **không phải hình thức**, đồng thời chỉ ra điểm yếu đã nêu ở
+§10.3: mô hình chưa học được việc lưu lượng đêm ngày lễ gần bằng 0.
 
 ### 12.5.8 Phát biểu trung thực về số liệu
 
-> Các số ở §9 (MAE 259,73 · RMSE 416,78 · R² 0,9554) là **RAW MODEL** — kết quả của gói đánh
-> giá đã đóng băng `src/evaluate.py`. Metric của mô hình là số RAW.
+> Số ở §9 (MAE 259,73 · RMSE 416,78 · R² 0,9554) là **RAW MODEL** — kết quả của gói đánh giá đã
+> đóng băng `src/evaluate.py`. Số 257,54 là **DEPLOYED PREDICTOR** — giá trị API trả về sau khi
+> chiếu về sàn; nó là số của một *wrapper*, không phải của mô hình, và **không được trích dẫn như
+> "hiệu năng mô hình"**.
 >
-> Số 257,54 là **DEPLOYED PREDICTOR** — giá trị mà API trả về sau khi chiếu về sàn. Nó là số
-> của một *wrapper*, không phải của mô hình, và không được trích dẫn như "hiệu năng mô hình".
->
-> Nhóm **không** chọn policy vì nhìn thấy 34 dự báo âm trên FINAL TEST. Quyết định được chốt
-> trên TRAIN + VALIDATION, theo quy tắc D1–D3, và còn có lập luận toán học độc lập dữ liệu.
->
-> Nhóm **không** sửa lại gói đánh giá đã đóng băng để khớp API, vì làm vậy tức là dùng kết quả
-> 2018 để điều chỉnh mô hình.
+> Nhóm **không** chọn policy vì nhìn thấy 34 dự báo âm trên FINAL TEST: quyết định được chốt
+> trên TRAIN + VALIDATION theo quy tắc D1–D3 (§12.5.3), và nhóm **không** sửa lại gói đánh
+> giá đã đóng băng để khớp API — làm vậy tức là dùng kết quả 2018 để điều chỉnh mô hình.
 
-**[HẠN CHẾ]** Chiếu về sàn là *policy*, không phải *học*. Ở một số giờ đêm ngày lễ, lưu lượng thực
-vẫn vài trăm xe/giờ; mô hình không dự đoán được điều đó, và policy chỉ là giải pháp tạm chứ không
-phải sửa gốc. Hướng đúng là thêm đặc trưng ngữ cảnh ngày lễ — cần nhiều dữ liệu hơn.
 
 ## 12.6 Thiếu artifact
 
@@ -1295,20 +1236,20 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 
 # 13. Kiểm thử tự động
 
-**Kết quả: `py -m pytest tests\ -v` → 317 passed, 0 failed.**
+**Kết quả: `py -m pytest tests\ -v` → 366 passed, 0 failed.**
 
 | File | Số test | Phạm vi |
 | --- | --- | --- |
-| `test_data.py` | 39 | collapse trùng, bất biến trong nhóm trùng, quy tắc giá trị vô lý, `holiday` với `keep_default_na=False`, đối chiếu lịch với dataset |
+| `test_data.py` | 39 | collapse trùng, quy tắc giá trị vô lý, `keep_default_na=False`, đối chiếu lịch với dataset |
 | `test_features.py` | 19 | Đặc trưng lịch, ngữ nghĩa ngày lễ, time split có assert, random split chỉ để minh hoạ |
-| `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
-| `test_experiments.py` | 36 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, độ nhạy alpha chỉ trên validation, rolling-origin chỉ out-of-sample |
-| `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
-| `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
+| `test_pipeline.py` | 20 | `SimpleImputer` trong pipeline và trước scaler, mọi bộ tiền xử lý fit TRAIN only, xử lý NaN |
+| `test_experiments.py` | 36 | Chặn FINAL TEST 2018 (`assert_no_final_test_rows`), arm chung tập test, tái lập theo seed, phân tích giờ đêm / log-target / alpha chỉ trên dev |
+| `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-hot, **không train-serving skew**, chính sách hậu xử lý |
+| `test_api.py` | 81 | Route, `/health`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
-| `test_report.py` | 89 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, chính tả "rò rỉ", không lộ đường dẫn cá nhân |
-| `test_uncertainty_audit.py` | 16 | Bootstrap cặp theo khối ngày lịch tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018, phân tích giờ đêm và ngày lễ trên 2018 |
-| **Tổng** | **336** | |
+| `test_report.py` | 99 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, chính tả "rò rỉ" |
+| `test_uncertainty_audit.py` | 16 | Bootstrap theo khối ngày tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018 |
+| **Tổng** | **366** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
 chạy `pytest --collect-only` trên chính bộ test rồi bắt README, báo cáo, slide, kịch bản demo
@@ -1319,13 +1260,11 @@ không thể lọt.
 
 | Test | Điều nó chứng minh |
 | --- | --- |
-| `test_no_train_serving_skew_on_real_rows` | Chọn 3 timestamp thật (gồm 1 ngày lễ), dựng feature theo đường dẫn serving, so **từng cột** với đường dẫn train. Không cột nào lệch. |
-| `test_pipeline_is_not_refit_at_serving` | Gọi API 8 lần với dữ liệu khác nhau, kiểm tra `scaler.mean_` và `encoder.categories_` **không đổi** |
+| `test_no_train_serving_skew_on_real_rows` | Dựng feature từ dòng thật theo đường dẫn serving, so **từng cột** với đường dẫn train. Không cột nào lệch. |
+| `test_pipeline_is_not_refit_at_serving` | Gọi API 8 lần, kiểm tra `scaler.mean_` và `encoder.categories_` **không đổi** |
 | `test_server_reads_no_target_at_serving` | Trỏ `data/` vào thư mục rỗng → API vẫn dự báo được ⇒ không đọc dataset |
-| `test_holiday_flag_applies_to_whole_day_not_only_midnight` | Cờ ngày lễ đúng ở cả giờ 00, 07, 13, 23 (lỗi kinh điển khi chỉ gắn cờ ở nửa đêm) |
-| `test_no_final_test_metric_is_hardcoded_in_frontend` | Quét HTML/JS/CSS, đối chiếu với giá trị artifact |
-| `test_frontend_js_is_syntactically_valid` | Chặn lỗi cú pháp JS làm trang im lặng (dùng `node --check` nếu có Node.js) |
 | `test_error_segments_include_sample_sizes` | Phân khúc `n = 0` phải có `MAE = null`, không được báo 0 |
+| `test_documented_test_count_matches_real_collection` | Chạy `pytest --collect-only` rồi bắt tài liệu phải nói đúng số test đó |
 
 ## 13.2 Cấu hình cho người chạy
 
@@ -1371,11 +1310,10 @@ Ba biến môi trường cho phép trỏ ứng dụng sang thư mục khác (dù
 
 ## 14.4 Đặc trưng & tiền xử lý
 
-| Nhóm | Cột | Tiền xử lý (**fit trên TRAIN duy nhất**) |
-| --- | --- | --- |
-| Categorical (4) | `hour_dow`, `month`, `weather_main_mode`, `weather_family` | `OneHotEncoder(handle_unknown="ignore", sparse_output=False)` |
-| Numeric (5) | `temp`, `rain_1h`, `snow_1h`, `clouds_all`, `weather_severity` | `SimpleImputer(strategy="median")` → `StandardScaler()` |
-| Binary (12) | `is_holiday`, `wm_clear` … `wm_thunderstorm` | `passthrough` |
+Danh sách đầy đủ ở §7.2.1. Tóm tắt: **4 cột categorical** (`OneHotEncoder`), **5 cột numeric**
+(`SimpleImputer(median)` → `StandardScaler`), **12 cột binary** (`passthrough`) → **217 cột** sau
+tiền xử lý. Mọi thống kê học được đều **fit trên TRAIN duy nhất**. Mô hình **không** dùng đặc
+trưng lag (xem §11.6).
 
 ## 14.5 Số liệu đánh giá (tất cả đều ngoài mẫu)
 
@@ -1387,16 +1325,14 @@ Ba biến môi trường cho phép trỏ ứng dụng sang thư mục khác (dù
 | **Final test 2018 — Baseline** | 272,90 | 473,13 | 0,9426 | 6.533 |
 
 Không đưa MAE trên tập train vào bảng này: train là **in-sample**, hai dòng trên là
-**out-of-sample** — trộn chúng là so sánh không cùng đối tượng.
-
-**Bốn dòng trên là số của RAW MODEL** — Ridge trả về trực tiếp. Đó là metric của *mô hình*
-và là kết luận chính thức.
+**out-of-sample** — trộn chúng là so sánh không cùng đối tượng. Bốn dòng trên là số của **RAW
+MODEL** — Ridge trả về trực tiếp; đó là metric của *mô hình* và là kết luận chính thức.
 
 **[HẠN CHẾ] Đọc 4 dòng này như thế nào cho đúng.** Ở FINAL TEST 2018, Ridge nhỉnh hơn baseline
 13,16 MAE và khoảng tin cậy 95 % không chứa 0 (§9.3). Nhưng trên dữ liệu 2012–2017 (pseudo-test
 2016–2017 và 3 fold rolling-origin), Ridge chỉ thắng ở **1/4 cửa sổ**. Vì vậy Model Card này
-**không** tuyên bố "mô hình tốt hơn baseline nói chung" — chỉ tuyên bố về cửa sổ 2018 và về một
-tập huấn luyện có dữ liệu đầy đủ.
+**không** tuyên bố "mô hình tốt hơn baseline nói chung" — chỉ tuyên bố về cửa sổ 2018 và về một tập
+huấn luyện có dữ liệu đầy đủ.
 
 Tầng phục vụ áp dụng thêm **DEPLOYED PREDICTOR** = `max(0, ·)` ∘ Ridge (chính sách đã đóng băng,
 xem §12.5). Số của nó được báo ở §12.5.7 và **không được gọi chung tên** với số ở bảng này:
@@ -1434,9 +1370,6 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 4. **Final test chỉ tới 30/09/2018** — không có dữ liệu tháng 10–12/2018, và đây lại là ba
    tháng khó nhất (MAE validation 2017: Nov 344,52 · Dec 395,14). Chấm Jan–Sep 2017 cho
    MAE 250,96, tức thấp hơn cả năm **21,16** → số 2018 được đo trên phần dễ hơn của năm (§10.9).
-4b. **Ngày lễ trong FINAL TEST chỉ 7 ngày lịch** (167 giờ). MAE ngày lễ 1.031,44 là trung bình
-   của 7 ngày rất khác nhau (518,33 → 1.508,73) → độ bất định lớn, không đọc như giá trị ổn
-   định. Ở State Fair (2018-08-23) baseline còn tốt hơn Ridge (258,48 so với 985,11) (§10.9).
 5. **Dữ liệu lịch sử 2012–2018.** Mô hình không cập nhật theo thay đổi hạ tầng, chính sách giao
    thông, giá nhiên liệu hay hành vi người dùng sau thời điểm này.
 6. **State Fair có phạm vi năm hữu hạn.** Bảng lịch chỉ có năm **2012–2020** vì ngày khai mạc do
@@ -1462,56 +1395,36 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 
 ## 14.9 Cách dùng ở thời điểm phục vụ
 
-- Ứng dụng **chỉ nạp** artifact: không huấn luyện, không chọn lại alpha, không fit lại bộ tiền xử lý,
-  không đọc mục tiêu từ dữ liệu.
-- Mọi đặc trưng sinh bằng **cùng hàm** `src.features.build_features` với lúc huấn luyện →
-  **không có train-serving skew** (có test đối chiếu từng cột trên dữ liệu thật).
-- `is_holiday` tính từ lịch tất định — người dùng không nhập tay.
-- Nhiệt độ nhận theo °C, tự quy đổi sang Kelvin.
-- Thời tiết mã hoá multi-hot, nhiều hiện tượng cùng lúc.
-- **Chính sách phục vụ (đã đóng băng):** `max(0, dự báo thô)`.
-  - Chốt trong `models/serving_policy.json` bởi `src/freeze_serving_policy.py`, **chỉ dùng
-    TRAIN + VALIDATION**; FINAL TEST 2018 **không** tham gia quyết định.
-  - Căn cứ: (a) miền giá trị — `traffic_volume` không thể âm, min trên TRAIN = 0,00;
-    (b) VALIDATION 2017 — MAE 272,12 → 269,55, R² 0,9548 → 0,9558; cộng lập luận toán học
-    `|y − max(0,ŷ)| <= |y − ŷ|` cho mọi `y >= 0`.
-  - API trả kèm `raw_model_output`, `predictor.deployed_prediction` và cờ `clipped_to_zero`.
-  - Nếu một trong ba điều kiện D1–D3 không đạt, script tự đặt `policy = "none"` (không cắt)
-    và negative prediction thành limitation.
+Ứng dụng **chỉ nạp** artifact: không huấn luyện, không chọn lại alpha, không fit lại bộ tiền xử lý,
+không đọc mục tiêu từ dữ liệu. Mọi đặc trưng sinh bằng **cùng hàm** `src.features.build_features` với
+lúc huấn luyện → **không có train-serving skew** (có test đối chiếu từng cột trên dữ liệu thật).
+`is_holiday` tính từ lịch tất định; nhiệt độ nhận theo °C và tự quy đổi sang Kelvin; thời tiết mã hoá
+multi-hot — người dùng không phải nhập bất kỳ đặc trưng kỹ thuật hoá nào.
+
+**Chính sách phục vụ (đã đóng băng):** `max(0, dự báo thô)` — chốt trong
+`models/serving_policy.json` bởi `src/freeze_serving_policy.py`, **chỉ dùng TRAIN + VALIDATION**;
+FINAL TEST 2018 **không** tham gia quyết định. Căn cứ và điều kiện D1–D3 ở §12.5.3. API trả kèm
+`raw_model_output`, `predictor.deployed_prediction` và cờ `clipped_to_zero`; nếu một điều kiện không
+đạt thì policy tự đặt thành `"none"` và negative prediction thành limitation.
 
 ## 14.10 Quan hệ với FAIR / minh bạch
 
-| Nguyên tắc | Cách thực hiện |
-| --- | --- |
-| Rõ mục đích dùng | §14.6 |
-| Rõ ngoài phạm vi | §14.7 |
-| Rõ hạn chế | §14.8 |
-| Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 356 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
-| Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
+- **Rõ mục đích dùng** §14.6 · **rõ ngoài phạm vi** §14.7 · **rõ hạn chế** §14.8.
+- **Số liệu lấy từ artifact, không gõ tay** — toàn bộ; có test kiểm tra frontend không hard-code.
+- **Đo lường được bằng máy** — 366 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
+  `pytest --collect-only`.
+- **Người dùng biết khi nào mô hình không đáng tin** — cảnh báo `in_dataset_range`,
+  `state_fair_calendar_unknown` trong mọi response.
 
 ---
 
 # 15. Hạn chế và ngoài phạm vi sử dụng
 
-Tóm tắt các điểm cần nói rõ khi bảo vệ:
-
-1. **Phạm vi địa lý:** một trạm đo, không đại diện toàn thành phố.
-2. **Ngày lễ:** MAE gấp 4,3 lần ngày thường, trên mẫu chỉ 7 ngày.
-3. **Thời tiết cực đoan: MAE gấp 1,84 lần** (434,08 so với 235,96); riêng tuyết gấp 2,22 lần với
-   bias +238,88, sương mù bias +315,75.
-4. **Thời gian:** test 2018 chỉ 9 tháng đầu năm.
-5. **Tính lịch sử:** dữ liệu 2012–2018, mô hình không tự cập nhật.
-6. **Lịch State Fair:** giới hạn 2012–2020, ngoài đó hệ thống báo rõ chứ không đoán.
-7. **An toàn:** không dùng cho mục đích safety-critical.
-8. **Mô hình tuyến tính:** không nắm hiệu ứng phi tuyến phức tạp.
-9. **Theo khung giờ:** Ridge không tốt ở giờ đêm — baseline thắng ở 7/24 giờ (§10.7).
-10. **Dự báo âm:** 34/6.533 dòng của FINAL TEST có dự báo thô âm (đều giờ 0–4 ban đêm, 32/34 là
-    ngày lễ). API chặn về 0, nhưng đó là policy tạm thời chứ không phải sửa gốc vấn đề.
-11. **Phụ thuộc mô hình tuyến tính ở giá trị biên:** ngoài phạm vi dữ liệu huấn luyện, dự báo có
-    thể lệch mạnh dù API vẫn cảnh báo.
-12. **Hiệu ưu thế không nhất quán:** trên 2018 Ridge hơn baseline 13,16 MAE, nhưng ở 3/4 cửa sổ
-    dev 2012–2017 thì ngược lại (§9.3).
+Danh sách đầy đủ 12 hạn chế nằm ở **§14.8** (Model Card). Nếu phải nói trong 30 giây, nhóm chọn 5
+điểm có **hệ quả với quyết định của người dùng**: **phạm vi địa lý** — một trạm đo, không đại diện toàn
+thành phố; **ngày lễ** — MAE gấp 4,3 lần ngày thường, trên mẫu chỉ 7 ngày lịch; **giờ đêm** — baseline
+thắng Ridge ở 5/5 giờ 00–04 (§10.7); **phạm vi thời gian** — test 2018 chỉ 9 tháng đầu năm, và đó là
+phần *dễ hơn* của năm; và **an toàn** — không dùng cho mục đích safety-critical.
 
 ---
 
@@ -1519,48 +1432,38 @@ Tóm tắt các điểm cần nói rõ khi bảo vệ:
 
 ## 16.1 Kết luận
 
-Nhóm đã hoàn thành đề tài với kết quả:
-
 1. **Về phương pháp:** xây dựng được quy trình đánh giá trung thực trên dữ liệu chuỗi thời gian —
-   tiền xử lý tất định, bộ tiền xử lý fit trên TRAIN duy nhất, time split có assert chặn, và
-   FINAL TEST được bảo vệ bằng mã nguồn chứ không chỉ bằng lời hứa.
+   tiền xử lý tất định, bộ tiền xử lý fit trên TRAIN duy nhất, time split có assert chặn, và FINAL
+   TEST được bảo vệ bằng mã nguồn chứ không chỉ bằng lời hứa.
 2. **Về kết quả:** Ridge (alpha = 0,001) đạt **MAE 259,73 / RMSE 416,78 / R² 0,9554** trên FINAL
-   TEST 2018, **nhỉnh hơn baseline 13,16 MAE (4,8 %)** trên cùng một tập dữ liệu — kèm điều kiện
-   ở §9.3: hiệu ưu thế này **không nhất quán** qua các cửa sổ 2012–2017.
+   TEST 2018, **nhỉnh hơn baseline 13,16 MAE (4,8 %)** trên cùng một tập dữ liệu — kèm điều kiện ở
+   §9.3: hiệu ưu thế này **không nhất quán** qua các cửa sổ 2012–2017.
 3. **Về hiểu biết:** khoảng cách thời gian giữa tập huấn luyện và tập dự báo **làm thay đổi đáng
-   kể** con số đánh giá (Thí nghiệm 1b/1c: chênh 4,15 MAE chỉ từ việc dữ liệu 2017 nằm ở cùng
-   tháng hay tháng khác với dòng cần dự báo). Nhóm **không** khẳng định cơ chế là "mô hình nhìn
-   thấy hàng xóm": sau khi tách ba yếu tố, phần lớn hiệu ứng không do kích thước tập huấn luyện, và
-   mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
-   của đề tài.
-4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 356 test pass.
+   kể** con số đánh giá (Thí nghiệm 1b/1c: chênh 4,15 MAE). Nhóm **không** khẳng định cơ chế là
+   "mô hình nhìn thấy hàng xóm": phần lớn hiệu ứng không do kích thước tập huấn luyện, và mô hình
+   không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm.
+4. **Về minh bạch và sản phẩm:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết, giờ đêm) thay vì
+   chỉ trích chỉ số tổng; web/API chạy được, chỉ nạp artifact, 366 test pass.
 
 ## 16.2 Hướng mở rộng
 
 | Hướng | Lý do | Cảnh báo về rò rỉ |
 | --- | --- | --- |
-| Thêm đặc trưng lag của `traffic_volume` | Thí nghiệm 8 đo được: MAE time split giảm từ 298,74 xuống 172,66 (≈ −42 %) khi lag dựng **đúng theo thời điểm** | Bắt buộc ghép theo `date_time − k giờ`, **không** `shift()` theo dòng (Thí nghiệm 8 cho thấy cách sai làm tăng gấp đôi mức lạc quan); tuyệt đối không dùng lag nằm trong tương lai; cần backtest nhiều kỳ và kiểm thử train-serving skew. **Chưa đưa vào mô hình chính** vì FINAL TEST đã bị xem |
+| Thêm đặc trưng lag của `traffic_volume` | Thí nghiệm 8 đo được: MAE time split giảm từ 298,74 xuống 172,66 (≈ −42 %) khi lag dựng **đúng theo thời điểm** | Bắt buộc ghép theo `date_time − k giờ`, **không** `shift()` theo dòng (cách sai làm tăng gấp đôi mức lạc quan); tuyệt đối không dùng lag nằm trong tương lai; cần backtest nhiều kỳ và kiểm thử train-serving skew. **Chưa đưa vào mô hình chính** vì FINAL TEST đã bị xem |
 | Mô hình phi tuyến (LightGBM, gradient boosting) | Nhiều khả năng giảm MAE ở giờ đêm và ngày lễ | Phải giữ nguyên time split và quy tắc fit TRAIN only; dễ rơi vào bẫy chọn mô hình theo test |
-| Dự báo theo mùa với mô hình tuần hoàn (Fourier) | Mô hình hiện tại không có thành phần mùa rõ ràng trong feature | Thành phần tuần hoàn phải là hằng số, không fit từ dữ liệu test |
+| Tương tác `giờ × thời tiết` | Khớp trực tiếp với giả thuyết ở §10.7 về hiệu ứng tương đối ở giờ đêm | Phải chọn trên validation; cẩn thận với mẫu nhỏ ở giờ đêm |
 | Mô hình riêng cho ngày lễ | MAE ngày lễ cao gấp 4,3 lần | Với chỉ 7 ngày lễ trong 2018, rất dễ overfit — cần dữ liệu nhiều hơn |
-| Dự báo xác suất (quantile regression) | Khoảng tin cậy rõ hơn cho bài toán lập kế hoạch | Phải chọn trên validation |
-| Hệ thống cập nhật định kỳ | Dữ liệu lịch sử dần cũ | Cần backtest trên nhiều kỳ, không được dùng test cũ làm test mới |
 
 ## 16.3 Bài học
 
 > Trên cùng một bộ dữ liệu, **cách đánh giá** đã làm MAE chênh nhau đáng kể: random split lạc quan
 > 5,43 ± 0,81 điểm so với time split **trên cùng một tập dòng đánh giá** (§11.1), và khoảng cách
-> thời gian của tập huấn luyện làm thay đổi thêm 4,15 điểm (§11.3) — cả hai đều cùng nhỏ với
-> cải thiện 13,17 điểm mà mô hình đạt được so với baseline. Trong bài toán chuỗi thời gian,
-> **cách ta đánh giá cũng quan trọng ngang với việc ta chọn mô hình** — và vì vậy phải **tách từng
-> yếu tố** thay vì quy cho tổng thể một con số.
->
-> Bài học về phương pháp quan trọng nhất: **đừng gán một cơ chế cho một con số khi chưa tách được các
-> yếu tố.** Bản báo cáo cũ quy 6,55 MAE cho "mô hình nhìn thấy hàng xóm"; sau khi thêm arm đối
-> chứng cùng kích thước, nhóm thấy phần lớn hiệu ứng **không** đến từ kích thước tập huấn luyện,
-> và cơ chế "nhớ hàng xóm" **không khả thi** với mô hình không có đặc trưng lag. Con số giữ
-> nguyên; **kết luận** phải sửa.
+> thời gian của tập huấn luyện làm thay đổi thêm 4,15 điểm (§11.3) — cả hai đều nhỏ với cải thiện
+> 13,17 điểm mà mô hình đạt được so với baseline. Bài học quan trọng nhất: **đừng gán một cơ chế cho
+> một con số khi chưa tách được các yếu tố.** Bản báo cáo cũ quy 6,55 MAE cho "mô hình nhìn thấy hàng
+> xóm"; sau khi thêm arm đối chứng cùng kích thước, nhóm thấy phần lớn hiệu ứng **không** đến từ
+> kích thước tập huấn luyện, và cơ chế "nhớ hàng xóm" **không khả thi** với mô hình không có đặc
+> trưng lag. Con số giữ nguyên; **kết luận** phải sửa.
 
 ---
 
@@ -1571,15 +1474,14 @@ Nhóm đã hoàn thành đề tài với kết quả:
 ```
 data/       dữ liệu thô + đã làm sạch + audit + data dictionary
 src/        download_data · data · features/holidays/weather · eda · train ·
-            experiments · evaluate · freeze_serving_policy · postprocess_audit
+            experiments · freeze_serving_policy · evaluate ·
+            postprocess_audit · uncertainty_audit
 app/        FastAPI + 3 màn hình web (chỉ load artifact)
-models/     ridge_pipeline.joblib + metadata + baseline
+models/     ridge_pipeline.joblib + metadata + baseline + serving_policy
 reports/    final_report.md (file này) + figures/*.md, *.json, *.png
-            gồm postprocess_audit.md / .json (kiểm toán hậu xử lý)
-docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
-            viva-questions.md
-release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      356 test
+docs/       project-log.md, slides-outline.md, demo-script.md, viva-questions.md
+release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động)
+tests/      366 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1594,6 +1496,7 @@ py src\experiments.py
 py src\freeze_serving_policy.py
 py src\evaluate.py
 py src\postprocess_audit.py
+py src\uncertainty_audit.py
 py -m pip install -r requirements-export.txt
 py src\export_docs.py all
 py -m pytest tests\ -v
@@ -1601,10 +1504,11 @@ py -m uvicorn app.main:app --reload
 ```
 
 > **Vì sao `freeze_serving_policy.py` phải đứng trước `evaluate.py`.** Chính sách hậu xử lý
-> `max(0,·)` được chốt **chỉ từ TRAIN + VALIDATION**. Nếu chạy `evaluate.py` trước, ta sẽ đã
-> nhìn thấy kết quả 2018 trước khi quyết định có cắt âm hay không — tức *test-informed
-> postprocessing*, làm mất ý nghĩa của FINAL TEST. `postprocess_audit.py` chỉ đo hậu quả
-> **sau** khi policy đã đóng băng, và từ chối chạy nếu chưa có policy.
+> `max(0,·)` được chốt **chỉ từ TRAIN + VALIDATION**. Nếu chạy `evaluate.py` trước, ta đã nhìn thấy
+> kết quả 2018 trước khi quyết định có cắt âm hay không — tức *test-informed postprocessing*, làm
+> mất ý nghĩa của FINAL TEST. `postprocess_audit.py` và `uncertainty_audit.py` chỉ **đo** hậu quả
+> **sau** khi policy đã đóng băng, và cả hai đều từ chối chạy nếu điều kiện tiên quyết chưa có
+> (chi tiết §12.5.1).
 
 Nếu chỉ muốn cài theo khoảng version tương thích thay vì tái lập tuyệt đối, dùng
 `py -m pip install -r requirements.txt`. Phiên bản thật của môi trường đã sinh artifact
@@ -1614,21 +1518,14 @@ nằm trong `models/environment.json`. Seed cố định: `42`.
 
 | Tài liệu | Nội dung |
 | --- | --- |
-| `data/README.md` | Nguồn, giấy phép, checksum, kết quả audit |
-| `data/data_dictionary.md` | Mô tả từng biến và các bẫy đã xác minh |
-| `reports/figures/data_quality_report.md` | Báo cáo chất lượng dữ liệu |
-| `reports/figures/eda_train_only.md` | EDA chỉ trên TRAIN |
-| `reports/figures/experiments_report.md` | Thí nghiệm phát triển 2012–2017 |
+| `data/README.md` · `data/data_dictionary.md` | Nguồn, giấy phép, checksum, audit; mô tả biến và các bẫy đã xác minh |
+| `reports/figures/data_quality_report.md` · `eda_train_only.md` | Chất lượng dữ liệu; EDA chỉ trên TRAIN |
+| `reports/figures/experiments_report.md` | Thí nghiệm phát triển 2012–2017 (mục 1 → 8) |
 | `reports/figures/evaluation_report.md` | FINAL TEST 2018 đầy đủ (24 giờ, 7 ngày, 11 loại thời tiết) |
-| `reports/figures/postprocess_audit.md` | Kiểm toán chính sách `max(0, ·)` — số dòng dự báo âm và ảnh hưởng tới metric |
-| `docs/project-log.md` | Nhật ký dự án theo tuần: người thực hiện, giờ, công việc, kết quả, vấn đề |
-| `docs/slides-outline.md` | Dàn ý 11 slide |
-| `requirements.txt` | Khoảng version tương thích (`>=`) |
-| `requirements-lock.txt` | Phiên bản chính xác của môi trường đã sinh artifact (`pip freeze`) |
-| `models/environment.json` | Phiên bản Python & thư viện + seed, đọc được bằng máy |
-| `requirements-export.txt` | Công cụ xuất DOCX/PDF/PPTX |
-| `docs/demo-script.md` | Kịch bản demo 5–7 phút |
-| `docs/viva-questions.md` | 35 câu hỏi + đáp án |
+| `reports/figures/postprocess_audit.md` · `uncertainty_audit.md` | Kiểm toán policy `max(0, ·)`; độ bất định bootstrap theo ngày, MAE theo tháng/giờ/ngày lễ |
+| `reports/figures/alpha_sensitivity.json` | Độ nhạy alpha trên lưới mở rộng (chỉ VALIDATION) |
+| `docs/project-log.md` · `docs/slides-outline.md` · `docs/demo-script.md` · `docs/viva-questions.md` | Nhật ký theo tuần (cần điền tên + giờ); dàn ý slide; kịch bản demo; 35 câu hỏi + đáp án |
+| `requirements*.txt` · `models/environment.json` | Khoảng version, phiên bản ghim chính xác, công cụ xuất; môi trường + seed đọc được bằng máy |
 
 ## 17.4 Nhật ký phát triển
 
@@ -1637,18 +1534,18 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 
 | Tuần | Việc | Kết quả |
 | --- | --- | --- |
-| 1 | Brief, data README, data dictionary, kế hoạch baseline | Xác định 7 quy tắc chống rò rỉ trước khi động vào dữ liệu |
+| 1 | Brief, data README, data dictionary, kế hoạch baseline | Chốt 7 quy tắc chống rò rỉ **trước khi** động vào dữ liệu |
 | 2 | Tải và làm sạch, audit, EDA trên TRAIN, time split | Phát hiện 5.445 nhóm trùng, 10 dòng `temp` vô lý, 1 dòng `rain_1h` sentinel |
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
-| 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
-| 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 356 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 4 | Thí nghiệm 1, 1b, 1c, 3, 3b, 8 (chỉ 2012–2017) | Tách được kích thước / mức năm / khoảng cách thời gian; đo lạc quan 5,43 MAE |
+| 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; điểm yếu ở ngày lễ, tuyết, giờ đêm |
+| 6 | FastAPI + 3 màn hình + 366 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew; bootstrap bất định + kiểm toán alpha |
 
 ## 17.5 Tài liệu phát hành
 
-Báo cáo này được soạn bằng Markdown để **kiểm chứng được đối chiếu artifact** — mọi con số
-đều do `tests/test_report.py` đối chiếu với `models/` và `reports/figures/`. Bản nộp được
-**sinh tự động từ chính file Markdown đó**, không chép số tay.
+Báo cáo này được soạn bằng Markdown để **kiểm chứng được đối chiếu artifact** — mọi con số đều
+do `tests/test_report.py` đối chiếu với `models/` và `reports/figures/`. Bản nộp được **sinh tự
+động từ chính file Markdown đó**, không chép số tay.
 
 ```bat
 py -m pip install -r requirements-export.txt
@@ -1660,41 +1557,37 @@ py src\export_docs.py pptx
 
 | Tệp | Nguồn | Công cụ | Quy mô |
 | --- | --- | --- | --- |
-| `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 45 bảng, 7 ảnh nhúng |
-| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **21 trang A4** |
+| `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 58 bảng, 7 ảnh nhúng |
+| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **25 trang A4** |
 | `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | 12 slide, 4 ảnh thật |
 
-**21 trang A4** nằm trong khoảng mục tiêu 15–25 trang. Nếu thiếu một công cụ, script in
-"BỎ QUA" kèm lý do và **không** tạo file rỗng — để không ai tưởng đã xuất xong.
+**25 trang A4** nằm trong khoảng mục tiêu 15–25 trang. Nếu thiếu một công cụ, script in "BỎ QUA"
+kèm lý do và **không** tạo file rỗng — để không ai tưởng đã xuất xong.
 
-Các tài liệu đi kèm (giữ nguyên dạng Markdown vì nhóm còn phải điền):
-
-| Tệp | Vai trò |
-| --- | --- |
-| `docs/project-log.md` | nhật ký dự án theo tuần — **cần người dùng điền** tên + giờ thật |
-| `docs/slides-outline.md` | dàn ý 11 slide + phụ lục trình chiếu |
-| `docs/demo-script.md` | kịch bản demo 6 phút 40 giây, 11 bước |
-| `docs/viva-questions.md` | 35 câu hỏi + đáp án, và 10 câu bổ sung |
+Tài liệu đi kèm giữ nguyên dạng Markdown vì nhóm còn phải điền: `docs/project-log.md` (nhật ký theo
+tuần — **cần người dùng điền** tên + giờ thật), `docs/slides-outline.md` (dàn ý 11 slide),
+`docs/demo-script.md` (kịch bản demo 6 phút 40 giây) và `docs/viva-questions.md` (35 câu hỏi +
+đáp án, và 10 câu bổ sung).
 
 ## 17.6 Nhóm & phân công
 
 > ### ⚠ CẦN NGƯỜI DÙNG ĐIỀN TRƯỚC KHI NỘP
 >
-> Mục này **cố ý để trống có marker**. Nhóm **không** tự bịa tên, không bịa phân công,
-> không bịa số giờ làm. Ba dòng dưới phải do chính thành viên điền bằng thông tin thật:
+> Mục này **cố ý để trống có marker**. Nhóm **không** tự bịa tên, không bịa phân công, không bịa số
+> giờ làm. Ba dòng dưới phải do chính thành viên điền bằng thông tin thật:
+
+| Trường | Cần điền |
+| --- | --- |
+| Thành viên 1 | `[TÊN THÀNH VIÊN 1]` |
+| Thành viên 2 | `[TÊN THÀNH VIÊN 2]` |
+| Phân công thực tế theo tuần | `[PHÂN CÔNG THỰC TẾ]` — theo khuôn `docs/project-log.md` |
+
+> Phần **công việc kỹ thuật theo tuần đã có sẵn** trong `docs/project-log.md`; chỉ cần bổ sung cột
+> *Người thực hiện* và *Giờ ước lượng* bằng dữ liệu thật.
 >
-> | Trường | Cần điền |
-> | --- | --- |
-> | Thành viên 1 | `[TÊN THÀNH VIÊN 1]` |
-> | Thành viên 2 | `[TÊN THÀNH VIÊN 2]` |
-> | Phân công thực tế theo tuần | `[PHÂN CÔNG THỰC TẾ]` — theo khuôn `docs/project-log.md` |
->
-> Phần **công việc kỹ thuật theo tuần đã có sẵn** trong `docs/project-log.md`; chỉ cần bổ sung
-> cột *Người thực hiện* và *Giờ ước lượng* bằng dữ liệu thật.
->
-> **Về lịch sử Git:** hiện lịch sử commit thuộc một tài khoản duy nhất. Nếu đề yêu cầu mỗi
-> thành viên có phần đóng góp riêng, phần đó **phải do chính thành viên đó tạo** — không đổi
-> tên tác giả, không tạo commit giả cho người khác, không backdate commit.
+> **Về lịch sử Git:** hiện lịch sử commit thuộc một tài khoản duy nhất. Nếu đề yêu cầu mỗi thành viên
+> có phần đóng góp riêng, phần đó **phải do chính thành viên đó tạo** — không đổi tên tác giả, không
+> tạo commit giả cho người khác, không backdate commit.
 
 ## 17.7 Công cụ AI đã sử dụng
 
@@ -1702,23 +1595,15 @@ Các tài liệu đi kèm (giữ nguyên dạng Markdown vì nhóm còn phải �
 - ChatGPT
 - Pi Agent
 
-**Mục đích sử dụng:**
-- hỗ trợ phân tích yêu cầu đề bài
-- rà soát phương pháp chống data leakage
-- hỗ trợ viết/sửa mã nguồn
-- hỗ trợ xây dựng test
-- hỗ trợ kiểm tra Web/API
-- hỗ trợ chuẩn bị báo cáo, slide và câu hỏi vấn đáp
+**Mục đích sử dụng:** phân tích yêu cầu đề bài; rà soát phương pháp chống data leakage; hỗ trợ
+viết/sửa mã nguồn và xây dựng test; kiểm tra Web/API; chuẩn bị báo cáo, slide và câu hỏi vấn đáp.
 
-**Cách kiểm chứng lại:**
-- chạy pipeline trên dataset UCI gốc và đối chiếu SHA256 (`data/README.md`);
-- chạy `py -m pytest tests\ -v`;
-- đối chiếu mọi metric trong báo cáo với artifact do mã nguồn sinh ra
-  (`models/*.json`, `reports/figures/*.json`);
-- smoke-test FastAPI/Web, kể cả các ca nhập sai;
-- đọc lại từng dòng mã nguồn và tài liệu trước khi bảo vệ.
+**Cách kiểm chứng lại:** chạy pipeline trên dataset UCI gốc và đối chiếu SHA256
+(`data/README.md`); chạy `py -m pytest tests\ -v`; đối chiếu mọi metric trong báo cáo với artifact
+do mã nguồn sinh ra (`models/*.json`, `reports/figures/*.json`); smoke-test FastAPI/Web kể cả các
+ca nhập sai; đọc lại từng dòng mã nguồn và tài liệu trước khi bảo vệ.
 
-**Ranh giới nhóm tự đặt:** AI **không** quyết định giá trị nghiệm vụ (quy tắc lịch ngày lễ,
-định nghĩa danh mục thời tiết, ngưỡng giá trị vô lý) và **không** tạo ra số liệu. Mọi con số
-trong báo cáo đến từ artifact do mã nguồn sinh ra; `tests/test_report.py` tự động đối chiếu
-tài liệu với artifact, nên tài liệu không thể lệch số mà không bị test bắt.
+**Ranh giới nhóm tự đặt:** AI **không** quyết định giá trị nghiệm vụ (quy tắc lịch ngày lễ, định
+nghĩa danh mục thời tiết, ngưỡng giá trị vô lý) và **không** tạo ra số liệu. Mọi con số trong báo
+cáo đến từ artifact do mã nguồn sinh ra; `tests/test_report.py` tự động đối chiếu tài liệu với
+artifact, nên tài liệu không thể lệch số mà không bị test bắt.

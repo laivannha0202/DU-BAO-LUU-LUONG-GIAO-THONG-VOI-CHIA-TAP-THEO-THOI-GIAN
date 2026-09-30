@@ -446,6 +446,60 @@ def test_documented_test_count_matches_real_collection(path, real_test_count):
         assert stale not in text, f"{path.name} còn sót số test cũ: {stale!r}"
 
 
+# Mọi cách viết "N test / N passed" mà tài liệu có thể dùng để *khai* số test TỔNG.
+# Chỉ soi số có 3-4 chữ số: số test của repo này luôn >= 300, còn các con số 1-2 chữ số
+# ("36 test" trong câu về `test_experiments.py`) là số test của từng file và hợp lệ.
+_COUNT_CLAIM = re.compile(
+    r"(?<![\d.])(\d{3,4})\s*(?:passed|failed|test|tests)\b",
+    re.IGNORECASE,
+)
+
+
+@pytest.mark.parametrize("path", DOC_FILES_WITH_TEST_COUNT, ids=lambda p: p.name)
+def test_no_stale_test_count_claim_in_docs(path, real_test_count):
+    """KHÔNG được có một câu nào trong tài liệu khai số test khác số thật.
+
+    `test_documented_test_count_matches_real_collection` chỉ kiểm tra số ĐÚNG có xuất
+    hiện ở đâu đó — nên một câu khác vẫn ghi sai mà test vẫn xanh. Đã xảy ra thật: báo cáo
+    và README đều còn câu "317 passed" trong khi thực tế đã có 356 test.
+
+    Bài test này quét MỌI câu dạng "<số> test(s)/passed" và đòi số đó phải bằng đúng số
+    pytest thật sự thu thập được.
+    """
+    text = require_text(path)
+    wrong = sorted({m.group(1) for m in _COUNT_CLAIM.finditer(text)
+                    if int(m.group(1)) != real_test_count})
+    assert not wrong, (
+        f"{path.name} khai sai số test {wrong} trong khi `pytest --collect-only` "
+        f"thu thập được {real_test_count}. Sửa câu đó (hoặc thêm/bớt test cho khớp)."
+    )
+
+
+@pytest.mark.parametrize("path", DOC_FILES_WITH_TEST_COUNT, ids=lambda p: p.name)
+def test_per_file_test_table_in_report_sums_to_real_count(path, real_test_count):
+    """Bảng 'số test theo từng file' trong §13 phải cộng đúng bằng số test thật.
+
+    Bảng có thể ghi sai ở ô 'Tổng' mà vẫn không ai để ý — đã xảy ra thật: các dòng cộng ra
+    356 còn ô 'Tổng' lại ghi 336.
+    """
+    if path is not FINAL_REPORT:
+        pytest.skip("chỉ báo cáo mới có bảng số test theo từng file")
+    text = require_text(path)
+    rows = re.findall(r"^\|\s*`?(test_[a-z_]+\.py)`?\s*\|\s*(\d+)\s*\|", text, re.MULTILINE)
+    assert rows, "không tìm thấy bảng số test theo từng file trong báo cáo"
+    total_row = re.search(r"^\|\s*\*\*Tổng\*\*\s*\|\s*\*\*(\d+)\*\*\s*\|", text, re.MULTILINE)
+    assert total_row, "bảng số test theo từng file thiếu dòng 'Tổng'"
+    per_file_sum = sum(int(n) for _, n in rows)
+    assert per_file_sum == real_test_count, (
+        f"các dòng của bảng §13 cộng ra {per_file_sum}, "
+        f"nhưng pytest thu thập được {real_test_count}"
+    )
+    assert int(total_row.group(1)) == per_file_sum, (
+        f"ô 'Tổng' của bảng §13 ghi {total_row.group(1)} "
+        f"nhưng các dòng cộng ra {per_file_sum}"
+    )
+
+
 # ---------------------------------------------------------------------------
 # 11. Mọi tài liệu phải mô tả đúng thứ tự pipeline chống test-informed policy
 # ---------------------------------------------------------------------------
