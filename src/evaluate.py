@@ -14,7 +14,7 @@ Gói đánh giá này gồm đúng ba phần, theo yêu cầu nghiệm thu:
    Nếu sau khi đọc file này mà còn điều chỉnh gì, thì con số 2018 mất ý nghĩa và phải
    chạy lại từ đầu trên một holdout mới.
 
-Các thí nghiệm phát triển (random vs time split, kiểm soát rò rễ, drift) KHÔNG nằm ở
+Các thí nghiệm phát triển (random vs time split, kiểm soát rò rỉ, drift) KHÔNG nằm ở
 đây — chúng ở `src/experiments.py` và chạy trong 2012–2017.
 
 Usage:
@@ -336,7 +336,7 @@ def main() -> None:
     L.append("")
     L.append(
         "> **Bằng chứng 2018 chưa bị dùng để lựa chọn gì:** toàn bộ tuning alpha và các thí nghiệm "
-        "phát triển (random vs time split, kiểm soát rò rễ, rolling-origin drift) đều chạy trong "
+        "phát triển (random vs time split, kiểm soát rò rỉ, rolling-origin drift) đều chạy trong "
         "`src/train.py` và `src/experiments.py`, với cửa sổ dữ liệu **2012–2017**. "
         "`src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình "
         "nếu bất kỳ dòng 2018 nào lọt vào."

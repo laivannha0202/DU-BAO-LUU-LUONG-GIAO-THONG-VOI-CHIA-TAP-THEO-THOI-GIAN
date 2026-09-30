@@ -226,7 +226,7 @@ def split_summary(train: pd.DataFrame, val: pd.DataFrame, test: pd.DataFrame) ->
 def random_split(
     df: pd.DataFrame, train_frac: float = 0.7, val_frac: float = 0.15, seed: int = 42
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """CHỈ dùng để MINH HỌA mức độ lạc quan do rò rễ — KHÔNG dùng để kết luận chính thức."""
+    """CHỈ dùng để MINH HỌA mức độ lạc quan do rò rỉ — KHÔNG dùng để kết luận chính thức."""
     shuffled = df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
     n = len(shuffled)
     n_train = int(n * train_frac)

@@ -625,6 +625,64 @@ def test_ai_disclosure_is_declared(path):
 
 
 # ---------------------------------------------------------------------------
+# 14. Chính tả: "rò rỉ" (KHÔNG phải "rò rễ")
+# ---------------------------------------------------------------------------
+#: Chỉ quét các file văn bản; file sinh tự động cũng phải sạch vì chúng được commit.
+SPELLING_SCAN_GLOBS = [
+    "README.md",
+    "reports/final_report.md",
+    "reports/project_brief.md",
+    "data/README.md",
+    "data/data_dictionary.md",
+    "docs/*.md",
+    "src/*.py",
+    "app/*.py",
+    "app/templates/*.html",
+    "app/static/js/*.js",
+    "reports/figures/*.md",
+    "reports/figures/*.json",
+]
+
+#: Cụm viết sai. Chỉ dùng đúng cụm này — không khửng hồ mọi từ có vần "ễ".
+MISSPELLED_TERM = "rò rễ"
+
+
+def _spelling_scan_paths() -> list[Path]:
+    found: list[Path] = []
+    for pattern in SPELLING_SCAN_GLOBS:
+        found.extend(sorted(ROOT.glob(pattern)))
+    return [p for p in found if p.is_file()]
+
+
+def test_no_misspelled_leakage_term_anywhere_in_repo():
+    """'rò rỉ' phải viết đúng; 'rò rễ' là lỗi chính tả và bị cấm toàn repo.
+
+    Lỗi này rất dễ tái xuất hiện khi sao chép đoạn văn bản, nên cần một test chặn.
+    """
+    offenders: list[str] = []
+    for path in _spelling_scan_paths():
+        text = path.read_text(encoding="utf-8")
+        if MISSPELLED_TERM in text:
+            lines = [
+                str(i + 1) for i, ln in enumerate(text.splitlines())
+                if MISSPELLED_TERM in ln
+            ]
+            offenders.append(f"{path.relative_to(ROOT).as_posix()}: dòng {', '.join(lines)}")
+    assert not offenders, (
+        f"Tìm thấy '{MISSPELLED_TERM}' (sai; phải viết 'rò rỉ') tại:\n  " + "\n  ".join(offenders)
+    )
+
+
+def test_spelling_scan_actually_finds_files():
+    """Bảo đảm glob của test trên không rỗng — nếu rỗng thì test trên là 'xanh giả'."""
+    paths = _spelling_scan_paths()
+    assert len(paths) >= 12, f"Glob quét chỉ tìm thấy {len(paths)} file — kiểm tra lại danh sách"
+    names = {p.name for p in paths}
+    assert "final_report.md" in names
+    assert "experiments.py" in names
+
+
+# ---------------------------------------------------------------------------
 # 5. Cảnh báo: nếu artifact đổi, tài liệu phải được cập nhật
 # ---------------------------------------------------------------------------
 @requires_artifacts

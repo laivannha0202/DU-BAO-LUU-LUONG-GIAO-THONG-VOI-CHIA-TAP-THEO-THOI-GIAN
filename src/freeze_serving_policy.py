@@ -9,7 +9,7 @@ Ridge là hồi quy tuyến tính nên **có thể** trả dự báo âm. Lưu l
 Câu hỏi: tầng phục vụ có nên cắt giá trị âm về 0 không?
 
 Nếu quyết định này được đưa ra *sau khi* nhìn FINAL TEST 2018 thì đó là **test-informed
-postprocessing** — một dạng rò rễ, và khiến metric chính thức mất ý nghĩa.
+postprocessing** — một dạng rò rỉ, và khiến metric chính thức mất ý nghĩa.
 Vì vậy quyết định phải được chốt TRƯỚC, bằng bằng chứng không chứa 2018.
 
 Quy tắc quyết định (tất định, viết trước khi chạy)

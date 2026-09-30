@@ -20,7 +20,7 @@
 
 Assert: `max(train) < min(validation)` ✅ · `max(validation) < min(test)` ✅ · 0 timestamp trùng ✅
 
-> **Bằng chứng 2018 chưa bị dùng để lựa chọn gì:** toàn bộ tuning alpha và các thí nghiệm phát triển (random vs time split, kiểm soát rò rễ, rolling-origin drift) đều chạy trong `src/train.py` và `src/experiments.py`, với cửa sổ dữ liệu **2012–2017**. `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng 2018 nào lọt vào.
+> **Bằng chứng 2018 chưa bị dùng để lựa chọn gì:** toàn bộ tuning alpha và các thí nghiệm phát triển (random vs time split, kiểm soát rò rỉ, rolling-origin drift) đều chạy trong `src/train.py` và `src/experiments.py`, với cửa sổ dữ liệu **2012–2017**. `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng 2018 nào lọt vào.
 
 ## 1. Baseline vs Model
 
