@@ -1,15 +1,21 @@
-# Dữ liệu — không đưa vào Git theo yêu cầu đề, dùng src/download_data.py để tái tạo
+# Dữ liệu — không đưa vào Git theo yêu cầu đề, dùng src/download_data.py để tái lạp
+# (tái tạo: py src\download_data.py → SHA256 đối chiếu ở data/README.md)
 data/raw/*.csv
 data/raw/*.csv.gz
 data/raw/*.zip
 data/processed/*.csv
 
-# Model đã train — lưu riêng, không commit file lớn
+# Model đã train — mặc định không commit.
+# NGOẠI LỆ BÀN GIAO: models/ridge_pipeline.joblib (8 KB) ĐÃ được commit bằng
+#   git add -f models/ridge_pipeline.joblib
+# để người chấm clone repo là chạy được ngay, không cần train lại.
 models/*.joblib
 models/*.pkl
 
 # Bản phát hành DOCX/PDF/PPTX — sinh tự động bằng `py src\export_docs.py all`
-# (bỏ dòng dưới nếu muốn commit bản phát hành đã sinh)
+# NGOẠI LỆ BÀN GIAO: 3 tệp cuối cùng trong release/ ĐÃ được commit bằng git add -f
+#   git add -f release/final_report.docx release/final_report.pdf release/slides.pptx
+# (mọi lần xuất lại về sau sẽ là file tạm, không cần commit)
 release/
 
 __pycache__/

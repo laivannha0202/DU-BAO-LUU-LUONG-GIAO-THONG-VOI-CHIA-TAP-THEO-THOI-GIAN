@@ -5,11 +5,11 @@
 | | |
 | --- | --- |
 | **Môn học** | Data Mining / Machine Learning (đề tài về rò rỉ dữ liệu & đánh giá trung thực) |
-| **Nhóm** | Nhóm 20 — `[TÊN THÀNH VIÊN 1]`, `[TÊN THÀNH VIÊN 2]` *(nhóm điền)* |
+| **Nhóm** | Nhóm 20 — xem mục *Nhóm & phân công* ở §17.6 (cần người dùng điền) |
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 265 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 317 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -441,9 +441,23 @@ tiến bộ". Đây cũng là kết luận mà thí nghiệm rolling-origin (§1
 
 Phát biểu chính xác (dùng nguyên văn trong bảo vệ):
 
-> **Năm 2018 không tham gia tuning hay model selection.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng,
-> mô hình và tham số `alpha` được chốt trên 2012–2017. Pipeline được đánh giá lại trên 2018 **sau khi
-> các sửa lỗi phương pháp đã hoàn tất**, và **kết quả 2018 không được dùng để tiếp tục tối ưu mô hình**.
+> **Năm 2018 không tham gia hyperparameter tuning hoặc model selection.**
+> **Pipeline và serving policy được đóng băng từ dữ liệu 2012–2017.**
+> **Kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.**
+
+Cụ thể hóa từng vế:
+
+- **Không tuning / model selection trên 2018.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình
+  và tham số `alpha` được chốt trên 2012–2017; `alpha` chọn theo MAE trên VALIDATION 2017 (§8).
+- **Pipeline được đóng băng trước khi 2018 được mở ra.** Thứ tự chạy bắt buộc là
+  `train` → `experiments` → `freeze_serving_policy` → `evaluate` → `postprocess_audit` (§17.2).
+- **Serving policy cũng được đóng băng từ 2012–2017.** `src/freeze_serving_policy.py` chỉ đọc
+  TRAIN + VALIDATION; `src/postprocess_audit.py` chỉ **đo** hậu quả trên 2018 và **từ chối chạy**
+  nếu policy chưa được đóng băng. Như vậy policy `max(0,·)` không phải test-informed
+  postprocessing (§12.5).
+- **Kết quả 2018 không quay ngược lại điều chỉnh mô hình.** Sau khi đọc số 2018, nhóm không sửa
+  feature, không sửa `alpha`, không đổi mô hình, và không sửa lại gói đánh giá để khớp API
+  (§12.5.8).
 
 Phát biểu này cố ý **không** khẳng định 2018 chỉ được chạy đúng một lần — nhóm không đưa ra
 tuyên bố không thể chứng minh. Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018**,
@@ -767,15 +781,26 @@ trong báo cáo nêu là "kết quả của mô hình" đều là số của **R
 
 ### 12.5.2 Quy trình: quyết định trước, đo sau
 
+Thứ tự chạy **bắt buộc** của nhóm là: `train` → `experiments` → **`freeze_serving_policy`** →
+**`evaluate`** → `postprocess_audit`. Nói riêng về chính sách phục vụ:
+
 | Bước | Script | Dữ liệu dùng | Việc làm |
 | --- | --- | --- | --- |
 | 1 | `src/freeze_serving_policy.py` | **TRAIN + VALIDATION** | **Quyết định** → ghi `models/serving_policy.json` |
-| 2 | `src/postprocess_audit.py` | FINAL TEST, chạy **sau** bước 1 | **Chỉ đo lại** hậu quả để báo cáo minh bạch |
+| 2 | `src/evaluate.py` | FINAL TEST 2018 | Mở 2018 ra đánh giá — **sau khi** policy đã đóng băng |
+| 3 | `src/postprocess_audit.py` | FINAL TEST, chạy **sau** bước 2 | **Chỉ đo lại** hậu quả để báo cáo minh bạch |
 
-`postprocess_audit.py` **từ chối chạy** nếu chưa có policy đã đóng băng, và **từ chối chạy** nếu
-artifact tự ghi `final_test_used_for_selection` khác `False`. Có test
+Nếu đảo bước 1 và 2 (chạy `evaluate` trước `freeze_serving_policy`) thì chính sách hậu xử lý
+sẽ trở thành **test-informed postprocessing**: ta chọn cách hậu xử lý *vì* đã nhìn thấy kết quả
+2018, và khi đó FINAL TEST không còn là tập đánh giá độc lập nữa. Chính vì vậy:
+- `postprocess_audit.py` **từ chối chạy** nếu chưa có policy đã đóng băng;
+- `postprocess_audit.py` **từ chối chạy** nếu
+  artifact tự ghi `final_test_used_for_selection` khác `False`;
+- có test
 `test_freeze_script_source_never_reads_final_test` kiểm tra ở mức mã nguồn rằng
-`build_policy()` chỉ gọi bằng chứng cho `train` và `validation`.
+`build_policy()` chỉ gọi bằng chứng cho `train` và `validation`;
+- `tests/test_report.py::test_pipeline_order_freezes_policy_before_final_test` kiểm tra
+mọi tài liệu bàn giao đều mô tả đúng thứ tự này.
 
 ### 12.5.3 Quy tắc quyết định (viết trước khi chạy)
 
@@ -870,7 +895,7 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 
 # 13. Kiểm thử tự động
 
-**Kết quả: `py -m pytest tests\ -v` → 265 passed, 0 failed.**
+**Kết quả: `py -m pytest tests\ -v` → 317 passed, 0 failed.**
 
 | File | Số test | Phạm vi |
 | --- | --- | --- |
@@ -879,9 +904,15 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
 | `test_experiments.py` | 15 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), rolling-origin chỉ out-of-sample |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
-| `test_api.py` | 77 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
+| `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
-| `test_report.py` | 39 | Tài liệu khớp artifact, không bịa số, đủ dung lượng 15–25 trang, không lộ đường dẫn cá nhân |
+| `test_report.py` | 64 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, không lộ đường dẫn cá nhân |
+| **Tổng** | **317** | |
+
+**Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
+chạy `pytest --collect-only` trên chính bộ test rồi bắt README, báo cáo, slide, kịch bản demo
+và câu hỏi vấn đáp phải nói đúng số đó. Thêm hay bớt một test mà quên sửa tài liệu là **test đỏ**,
+không thể lọt.
 
 ## 13.1 Những test đáng chú ý nhất
 
@@ -1033,7 +1064,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 265 test, `py -m pytest tests\ -v` |
+| Đo lường được bằng máy | 317 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1054,7 +1085,7 @@ Tóm tắt các điểm cần nói rõ khi bảo vệ:
 9. **Theo khung giờ:** Ridge không tốt ở giờ đêm — baseline thắng ở 7/24 giờ.
 10. **Dự báo âm:** 34/6.533 dòng của FINAL TEST có dự báo thô âm (đều giờ 0–4 ban đêm, 32/34 là
     ngày lễ). API chặn về 0, nhưng đó là policy tạm thời chứ không phải sửa gốc vấn đề.
-10. **Phụ thuộc mô hình tuyến tính ở giá trị biên:** ngoài phạm vi dữ liệu huấn luyện, dự báo có
+11. **Phụ thuộc mô hình tuyến tính ở giá trị biên:** ngoài phạm vi dữ liệu huấn luyện, dự báo có
     thể lệch mạnh dù API vẫn cảnh báo.
 
 ---
@@ -1073,7 +1104,7 @@ Nhóm đã hoàn thành đề tài với kết quả:
 3. **Về hiểu biết:** thí nghiệm 1b cho thấy phần cải thiện khi đưa dữ liệu sát thời điểm dự báo vào
    tập huấn luyện là **rò rỉ**, không phải năng lực mô hình. Đây là bài học trung tâm của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 265 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 317 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1107,20 +1138,22 @@ app/        FastAPI + 3 màn hình web (chỉ load artifact)
 models/     ridge_pipeline.joblib + metadata + baseline
 reports/    final_report.md (file này) + figures/*.md, *.json, *.png
             gồm postprocess_audit.md / .json (kiểm toán hậu xử lý)
-docs/       slides-outline.md, demo-script.md, viva-questions.md
-release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động)
-tests/      265 test
+docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
+            viva-questions.md
+release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
+tests/      317 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
 
 ```bat
-py -m pip install -r requirements.txt
+py -m pip install -r requirements-lock.txt
 py src\download_data.py
 py src\data.py
 py src\eda.py
 py src\train.py
 py src\experiments.py
+py src\freeze_serving_policy.py
 py src\evaluate.py
 py src\postprocess_audit.py
 py -m pip install -r requirements-export.txt
@@ -1129,7 +1162,15 @@ py -m pytest tests\ -v
 py -m uvicorn app.main:app --reload
 ```
 
-Sau đó mở **http://localhost:8000**.
+> **Vì sao `freeze_serving_policy.py` phải đứng trước `evaluate.py`.** Chính sách hậu xử lý
+> `max(0,·)` được chốt **chỉ từ TRAIN + VALIDATION**. Nếu chạy `evaluate.py` trước, ta sẽ đã
+> nhìn thấy kết quả 2018 trước khi quyết định có cắt âm hay không — tức *test-informed
+> postprocessing*, làm mất ý nghĩa của FINAL TEST. `postprocess_audit.py` chỉ đo hậu quả
+> **sau** khi policy đã đóng băng, và từ chối chạy nếu chưa có policy.
+
+Nếu chỉ muốn cài theo khoảng version tương thích thay vì tái lập tuyệt đối, dùng
+`py -m pip install -r requirements.txt`. Phiên bản thật của môi trường đã sinh artifact
+nằm trong `models/environment.json`. Seed cố định: `42`.
 
 ## 17.3 Danh mục tài liệu tham khảo
 
@@ -1142,12 +1183,19 @@ Sau đó mở **http://localhost:8000**.
 | `reports/figures/experiments_report.md` | Thí nghiệm phát triển 2012–2017 |
 | `reports/figures/evaluation_report.md` | FINAL TEST 2018 đầy đủ (24 giờ, 7 ngày, 11 loại thời tiết) |
 | `reports/figures/postprocess_audit.md` | Kiểm toán chính sách `max(0, ·)` — số dòng dự báo âm và ảnh hưởng tới metric |
+| `docs/project-log.md` | Nhật ký dự án theo tuần: người thực hiện, giờ, công việc, kết quả, vấn đề |
 | `docs/slides-outline.md` | Dàn ý 11 slide |
+| `requirements.txt` | Khoảng version tương thích (`>=`) |
+| `requirements-lock.txt` | Phiên bản chính xác của môi trường đã sinh artifact (`pip freeze`) |
+| `models/environment.json` | Phiên bản Python & thư viện + seed, đọc được bằng máy |
 | `requirements-export.txt` | Công cụ xuất DOCX/PDF/PPTX |
 | `docs/demo-script.md` | Kịch bản demo 5–7 phút |
 | `docs/viva-questions.md` | 32 câu hỏi + đáp án |
 
-## 17.4 Nhật ký phát triển (rút gọn)
+## 17.4 Nhật ký phát triển
+
+Phần tóm tắt; bảng nhật ký đầy đủ (thời gian · người thực hiện · giờ ước lượng · công việc ·
+kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 
 | Tuần | Việc | Kết quả |
 | --- | --- | --- |
@@ -1155,8 +1203,8 @@ Sau đó mở **http://localhost:8000**.
 | 2 | Tải và làm sạch, audit, EDA trên TRAIN, time split | Phát hiện 5.445 nhóm trùng, 10 dòng `temp` vô lý, 1 dòng `rain_1h` sentinel |
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 3, 3b (chỉ 2012–2017) | Đo được mức lạc quan do rò rễ: 7,55 MAE |
-| 5 | FINAL TEST 2018 + phân tích lỗi | MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 265 test + tài liệu | Web/API chạy thật, không train-serving skew |
+| 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
+| 6 | FastAPI + 3 màn hình + 317 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 
@@ -1175,36 +1223,64 @@ py src\export_docs.py pptx
 | Tệp | Nguồn | Công cụ | Quy mô |
 | --- | --- | --- | --- |
 | `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 45 bảng, 7 ảnh nhúng |
-| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **20 trang A4** |
+| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **21 trang A4** |
 | `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | 12 slide, 4 ảnh thật |
 
-**20 trang A4** nằm trong khoảng mục tiêu 15–25 trang. Nếu thiếu một công cụ, script in
+**21 trang A4** nằm trong khoảng mục tiêu 15–25 trang. Nếu thiếu một công cụ, script in
 "BỎ QUA" kèm lý do và **không** tạo file rỗng — để không ai tưởng đã xuất xong.
 
 Các tài liệu đi kèm (giữ nguyên dạng Markdown vì nhóm còn phải điền):
 
 | Tệp | Vai trò |
 | --- | --- |
+| `docs/project-log.md` | nhật ký dự án theo tuần — **cần người dùng điền** tên + giờ thật |
 | `docs/slides-outline.md` | dàn ý 11 slide + phụ lục trình chiếu |
 | `docs/demo-script.md` | kịch bản demo 6 phút 40 giây, 11 bước |
 | `docs/viva-questions.md` | 32 câu hỏi + đáp án, và 9 câu bổ sung |
 
 ## 17.6 Nhóm & phân công
 
-> **CẦN NGƯỜI DÙNG CUNG CẤP — nhóm điền trước khi nộp.** Nhóm không tự bịa tên/phân công.
+> ### ⚠ CẦN NGƯỜI DÙNG ĐIỀN TRƯỚC KHI NỘP
 >
-> | Thành viên | Phần việc thực tế |
+> Mục này **cố ý để trống có marker**. Nhóm **không** tự bịa tên, không bịa phân công,
+> không bịa số giờ làm. Ba dòng dưới phải do chính thành viên điền bằng thông tin thật:
+>
+> | Trường | Cần điền |
 > | --- | --- |
-> | `[TÊN THÀNH VIÊN 1]` | `[PHÂN CÔNG THỰC TẾ]` |
-> | `[TÊN THÀNH VIÊN 2]` | `[PHÂN CÔNG THỰC TẾ]` |
+> | Thành viên 1 | `[TÊN THÀNH VIÊN 1]` |
+> | Thành viên 2 | `[TÊN THÀNH VIÊN 2]` |
+> | Phân công thực tế theo tuần | `[PHÂN CÔNG THỰC TẾ]` — theo khuôn `docs/project-log.md` |
+>
+> Phần **công việc kỹ thuật theo tuần đã có sẵn** trong `docs/project-log.md`; chỉ cần bổ sung
+> cột *Người thực hiện* và *Giờ ước lượng* bằng dữ liệu thật.
+>
+> **Về lịch sử Git:** hiện lịch sử commit thuộc một tài khoản duy nhất. Nếu đề yêu cầu mỗi
+> thành viên có phần đóng góp riêng, phần đó **phải do chính thành viên đó tạo** — không đổi
+> tên tác giả, không tạo commit giả cho người khác, không backdate commit.
 
 ## 17.7 Công cụ AI đã sử dụng
 
-> **CẦN NGƯỜI DÙNG CUNG CẤP — nhóm điền trước khi nộp.** Nhóm không tự bịa danh sách.
->
-> - Công cụ AI đã sử dụng: `[CÔNG CỤ AI ĐÃ SỬ DỤNG]`
-> - Dùng cho phần nào: `[CÔNG CỤ AI ĐÃ SỬ DỤNG]`
-> - Cách nhóm kiểm chứng lại: chạy lại toàn bộ pipeline từ đầu, đối chiếu mọi con số trong
->   báo cáo với artifact ở `models/` và `reports/figures/`, đọc kỹ từng dòng mã nguồn trước
->   khi bảo vệ. Có `tests/test_report.py` tự động đối chiếu báo cáo với artifact, nên tài liệu
->   không thể lệch số mà không bị test bắt.
+**Công cụ AI đã sử dụng:**
+- ChatGPT
+- Pi Agent
+
+**Mục đích sử dụng:**
+- hỗ trợ phân tích yêu cầu đề bài
+- rà soát phương pháp chống data leakage
+- hỗ trợ viết/sửa mã nguồn
+- hỗ trợ xây dựng test
+- hỗ trợ kiểm tra Web/API
+- hỗ trợ chuẩn bị báo cáo, slide và câu hỏi vấn đáp
+
+**Cách kiểm chứng lại:**
+- chạy pipeline trên dataset UCI gốc và đối chiếu SHA256 (`data/README.md`);
+- chạy `py -m pytest tests\ -v`;
+- đối chiếu mọi metric trong báo cáo với artifact do mã nguồn sinh ra
+  (`models/*.json`, `reports/figures/*.json`);
+- smoke-test FastAPI/Web, kể cả các ca nhập sai;
+- đọc lại từng dòng mã nguồn và tài liệu trước khi bảo vệ.
+
+**Ranh giới nhóm tự đặt:** AI **không** quyết định giá trị nghiệm vụ (quy tắc lịch ngày lễ,
+định nghĩa danh mục thời tiết, ngưỡng giá trị vô lý) và **không** tạo ra số liệu. Mọi con số
+trong báo cáo đến từ artifact do mã nguồn sinh ra; `tests/test_report.py` tự động đối chiếu
+tài liệu với artifact, nên tài liệu không thể lệch số mà không bị test bắt.

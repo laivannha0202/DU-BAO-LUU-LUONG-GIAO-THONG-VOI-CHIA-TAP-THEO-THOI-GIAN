@@ -27,7 +27,8 @@ Dữ liệu: Metro Interstate Traffic Volume (UCI, CC BY 4.0). Xem `data/README.
 - [x] **Serving policy đã đóng băng** (`src/freeze_serving_policy.py` → `models/serving_policy.json`)
       — quyết định chỉ trên TRAIN + VALIDATION, có đường bỏ clamp nếu điều kiện không đạt
 - [x] **Báo cáo tác động** của policy trên 2018 (`src/postprocess_audit.py`) — chạy SAU, chỉ đo
-- [x] **Test: `py -m pytest tests\ -v` → 238 passed, 0 failed**
+- [x] **Test: `py -m pytest tests\ -v` → 317 passed, 0 failed**
+      (con số này được **tự kiểm chứng** bởi `tests/test_report.py::test_documented_test_count_matches_real_collection`)
 - [x] Báo cáo, slide, kịch bản demo, câu hỏi viva (`reports/final_report.md`, `docs/`)
 
 ---
@@ -41,8 +42,8 @@ py src\data.py              :: audit + collapse + đánh dấu giá trị vô l�
 py src\eda.py               :: EDA chỉ trên TRAIN
 py src\train.py             :: baseline + tune alpha + lưu model  -> ĐÓNG BĂNG cấu hình
 py src\experiments.py       :: thí nghiệm phát triển, CHỈ 2012-2017 (không đụng 2018)
-py src\evaluate.py          :: FINAL TEST 2018
 py src\freeze_serving_policy.py :: ĐÓNG BĂNG chính sách max(0,·) — CHỈ dùng TRAIN + VALIDATION
+py src\evaluate.py          :: FINAL TEST 2018 — mở 2018 ra đánh giá lần đầu
 py src\postprocess_audit.py :: báo cáo tác động của policy trên 2018 — chạy SAU, KHÔNG quyết định gì
 py -m pytest tests\ -v
 py -m uvicorn app.main:app --reload
@@ -50,8 +51,25 @@ py -m uvicorn app.main:app --reload
 
 Sau đó mở trình duyệt: **http://localhost:8000** (OpenAPI docs: http://localhost:8000/docs)
 
-> **Thứ tự này là bắt buộc.** `experiments.py` chạy trước `evaluate.py` để mọi lựa chọn
-> được chốt trên 2012–2017. Sau khi đọc kết quả 2018, không được quay lại sửa mô hình.
+> **Thứ tự này là bắt buộc — và mang ý nghĩa học thuật, không phải quy ước hình thức.**
+>
+> | # | Bước | Vì sao đứng ở đây |
+> | --- | --- | --- |
+> | 1–3 | `download_data` → `data` → `eda` | Mọi biến đổi là **quy tắc tất định**, EDA chỉ trên TRAIN |
+> | 4 | `train` | Fit mô hình + bộ tiền xử lý, chọn `alpha` trên VALIDATION |
+> | 5 | `experiments` | Mọi thí nghiệm phát triển nằm trong 2012–2017 (có `assert_no_final_test_rows()`) |
+> | 6 | **`freeze_serving_policy`** | **Đóng băng** chính sách `max(0,·)` **chỉ từ TRAIN + VALIDATION** |
+> | 7 | **`evaluate`** | Mở FINAL TEST 2018 ra **sau khi** mọi lựa chọn đã chốt xong |
+> | 8 | `postprocess_audit` | **Chỉ đo** tác động của policy đã đóng băng lên metric 2018 |
+> | 9–10 | `pytest` → `uvicorn` | Kiểm chứng rồi mới phục vụ |
+>
+> Nếu đảo bước 6 và 7 (chạy `evaluate` trước `freeze_serving_policy`) thì chính sách hậu xử lý
+> sẽ trở thành **test-informed postprocessing** — tức ta chọn cách hậu xử lý *vì* nhìn thấy kết quả
+> 2018, làm mất ý nghĩa của FINAL TEST. Vì vậy `postprocess_audit.py` còn **từ chối chạy** nếu
+> policy chưa được đóng băng, và `tests/test_serving_policy.py` kiểm tra ở mức mã nguồn rằng
+> `build_policy()` không bao giờ đọc dòng nào của năm 2018.
+>
+> Sau khi đọc kết quả 2018, **không** quay lại sửa mô hình, sửa `alpha`, hay sửa policy.
 >
 > Lưu ý PowerShell: dùng dấu gạch chéo ngược `\` cho đường dẫn script và `\ -v` cho pytest.
 
@@ -193,8 +211,8 @@ src/
   eda.py                  # EDA chỉ trên TRAIN
   train.py                # baseline + Ridge pipeline, tune alpha, lưu artifact
   experiments.py          # thí nghiệm phát triển — CHỈ 2012-2017, có guard 2018
-  evaluate.py             # FINAL TEST 2018
   freeze_serving_policy.py # ĐÓNG BĂNG chính sách max(0,·) — chỉ TRAIN + VALIDATION
+  evaluate.py             # FINAL TEST 2018 — chạy SAU khi policy đã đóng băng
   postprocess_audit.py    # báo cáo tác động trên 2018 — chạy SAU, không quyết định gì
 app/
   __init__.py
@@ -212,11 +230,12 @@ app/
     js/predict.js
     js/dashboard.js
 models/
-  ridge_pipeline.joblib   # pipeline đã đóng băng
+  ridge_pipeline.joblib   # pipeline đã đóng băng (ĐÃ commit — xem "Artifact mô hình" bên dưới)
   baseline_table.csv      # bảng mean hour × day_of_week (fit train only)
   baseline_meta.json
   run_config.json         # cấu hình run
   model_metadata.json     # metadata + thống kê imputer/scaler đã học
+  environment.json        # phiên bản Python & thư viện dùng để sinh artifact
   serving_policy.json     # chính sách phục vụ đã đóng băng + bằng chứng chọn policy
 reports/
   project_brief.md
@@ -234,6 +253,7 @@ reports/
     postprocess_audit.json
     *.png
 docs/
+  project-log.md         # NHẬT KÝ DỰ ÁN (thời gian · người · giờ · kết quả · vấn đề)
   slides-outline.md       # 11 slide
   demo-script.md          # kịch bản demo 5-7 phút
   viva-questions.md       # 32 câu hỏi + đáp án
@@ -246,11 +266,77 @@ tests/
   test_serving.py         # °C->K, holiday tự tính, multi-weather, KHÔNG train-serving skew
   test_api.py             # route, validation, lỗi, dashboard lấy số từ artifact
   test_serving_policy.py  # policy không test-informed, D1-D3, RAW vs DEPLOYED
-  test_report.py          # tài liệu khớp artifact, không bịa số, không lộ path cá nhân
+  test_report.py          # tài liệu khớp artifact, số test đồng bộ, thứ tự pipeline
   fixtures/sample_traffic.csv
+requirements.txt          # khoảng version tương thích (>=) — dùng khi cài mới
+requirements-lock.txt     # phiên bản chính xác của môi trường đã sinh artifact
+release/
+  final_report.docx       # bản nộp (đã commit)
+  final_report.pdf        # bản nộp (đã commit)
+  slides.pptx             # bản nộp (đã commit)
 ```
 
-**Phân bổ test:** xem bảng ở §13 của `reports/final_report.md` (con số được sinh tự động).
+**Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
+Con số tổng **317 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
+
+---
+
+## Cài đặt & môi trường tái lập
+
+Có hai cách cài, dùng cho hai mục đích khác nhau:
+
+| Cách | Lệnh | Khi nào dùng |
+| --- | --- | --- |
+| **Tái lập tuyệt đối** | `py -m pip install -r requirements-lock.txt` | Khi cần **đúng** kết quả đã báo cáo. Đây là môi trường đã sinh ra `models/ridge_pipeline.joblib` và mọi con số trong báo cáo. |
+| Theo khoảng version | `py -m pip install -r requirements.txt` | Khi cài trên máy mới / máy khác và chấp nhận bản patch-minor mới hơn. Ít rủi ro hơn khi môi trường cũ không còn cài được. |
+
+- `requirements.txt` dùng toán tử `>=` → dễ cài, nhưng **không** bảo đảm cùng kết quả.
+- `requirements-lock.txt` là output của `py -m pip freeze` → đúng từng phiên bản đã chạy thật.
+
+Phiên bản thật của môi trường đã dùng để sinh artifact được ghi ở
+[`models/environment.json`](models/environment.json) — đọc được bằng máy, không phải gõ tay.
+Toàn bộ script dùng `seed = 42` (`models/run_config.json`).
+
+---
+
+## Artifact mô hình (bàn giao sẵn)
+
+`models/ridge_pipeline.joblib` **đã được commit vào repo** (8.133 bytes) — nhỏ hơn nhiều
+so với giới hạn của Git, nên người chấm `git clone` là chạy được ngay, **không cần train lại**:
+
+```bat
+py -m pip install -r requirements-lock.txt
+py -m uvicorn app.main:app --reload
+```
+
+| | |
+| --- | --- |
+| Đường dẫn | `models/ridge_pipeline.joblib` |
+| Kích thước | 8.133 bytes |
+| SHA256 | `4619678a28b8f47eb047c060b5c27984c6fe4e62c72081d2c756d2ea3bc1abe0` |
+
+Kiểm tra artifact còn nguyên:
+
+```bat
+py -c "import hashlib,pathlib; print(hashlib.sha256(pathlib.Path('models/ridge_pipeline.joblib').read_bytes()).hexdigest())"
+```
+
+Nếu vì lý do nào đó file không tồn tại (đề yêu cầu không commit file nhị phân), chạy lại
+`py src\train.py` để sinh ra — script dùng `seed = 42` và `solver = "lsqr"`, cho ra cùng
+kết quả. **Không** tune lại bằng FINAL TEST 2018.
+
+> `.gitignore` vẫn giữ luật `models/*.joblib` cho các lần train sau; file bàn giao được
+> thêm bằng `git add -f`. Tương tự, thư mục `release/` vẫn bị ignore nhưng 3 tệp phát
+> hành cuối cùng được thêm bằng `git add -f`.
+
+---
+
+## Nhật ký dự án
+
+Xem [`docs/project-log.md`](docs/project-log.md) — bảng theo tuần gồm: người thực hiện,
+giờ ước lượng, công việc, kết quả, vấn đề/cách xử lý.
+
 
 ## Xuất tài liệu phát hành (DOCX / PDF / PPTX)
 
@@ -271,10 +357,10 @@ Kết quả:
 | Tệp | Nguồn | Công cụ | Quy mô hiện thời điểm |
 | --- | --- | --- | --- |
 | `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 45 bảng, **7 ảnh nhúng** |
-| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **20 trang A4**, dấu tiếng Việt đầy đủ |
+| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **21 trang A4**, dấu tiếng Việt đầy đủ |
 | `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | **12 slide** (1 bìa + 11 nội dung), 4 ảnh thật |
 
-- Báo cáo **20 trang A4** — nằm trong khoảng mục tiêu 15–25 trang.
+- Báo cáo **21 trang A4** — nằm trong khoảng mục tiêu 15–25 trang.
 - Nếu muốn định dạng đẹp hơn cho DOCX: đặt file mẫu `reference.docx` (mẫu định dạng của
   nhà trường) vào thư mục gốc rồi chạy lại — script tự dùng làm `--reference-doc`.
 - Nếu thiếu một công cụ, script in **"BỎ QUA"** kèm lý do và **không** tạo file rỗng.
@@ -309,21 +395,46 @@ vẫn dự báo được — tức server không cần (và không đọc) datas
 
 ## Nhóm & phân công
 
-> **CẦN NGƯỜI DÙNG CUNG CẤP — nhóm điền trước khi nộp.**
-> Nhóm **không** tự bịa tên hay phân công.
+> ### ⚠ CẦN NGƯỜI DÙNG ĐIỀN TRƯỚC KHI NỘP
 >
-> - Thành viên 1: `[TÊN THÀNH VIÊN 1]`
-> - Thành viên 2: `[TÊN THÀNH VIÊN 2]`
-> - Phân công thực tế theo tuần: `[PHÂN CÔNG THỰC TẾ]`
->   (mẫu: Tuần 1 brief + data dictionary · Tuần 2 làm sạch + EDA · Tuần 3 pipeline + tune ·
->   Tuần 4 thí nghiệm 1/1b/3 · Tuần 5 final test + web/API · Tuần 6 test + báo cáo + slide)
+> Mục này **cố ý để trống có marker**. Nhóm **không** tự bịa tên, không bịa phân công,
+> không bịa số giờ. Ba dòng dưới đây phải do chính thành viên điền bằng thông tin thật:
+>
+> | Trường | Cần điền |
+> | --- | --- |
+> | Thành viên 1 | `[TÊN THÀNH VIÊN 1]` |
+> | Thành viên 2 | `[TÊN THÀNH VIÊN 2]` |
+> | Phân công thực tế theo tuần | `[PHÂN CÔNG THỰC TẾ]` — xem khuôn `docs/project-log.md` |
+>
+> Thông tin kỹ thuật của từng tuần **đã có sẵn** trong `docs/project-log.md`; chỉ cần bổ sung
+> cột *Người thực hiện* và *Giờ ước lượng* bằng số thật.
+>
+> **Lưu ý về Git:** lịch sử commit hiện tại thuộc về một tài khoản duy nhất. Nếu đề yêu cầu
+> mỗi thành viên có commit riêng, phần đó **phải do chính thành viên đó tự commit** — không
+> thay tên tác giả, không tạo commit giả, không backdate.
 
 ## Công cụ AI đã sử dụng
 
-> **CẦN NGƯỜI DÙNG CUNG CẤP — nhóm điền trước khi nộp.**
-> Nhóm **không** tự bịa danh sách công cụ. Ghi rõ theo yêu cầu học thuật của đề:
->
-> - Công cụ: `[CÔNG CỤ AI ĐÃ SỬ DỤNG]`
-> - Dùng cho phần nào: `[CÔNG CỤ AI ĐÃ SỬ DỤNG]`
-> - Cách nhóm kiểm chứng lại: chạy lại từ đầu, đối chiếu mọi con số với artifact trong
->   `models/` và `reports/figures/`, đọc kỹ từng dòng trước khi bảo vệ.
+**Công cụ AI đã sử dụng:**
+- ChatGPT
+- Pi Agent
+
+**Mục đích sử dụng:**
+- hỗ trợ phân tích yêu cầu đề bài
+- rà soát phương pháp chống data leakage
+- hỗ trợ viết/sửa mã nguồn
+- hỗ trợ xây dựng test
+- hỗ trợ kiểm tra Web/API
+- hỗ trợ chuẩn bị báo cáo, slide và câu hỏi vấn đáp
+
+**Cách kiểm chứng lại:**
+- chạy pipeline trên dataset UCI gốc (SHA256 đối chiếu ở `data/README.md`)
+- chạy `py -m pytest tests\ -v`
+- đối chiếu mọi metric với artifact do code sinh ra (`models/*.json`, `reports/figures/*.json`)
+- smoke-test FastAPI/Web (kể cả các ca input sai)
+- đọc lại mã nguồn và tài liệu trước khi bảo vệ
+
+> AI **không** được dùng để quyết định giá trị nghiệm vụ (quy tắc ngày lễ, định nghĩa
+> danh mục thời tiết, ngưỡng giá trị vô lý) và **không** được dùng để tạo số liệu.
+> Mọi con số trong báo cáo đến từ artifact do mã nguồn sinh ra, và `tests/test_report.py`
+> tự động đối chiếu tài liệu với artifact.

@@ -292,17 +292,35 @@ Gọi `POST /api/traffic-forecast` với:
 
 ## Dự phòng — nếu GV yêu cầu chạy lại từ đầu
 
+Nếu cần chạy lại **toàn bộ** pipeline (thứ tự này là bắt buộc):
+
+```bat
+py src\download_data.py
+py src\data.py
+py src\eda.py
+py src\train.py
+py src\experiments.py
+py src\freeze_serving_policy.py   :: đóng băng policy TRƯỚC khi mở 2018
+py src\evaluate.py                :: FINAL TEST 2018
+py src\postprocess_audit.py       :: chỉ đo tác động policy
+py -m pytest tests\ -v
+py -m uvicorn app.main:app --reload
+```
+
+> Nếu làm thứ tự ngược lại (chạy `evaluate` trước `freeze_serving_policy`) thì chính sách
+> `max(0,·)` sẽ thành *test-informed postprocessing* — đó là điều nhóm cần tránh.
+
 ```bat
 py -m pytest tests\ -v
 ```
-> "197 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
+> "317 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
 > theo đường dẫn của web, rồi so **từng cột** với feature sinh ra lúc huấn luyện — bảo đảm không có
 > train-serving skew."
 
 ## Dự phòng — nếu mạng hoặc server chết giữa chừng
 
 1. Dừng demo web, chuyển sang chỉ slide 6, 7, 8 (vẫn đủ thông điệp chính).
-2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 197 test, em trình bày lại bằng slide."
+2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 317 test, em trình bày lại bằng slide."
 3. **Không** bịa số liệu thay thế.
 
 ## Danh sách câu hỏi GV hay hỏi (chuẩn bị sẵn)

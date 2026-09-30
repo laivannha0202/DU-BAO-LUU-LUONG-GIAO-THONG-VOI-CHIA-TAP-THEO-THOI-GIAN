@@ -1,0 +1,30 @@
+{
+  "note": "Moi truong da sinh ra models/ridge_pipeline.joblib va moi con so trong bao cao. Doc file nay de tai lap ket qua dung nhu da bao cao.",
+  "python": "3.14.7",
+  "python_implementation": "CPython",
+  "platform": "Windows-10-10.0.19045-SP0",
+  "os": "Windows 10",
+  "packages": {
+    "numpy": "2.5.3",
+    "pandas": "3.0.6",
+    "scikit-learn": "1.9.1",
+    "joblib": "1.6.0",
+    "fastapi": "0.141.1",
+    "uvicorn": "0.54.0",
+    "pydantic": "2.13.5",
+    "matplotlib": "3.11.2",
+    "pytest": "9.1.1",
+    "httpx": "0.28.1"
+  },
+  "seed": 42,
+  "install_exact": "py -m pip install -r requirements-lock.txt",
+  "install_compatible": "py -m pip install -r requirements.txt",
+  "model_artifact": {
+    "path": "models/ridge_pipeline.joblib",
+    "created_by": "src/train.py",
+    "sha256": "4619678a28b8f47eb047c060b5c27984c6fe4e62c72081d2c756d2ea3bc1abe0",
+    "size_bytes": 8133,
+    "alpha": 0.001,
+    "solver": "lsqr"
+  }
+}

@@ -167,9 +167,10 @@ chưa từng thấy năm 2018."
 ## Slide 9 — Ứng dụng Web / API: chỉ nạp artifact, không train lại
 
 **Nội dung**
-- 3 màn hình: **Giới thiệu** · **Dự báo** (gọi `POST /api/traffic-forecast` thật) ·
-  **Dashboard & Model Card**
-- 4 endpoint: `GET /` · `GET /health` · `GET /api/model-info` · `POST /api/traffic-forecast`
+- 3 màn hình: **Giới thiệu** (`/`) · **Dự báo** (`/du-bao`, gọi `POST /api/traffic-forecast` thật) ·
+  **Dashboard & Model Card** (`/dashboard`)
+- 4 endpoint: `GET /health` · `GET /api/model-info` · `POST /api/traffic-forecast` ·
+  `GET /api/dashboard-metrics`
 - **Không** train, **không** tune alpha, **không** fit lại encoder/imputer/scaler,
   **không** đọc target từ dataset
 - Mọi feature sinh bằng **CHUNG hàm `src.features.build_features`** với lúc huấn luyện
@@ -220,7 +221,7 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 2. **Cách chia tập quan trọng ngang chọn mô hình** — chỉ riêng việc chia tập đã làm MAE chênh
    7,55 điểm (§Slide 7), gần bằng cả cải thiện của mô hình (13,17)
 3. **Biết mô hình hỏng ở đâu** cũng là kết quả: ngày lễ, tuyết, sương mù, giờ đêm
-4. **Minh bạch**: 197 test pass, 0 fail; web/API chạy thật, chỉ nạp artifact
+4. **Minh bạch**: 317 test pass, 0 fail; web/API chạy thật, chỉ nạp artifact
 
 **Câu kết:**
 > "Trong bài toán chuỗi thời gian, **cách ta chia tập quan trọng ngang với việc ta chọn mô hình** —
@@ -239,5 +240,5 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 197 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 317 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |

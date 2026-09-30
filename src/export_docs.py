@@ -473,23 +473,32 @@ def export_pptx(verbose: bool = True) -> Path | None:
         tf.word_wrap = True
         return tf
 
+    # Tách inline: **đậm** và `code`. Nhánh đầu cho phép `code` NẰM TRONG **đậm**
+    # (kiểu **CHUNG hàm `src.features.build_features`**) — nếu không, dấu backtick
+    # sẽ lọt thẳng ra slide.
+    _INLINE_RE = re.compile(r"(\*\*(?:`[^`]+`|[^*`])+\*\*|`[^`]+`)")
+
     def add_text(tf, text, size, bold=False, color=INK, space_after=6, first=False):
         """Thêm một đoạn, hỗ trợ **đậm** và `code`."""
         par = tf.paragraphs[0] if first else tf.add_paragraph()
-        for part in re.split(r"(\*\*[^*]+\*\*|`[^`]+`)", text):
+        for part in _INLINE_RE.split(text):
             if not part:
                 continue
             r = par.add_run()
             if part.startswith("**") and part.endswith("**") and len(part) > 4:
-                r.text = part[2:-2]; is_bold, col, sz = True, color, size
+                # `code` lồng trong **đậm**: bỏ backtick, giữ chữ đậm
+                r.text = part[2:-2].replace("`", "")
+                is_bold, col, sz, font = True, color, size, "Calibri"
             elif part.startswith("`") and part.endswith("`") and len(part) > 2:
-                r.text = part[1:-1]; is_bold, col, sz = False, RGBColor(0x33, 0x37, 0x3C), size - 1
+                r.text = part[1:-1]
+                is_bold, col, sz, font = False, RGBColor(0x33, 0x37, 0x3C), size - 1, "Consolas"
             else:
-                r.text = part; is_bold, col, sz = bold, color, size
+                r.text = part
+                is_bold, col, sz, font = bold, color, size, "Calibri"
             r.font.size = Pt(sz)
             r.font.bold = is_bold
             r.font.color.rgb = col
-            r.font.name = "Consolas" if part.startswith("`") else "Calibri"
+            r.font.name = font
         par.space_after = Pt(space_after)
         return par
 
@@ -527,20 +536,29 @@ def export_pptx(verbose: bool = True) -> Path | None:
 
         tf = txbox(s, 0.55, 1.35, 7.0, 5.4)
         first = True
-        for line in lines[1:]:
-            st = line.strip()
-            if (not st or st.startswith("> ") or st.startswith("|")
-                    or st.startswith("**Hình") or st.startswith("**Nói")
-                    or st.startswith("**Câu") or st.startswith("**Dự phòng")
-                    or st.startswith("**Danh mục") or st.startswith("**Công cụ")):
+        # Cac khoi "ghi chu" (phan biet ra phien ban day du) — bo ca khoi, khong chi
+        # dong dau: cac dong tiep theo cua mot doan **Noi:** cung la ghi chu, neu
+        # chi bo dong dau thi phan con lai lot len slide.
+        note_prefixes = ("**Hình", "**Nói", "**Câu", "**Dự phòng",
+                         "**Danh mục", "**Công cụ")
+        for block in re.split(r"\n[ \t]*\n", "\n".join(lines[1:])):
+            block_lines = [ln for ln in block.splitlines() if ln.strip()]
+            if not block_lines:
                 continue
-            m = re.match(r"^([-*])\s+(.*)$", st)
-            if m:
-                st = "• " + m.group(2)
-            else:
-                st = re.sub(r"^\d+\.\s+", "", st)
-            add_text(tf, st, 13, space_after=5, first=first)
-            first = False
+            head = block_lines[0].strip()
+            if head.startswith(">") or head.startswith(note_prefixes):
+                continue
+            for st in block_lines:
+                st = st.strip()
+                if not st or st.startswith("|"):
+                    continue
+                m = re.match(r"^([-*])\s+(.*)$", st)
+                if m:
+                    st = "• " + m.group(2)
+                else:
+                    st = re.sub(r"^\d+\.\s+", "", st)
+                add_text(tf, st, 13, space_after=5, first=first)
+                first = False
         if first:
             add_text(tf, "(xem tài liệu bản đầy đủ)", 12, color=FAINT, first=True)
 

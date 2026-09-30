@@ -10,6 +10,24 @@
 - [D. Mô hình & đánh giá (22–27)](#d-mô-hình--đánh-giá-2227)
 - [E. Web/API & triển khai (28–32)](#e-webapi--triển-khai-2832)
 
+**Cách chạy lại toàn bộ pipeline (thứ tự bắt buộc):**
+
+```bat
+py src\download_data.py
+py src\data.py
+py src\eda.py
+py src\train.py
+py src\experiments.py
+py src\freeze_serving_policy.py   :: đóng băng policy max(0,·) TRƯỚC khi mở năm 2018
+py src\evaluate.py                :: FINAL TEST 2018
+py src\postprocess_audit.py       :: chỉ đo tác động của policy đã đóng băng
+py -m pytest tests\ -v
+py -m uvicorn app.main:app --reload
+```
+
+> Nếu làm ngược lại (chạy `evaluate.py` trước `freeze_serving_policy.py`) thì chính sách hậu xử
+> lý sẽ trở thành **test-informed postprocessing** — đó là điều phải tránh. Xem Câu 32.
+
 ---
 
 # A. Bài toán & dữ liệu (1–7)
@@ -193,6 +211,6 @@ Trả lời theo thứ tự 4 bước:
 | Có thể dùng mô hình này để điều khiển tín hiệu giao thông không? | **Không** — tuyệt đối không dùng cho mục đích safety-critical. Sai số ở ngày lễ gấp 4,3 lần, mẫu chỉ 7 ngày lễ; chỉ có một trạm; dữ liệu là lịch sử 2012–2018. |
 | Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rễ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
 | Hạn chế lớn nhất của nghiên cứu này? | Chỉ có một trạm đo, một hướng đi, dữ liệu lịch sử 2012–2018, và test 2018 chỉ 9 tháng. Kết luận **không** suy rộng được ra toàn thành phố. |
-| 197 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
+| 317 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
 | Nếu được làm lại, nhóm sẽ đổi gì? | (1) Thêm lag feature nhưng **backtest nghiêm** trên nhiều kỳ; (2) thử mô hình phi tuyến nhưng giữ nguyên time split; (3) mô hình riêng cho ngày lễ — dù có nguy cơ overfit vì chỉ 7 ngày lễ trong 2018; (4) dự báo xác suất (quantile) để có khoảng tin cậy cho lập kế hoạch. |
-| Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: 2018 không tham gia tuning/model selection; pipeline được đánh giá lại sau các sửa lỗi phương pháp; và kết quả 2018 không được dùng để tiếp tục tối ưu. Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |
+| Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: **năm 2018 không tham gia hyperparameter tuning hoặc model selection; pipeline và serving policy được đóng băng từ dữ liệu 2012–2017; kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.** Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |
