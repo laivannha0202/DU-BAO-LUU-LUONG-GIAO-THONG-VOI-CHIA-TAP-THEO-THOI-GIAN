@@ -399,6 +399,59 @@ def test_experiments_module_does_not_fit_on_2018():
     assert "RIDGE_PIPELINE_PATH" not in source
 
 
+# ===========================================================================
+# 3d. Thí nghiệm 6 — độ nhạy alpha (CHỈ validation, KHÔNG đổi alpha đóng băng)
+# ===========================================================================
+@needs_data
+def test_alpha_sensitivity_uses_validation_only_and_keeps_frozen_alpha():
+    from src.features import build_features, load_clean, time_split
+
+    df = build_features(load_clean())
+    train_df, val_df, _test_df = time_split(df)
+    e6 = exp.experiment_alpha_sensitivity(train_df, val_df, 0.001)
+
+    assert e6["frozen_alpha"] == 0.001
+    assert e6["frozen_alpha_kept"] is True
+    assert "2018-" not in json.dumps(e6, default=str), "Độ nhạy alpha không được dùng 2018"
+    # Lưới mở rộng phải nhỏ hơn giá trị nhỏ nhất của lưới gốc
+    assert min(e6["grid"]) < 0.001
+    assert 0.0 in e6["grid"], "Phải có alpha = 0 (OLS) để so sánh với hồi quy tuyến tính"
+    # Có đánh dấu OLS
+    ols = [r for r in e6["results"] if r["is_ols"]]
+    assert len(ols) == 1
+    # Số dòng kết quả bằng số phần tử lưới
+    assert len(e6["results"]) == len(e6["grid"])
+
+
+@needs_data
+def test_alpha_sensitivity_reports_small_alpha_region_and_threshold():
+    from src.features import build_features, load_clean, time_split
+
+    df = build_features(load_clean())
+    train_df, val_df, _test_df = time_split(df)
+    e6 = exp.experiment_alpha_sensitivity(train_df, val_df, 0.001)
+
+    small = e6["small_alpha_region"]
+    assert small["MAE_spread"] >= 0
+    assert small["MAE_max"] >= small["MAE_min"]
+    # Ngưỡng "cải thiện có ý nghĩa" phải được nêu rõ
+    assert e6["meaningful_delta_threshold"] > 0
+    for b in e6["alphas_meaningfully_better_than_frozen"]:
+        assert b["delta_vs_frozen"] <= -e6["meaningful_delta_threshold"]
+    # Không được tuyên bố đã đổi alpha
+    assert "test-informed" in e6["why_not_changed_now"]
+
+
+def test_alpha_sensitivity_json_artifact_is_written():
+    path = ROOT / "reports" / "figures" / "alpha_sensitivity.json"
+    if not path.exists():
+        pytest.skip("Chưa chạy src/experiments.py")
+    data = json.loads(path.read_text(encoding="utf-8"))
+    assert data["frozen_alpha_kept"] is True
+    assert "grid" in data and "results" in data
+    assert len(data["results"]) == len(data["grid"])
+
+
 
 @needs_data
 def test_rolling_origin_folds_are_all_out_of_sample():

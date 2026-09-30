@@ -104,7 +104,7 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 16
 **2018 có được dùng để chọn `alpha` hay chọn mô hình không?**
-**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 26 test bảo vệ điều đó.
+**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 29 test bảo vệ điều đó.
 *Gợi ý mở rộng:* phát biểu trung thực — "2018 không tham gia tuning. Pipeline được đánh giá lại sau các sửa lỗi phương pháp, và kết quả 2018 không được dùng để tiếp tục tối ưu."
 
 ### Câu 17
@@ -171,7 +171,13 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 25
 **`alpha` được chọn thế nào? Kết quả có nhạy cảm không?**
-**Đáp án:** Thử 13 giá trị từ 0,001 đến 1.000, chọn theo **MAE trên validation 2017** → `alpha = 0,001`. Không nhạy cảm ở vùng nhỏ: 0,001 → 272,12; 0,01 → 272,14; 0,1 → 272,35; 0,3 → 272,81. Nhạy cảm mạnh khi alpha lớn: 30 → 429,00; 1.000 → 1.461,15. Dữ liệu không quá nhiễu nên hiệu chuẩn không cần mạnh; nhóm chọn biên nhỏ nhất vì ít giả định nhất.
+**Đáp án:** Thử 13 giá trị từ 0,001 đến 1.000, chọn theo **MAE trên validation 2017** → `alpha = 0,001`. Nhạy cảm mạnh khi alpha lớn: 30 → 429,00; 1.000 → 1.461,15.
+
+**Phần trả lời sâu hơn (nhóm đã chạy thêm):** vì 0,001 là phần tử *nhỏ nhất* của lưới — tức nằm mép lưới — nhóm chạy lại với **lưới mở rộng** thêm cả `alpha = 0` (= OLS), chỉ trên validation. Kết quả: MAE dao động trong **272,05 – 272,14** cho toàn vùng `alpha ∈ [0; 0,01]` — **chênh nhau chỉ 0,09**. OLS chỉ tốt hơn alpha đóng băng **0,07**.
+
+→ Nói thẳng: **Ridge với alpha nhỏ gần như đúng bằng OLS, hiệu chuẩn L2 gần như không cải thiện gì.** Vì dữ liệu không đủ nhiễu, và số mẫu (25.329) lớn hơn nhiều so với số đặc trưng (217).
+
+*Nếu GV hỏi "vậy sao không đổi sang OLS":* vì FINAL TEST 2018 **đã được xem**. Đổi alpha bây giờ là **test-informed model selection**. Muốn dùng `alpha = 0` thì phải đánh giá lại trên holdout mới. Artifact: `reports/figures/alpha_sensitivity.json`.
 
 ### Câu 26
 **Mô hình hỏng ở đâu? Nêu kèm số mẫu.**
@@ -292,6 +298,6 @@ tác. **Không** đưa vào mô hình chính ở checkpoint này.
 | Có thể dùng mô hình này để điều khiển tín hiệu giao thông không? | **Không** — tuyệt đối không dùng cho mục đích safety-critical. Sai số ở ngày lễ gấp 4,3 lần, mẫu chỉ 7 ngày lễ; chỉ có một trạm; dữ liệu là lịch sử 2012–2018. |
 | Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rỉ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
 | Hạn chế lớn nhất của nghiên cứu này? | Chỉ có một trạm đo, một hướng đi, dữ liệu lịch sử 2012–2018, và test 2018 chỉ 9 tháng. Kết luận **không** suy rộng được ra toàn thành phố. |
-| 343 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
+| 346 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
 | Nếu được làm lại, nhóm sẽ đổi gì? | (1) Thêm lag feature nhưng **backtest nghiêm** trên nhiều kỳ; (2) thử mô hình phi tuyến nhưng giữ nguyên time split; (3) mô hình riêng cho ngày lễ — dù có nguy cơ overfit vì chỉ 7 ngày lễ trong 2018; (4) dự báo xác suất (quantile) để có khoảng tin cậy cho lập kế hoạch. |
 | Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: **năm 2018 không tham gia hyperparameter tuning hoặc model selection; pipeline và serving policy được đóng băng từ dữ liệu 2012–2017; kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.** Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |

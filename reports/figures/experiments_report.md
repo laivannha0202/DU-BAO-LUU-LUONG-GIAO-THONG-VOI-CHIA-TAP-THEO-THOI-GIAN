@@ -181,6 +181,38 @@ Lặp lại trên 5 seed cố định ([11, 23, 37, 53, 71]); báo cáo trung b�
 
 - **Vì sao không đưa vào mô hình chính:** Giả thuyết này được nêu ra SAU khi đã nhìn kết quả FINAL TEST 2018. Chọn log-target bây giờ sẽ là test-informed model selection — đúng thứ mà toàn bộ phương pháp của đồ án này cảnh báo. Muốn dùng thì phải đánh giá lại trên một holdout MỚI.
 
+## 6. Thí nghiệm 6 — Độ nhạy cảm của alpha (CHỈ trên VALIDATION 2017)
+
+- Thiết kế: Lọi alpha MỞ RỘNG (thêm 0 = OLS và các giá trị nhỏ hơn biên của lưới gốc), chạy CHỈ trên VALIDATION 2017. KHÔNG đổi alpha đã đóng băng.
+- alpha đã đóng băng = **0.001**, MAE validation **272.12**
+
+| alpha | MAE (val) | RMSE (val) | R² | Chênh so với alpha đóng băng |
+| --- | --- | --- | --- | --- |
+| 0 (OLS) | 272.05 | 421.36 | 0.9548 | -0.07 |
+| 1e-06 | 272.12 | 421.45 | 0.9548 | +0.0 |
+| 1e-05 | 272.12 | 421.45 | 0.9548 | +0.0 |
+| 0.0001 | 272.12 | 421.45 | 0.9548 | +0.0 |
+| 0.001 **(đóng băng)** | 272.12 | 421.46 | 0.9548 | +0.0 |
+| 0.003 | 272.13 | 421.46 | 0.9548 | +0.01 |
+| 0.01 | 272.14 | 421.46 | 0.9548 | +0.02 |
+| 0.03 | 272.19 | 421.47 | 0.9548 | +0.07 |
+| 0.1 | 272.35 | 421.5 | 0.9548 | +0.23 |
+| 0.3 | 272.81 | 421.59 | 0.9548 | +0.69 |
+| 1.0 | 274.58 | 422.04 | 0.9547 | +2.46 |
+| 3.0 | 280.77 | 424.37 | 0.9542 | +8.65 |
+| 10.0 | 312.13 | 442.39 | 0.9502 | +40.01 |
+| 30.0 | 429.0 | 539.15 | 0.926 | +156.88 |
+| 100.0 | 751.03 | 882.7 | 0.8017 | +478.91 |
+| 300.0 | 1146.97 | 1332.33 | 0.5483 | +874.85 |
+| 1000.0 | 1461.15 | 1688.71 | 0.2744 | +1189.03 |
+
+- **Vùng alpha nhỏ [0; 0,01]:** MAE validation dao động trong 272.05–272.14, tức **chênh nhau chỉ 0.09** xe/giờ.
+- **OLS (alpha = 0) cho MAE 272.05**, chênh -0.07 so với alpha đã đóng băng.
+- Ridge với alpha rất nhỏ gần như **đúng bằng OLS**: MAE validation chỉ khác 0.09 xe/giờ trên toàn vùng alpha ∈ [0; 0,01]. Hiệu chuẩn L2 gần như **không cải thiện** gì trên dữ liệu này — vì dữ liệu không đủ nhiễu để cần co hệ số, và số mẫu (25.329) lớn hơn số đặc trưng (217) nên hệ thống phương trình vốn đã ổn định.
+- **alpha tốt nhất trên lưới mở rộng:** 0 (OLS) (MAE 272.05) — có nằm mép lưới không: có.
+- **Không có alpha nào cải thiện có ý nghĩa** (ngưỡng 0.5 xe/giờ) so với alpha đã đóng băng.
+- **Kể cả khi một alpha khác cho MAE validation thấp hơn, nhóm **không** đổi alpha đã đóng băng: FINAL TEST 2018 đã được xem, nên chọn lại alpha lúc này là test-informed model selection. Muốn dùng alpha khác thì phải đánh giá lại trên một holdout mới.**
+
 ## Kết luận giai đoạn phát triển
 
 1. Trên pseudo-test 2016–2017: ⚠️ Ridge **kém baseline về MAE** (306.48 vs 294.95) nhưng **tốt hơn về RMSE** (472.61 vs 495.71) — đã biết **trước khi** nhìn vào 2018.

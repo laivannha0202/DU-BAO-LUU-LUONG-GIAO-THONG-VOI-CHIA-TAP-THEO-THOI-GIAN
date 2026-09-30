@@ -260,10 +260,10 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 
 | Mã | Nội dung | Khi nào dùng |
 | --- | --- | --- |
-| A1 | Bảng alpha đầy đủ (13 giá trị) | GV hỏi "sao chọn alpha nhỏ vậy" |
+| A1 | Bảng alpha đầy đủ (13 giá trị) + độ nhạy cảm lưới mở rộng (17 giá trị, có OLS) | GV hỏi "sao chọn alpha nhỏ vậy" |
 | A2 | Bảng MAE đầy đủ 24 giờ | GV hỏi chi tiết theo giờ |
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 343 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 346 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |

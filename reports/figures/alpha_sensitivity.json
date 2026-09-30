@@ -1,0 +1,201 @@
+{
+  "design": "Lọi alpha MỞ RỘNG (thêm 0 = OLS và các giá trị nhỏ hơn biên của lưới gốc), chạy CHỈ trên VALIDATION 2017. KHÔNG đổi alpha đã đóng băng.",
+  "grid": [
+    0.0,
+    1e-06,
+    1e-05,
+    0.0001,
+    0.001,
+    0.003,
+    0.01,
+    0.03,
+    0.1,
+    0.3,
+    1.0,
+    3.0,
+    10.0,
+    30.0,
+    100.0,
+    300.0,
+    1000.0
+  ],
+  "frozen_alpha": 0.001,
+  "frozen_validation_MAE": 272.12,
+  "best_on_validation": {
+    "alpha": 0.0,
+    "label": "0 (OLS)",
+    "MAE": 272.05
+  },
+  "best_is_edge_of_grid": true,
+  "small_alpha_region": {
+    "range": [
+      0.0,
+      0.01
+    ],
+    "MAE_spread": 0.09,
+    "MAE_min": 272.05,
+    "MAE_max": 272.14
+  },
+  "ols_MAE": 272.05,
+  "delta_ols_minus_frozen": -0.07,
+  "meaningful_delta_threshold": 0.5,
+  "alphas_meaningfully_better_than_frozen": [],
+  "results": [
+    {
+      "alpha": 0.0,
+      "label": "0 (OLS)",
+      "is_ols": true,
+      "MAE": 272.05,
+      "RMSE": 421.36,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 1e-06,
+      "label": "1e-06",
+      "is_ols": false,
+      "MAE": 272.12,
+      "RMSE": 421.45,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 1e-05,
+      "label": "1e-05",
+      "is_ols": false,
+      "MAE": 272.12,
+      "RMSE": 421.45,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.0001,
+      "label": "0.0001",
+      "is_ols": false,
+      "MAE": 272.12,
+      "RMSE": 421.45,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.001,
+      "label": "0.001",
+      "is_ols": false,
+      "MAE": 272.12,
+      "RMSE": 421.46,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.003,
+      "label": "0.003",
+      "is_ols": false,
+      "MAE": 272.13,
+      "RMSE": 421.46,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.01,
+      "label": "0.01",
+      "is_ols": false,
+      "MAE": 272.14,
+      "RMSE": 421.46,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.03,
+      "label": "0.03",
+      "is_ols": false,
+      "MAE": 272.19,
+      "RMSE": 421.47,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.1,
+      "label": "0.1",
+      "is_ols": false,
+      "MAE": 272.35,
+      "RMSE": 421.5,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 0.3,
+      "label": "0.3",
+      "is_ols": false,
+      "MAE": 272.81,
+      "RMSE": 421.59,
+      "R2": 0.9548,
+      "n": 8713
+    },
+    {
+      "alpha": 1.0,
+      "label": "1.0",
+      "is_ols": false,
+      "MAE": 274.58,
+      "RMSE": 422.04,
+      "R2": 0.9547,
+      "n": 8713
+    },
+    {
+      "alpha": 3.0,
+      "label": "3.0",
+      "is_ols": false,
+      "MAE": 280.77,
+      "RMSE": 424.37,
+      "R2": 0.9542,
+      "n": 8713
+    },
+    {
+      "alpha": 10.0,
+      "label": "10.0",
+      "is_ols": false,
+      "MAE": 312.13,
+      "RMSE": 442.39,
+      "R2": 0.9502,
+      "n": 8713
+    },
+    {
+      "alpha": 30.0,
+      "label": "30.0",
+      "is_ols": false,
+      "MAE": 429.0,
+      "RMSE": 539.15,
+      "R2": 0.926,
+      "n": 8713
+    },
+    {
+      "alpha": 100.0,
+      "label": "100.0",
+      "is_ols": false,
+      "MAE": 751.03,
+      "RMSE": 882.7,
+      "R2": 0.8017,
+      "n": 8713
+    },
+    {
+      "alpha": 300.0,
+      "label": "300.0",
+      "is_ols": false,
+      "MAE": 1146.97,
+      "RMSE": 1332.33,
+      "R2": 0.5483,
+      "n": 8713
+    },
+    {
+      "alpha": 1000.0,
+      "label": "1000.0",
+      "is_ols": false,
+      "MAE": 1461.15,
+      "RMSE": 1688.71,
+      "R2": 0.2744,
+      "n": 8713
+    }
+  ],
+  "conclusion": "Ridge với alpha rất nhỏ gần như **đúng bằng OLS**: MAE validation chỉ khác 0.09 xe/giờ trên toàn vùng alpha ∈ [0; 0,01]. Hiệu chuẩn L2 gần như **không cải thiện** gì trên dữ liệu này — vì dữ liệu không đủ nhiễu để cần co hệ số, và số mẫu (25.329) lớn hơn số đặc trưng (217) nên hệ thống phương trình vốn đã ổn định.",
+  "frozen_alpha_kept": true,
+  "why_not_changed_now": "Kể cả khi một alpha khác cho MAE validation thấp hơn, nhóm **không** đổi alpha đã đóng băng: FINAL TEST 2018 đã được xem, nên chọn lại alpha lúc này là test-informed model selection. Muốn dùng alpha khác thì phải đánh giá lại trên một holdout mới."
+}

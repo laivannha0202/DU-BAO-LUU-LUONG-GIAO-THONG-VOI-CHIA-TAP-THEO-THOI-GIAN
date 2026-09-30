@@ -41,6 +41,7 @@ if str(_ROOT) not in sys.path:
 from src.features import (  # noqa: E402
     TARGET_COLUMN,
     random_split,
+    time_split,
 )
 from src.train import compute_metrics, get_X_y, make_ridge_pipeline  # noqa: E402
 
@@ -646,6 +647,113 @@ def dev_baseline_comparison(dev: pd.DataFrame, alpha: float) -> dict:
 
 
 # ===========================================================================
+# Thí nghiệm 6 — Độ nhạy cảm của alpha (CHỈ trên VALIDATION 2017)
+# ===========================================================================
+#: Lưới alpha MỞ RỘNG so với `src.train.ALPHA_GRID`: thêm các giá trị nhỏ hơn biên
+#: (kể cả 0 = OLS) để trả lời câu hỏi "alpha tối ưu có nằm mép lưới không?".
+ALPHA_SENSITIVITY_GRID = [
+    0.0, 1e-6, 1e-5, 1e-4, 1e-3, 3e-3, 1e-2, 3e-2,
+    1e-1, 3e-1, 1.0, 3.0, 10.0, 30.0, 100.0, 300.0, 1000.0,
+]
+
+#: Ngưỡng coi là "cải thiện có ý nghĩa" (đơn vị xe/giờ, trên validation).
+ALPHA_MEANINGFUL_DELTA = 0.5
+
+
+def experiment_alpha_sensitivity(train_df: pd.DataFrame, val_df: pd.DataFrame, alpha: float) -> dict:
+    """Chạy lại lưới alpha MỞ RỘNG — CHỈ trên VALIDATION, KHÔNG đụng FINAL TEST.
+
+    Lý do: `alpha = 0,001` là phần tử **nhỏ nhất** của lưới gốc, tức nó nằm ngay mép
+    lưới. Cần biết liệu đó là do lựa chọn hợp lý hay do lưới bị hẹp.
+
+    ⚠️ KHÔNG đổi alpha đã đóng băng. FINAL TEST 2018 đã bị xem; đổi alpha bây giờ
+    là test-informed model selection. Script chỉ **đo** và **báo cáo**.
+    """
+    assert_no_final_test_rows(val_df, "exp6:alpha_sensitivity")
+    assert_no_final_test_rows(train_df, "exp6:alpha_sensitivity:train")
+
+    from sklearn.linear_model import LinearRegression
+
+    X_train, y_train = get_X_y(train_df)
+    X_val, y_val = get_X_y(val_df)
+
+    rows = []
+    for a in ALPHA_SENSITIVITY_GRID:
+        if a == 0.0:
+            # alpha = 0 tức là OLS. Dùng LinearRegression thay vì Ridge(0) để
+            # tránh cảnh báo hội tụ và có kết quả đúng.
+            pipe = make_ridge_pipeline(1.0)
+            pipe.steps[-1] = ("model", LinearRegression())
+            label = "0 (OLS)"
+        else:
+            pipe = make_ridge_pipeline(a)
+            label = str(a)
+        pipe.fit(X_train, y_train)
+        rows.append({
+            "alpha": a,
+            "label": label,
+            "is_ols": a == 0.0,
+            **compute_metrics(y_val, pipe.predict(X_val)),
+        })
+
+    by_alpha = {r["alpha"]: r for r in rows}
+    best = min(rows, key=lambda r: r["MAE"])
+    frozen_row = by_alpha.get(alpha)
+    small = [r for r in rows if 0.0 <= r["alpha"] <= 1e-2]
+    spread = max(r["MAE"] for r in small) - min(r["MAE"] for r in small)
+
+    better = [
+        {"alpha": r["alpha"], "label": r["label"], "MAE": r["MAE"],
+         "delta_vs_frozen": round(r["MAE"] - frozen_row["MAE"], 2) if frozen_row else None}
+        for r in rows
+        if frozen_row and r["MAE"] < frozen_row["MAE"] - ALPHA_MEANINGFUL_DELTA
+    ]
+    return {
+        "design": (
+            "Lọi alpha MỞ RỘNG (thêm 0 = OLS và các giá trị nhỏ hơn biên của lưới gốc), "
+            "chạy CHỈ trên VALIDATION 2017. KHÔNG đổi alpha đã đóng băng."
+        ),
+        "grid": ALPHA_SENSITIVITY_GRID,
+        "frozen_alpha": alpha,
+        "frozen_validation_MAE": frozen_row["MAE"] if frozen_row else None,
+        "best_on_validation": {
+            "alpha": best["alpha"], "label": best["label"], "MAE": best["MAE"],
+        },
+        "best_is_edge_of_grid": bool(best["alpha"] in (min(ALPHA_SENSITIVITY_GRID),
+                                                       max(ALPHA_SENSITIVITY_GRID))),
+        "small_alpha_region": {
+            "range": [0.0, 0.01],
+            "MAE_spread": round(spread, 2),
+            "MAE_min": min(r["MAE"] for r in small),
+            "MAE_max": max(r["MAE"] for r in small),
+        },
+        "ols_MAE": by_alpha[0.0]["MAE"],
+        "delta_ols_minus_frozen": (
+            round(by_alpha[0.0]["MAE"] - frozen_row["MAE"], 2) if frozen_row else None
+        ),
+        "meaningful_delta_threshold": ALPHA_MEANINGFUL_DELTA,
+        "alphas_meaningfully_better_than_frozen": better,
+        "results": rows,
+        "conclusion": (
+            (
+                "Ridge với alpha rất nhỏ gần như **đúng bằng OLS**: MAE validation chỉ khác "
+                f"{spread:.2f} xe/giờ trên toàn vùng alpha ∈ [0; 0,01]. Hiệu chuẩn L2 gần như "
+                "**không cải thiện** gì trên dữ liệu này — vì dữ liệu không đủ nhiễu để cần "
+                "co hệ số, và số mẫu (25.329) lớn hơn số đặc trưng (217) nên hệ thống phương "
+                "trình vốn đã ổn định."
+            )
+        ),
+        "frozen_alpha_kept": True,
+        "why_not_changed_now": (
+            "Kể cả khi một alpha khác cho MAE validation thấp hơn, nhóm **không** đổi alpha "
+            "đã đóng băng: FINAL TEST 2018 đã được xem, nên chọn lại alpha lúc này là "
+            "test-informed model selection. Muốn dùng alpha khác thì phải đánh giá lại trên "
+            "một holdout mới."
+        ),
+    }
+
+
+# ===========================================================================
 # Thí nghiệm 4 — Kiểm tra giả thuyết "Ridge kém ở giờ đêm" (CHỈ dữ liệu dev)
 # ===========================================================================
 def _hour_comparison(
@@ -853,10 +961,15 @@ def experiment_log_target_probe(dev: pd.DataFrame, alpha: float) -> dict:
 # ===========================================================================
 # Main
 # ===========================================================================
+def _train_val_split(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
+    """Tách TRAIN / VALIDATION chuẩn của dự án (dùng cho kiểm tra độ nhạy alpha)."""
+    train_df, val_df, _test_df = time_split(df)
+    return train_df, val_df
+
+
 def run_all(df: pd.DataFrame, alpha: float) -> dict:
     dev = dev_window(df)
-    results = {
-        "dev_window": {
+    results = {        "dev_window": {
             "start": str(dev["date_time"].min()),
             "end": str(dev["date_time"].max()),
             "n_rows": int(len(dev)),
@@ -870,6 +983,9 @@ def run_all(df: pd.DataFrame, alpha: float) -> dict:
         "experiment_3b_covariate_drift": covariate_drift(dev),
         "experiment_4_night_hour_failure": experiment_night_hour_failure(dev, alpha),
         "experiment_5_log_target_probe": experiment_log_target_probe(dev, alpha),
+        "experiment_6_alpha_sensitivity": experiment_alpha_sensitivity(
+            *_train_val_split(df), alpha
+        ),
     }
     return results
 
@@ -1222,6 +1338,49 @@ def render_report(results: dict) -> str:
     L.append(f"- **Vì sao không đưa vào mô hình chính:** {exp5['why_cannot_be_shipped']}")
     L.append("")
 
+    L.append("## 6. Thí nghiệm 6 — Độ nhạy cảm của alpha (CHỈ trên VALIDATION 2017)")
+    L.append("")
+    exp6 = results["experiment_6_alpha_sensitivity"]
+    L.append(f"- Thiết kế: {exp6['design']}")
+    L.append(
+        f"- alpha đã đóng băng = **{exp6['frozen_alpha']}**, MAE validation "
+        f"**{exp6['frozen_validation_MAE']}**"
+    )
+    L.append("")
+    L.append("| alpha | MAE (val) | RMSE (val) | R² | Chênh so với alpha đóng băng |")
+    L.append("| --- | --- | --- | --- | --- |")
+    for r in exp6["results"]:
+        delta = round(r["MAE"] - exp6["frozen_validation_MAE"], 2)
+        L.append(
+            f"| {r['label']}{' **(đóng băng)**' if r['alpha'] == exp6['frozen_alpha'] else ''} | "
+            f"{r['MAE']} | {r['RMSE']} | {r['R2']} | {delta:+} |"
+        )
+    L.append("")
+    small = exp6["small_alpha_region"]
+    L.append(
+        f"- **Vùng alpha nhỏ [0; 0,01]:** MAE validation dao động trong "
+        f"{small['MAE_min']}–{small['MAE_max']}, tức **chênh nhau chỉ {small['MAE_spread']}** "
+        "xe/giờ."
+    )
+    L.append(
+        f"- **OLS (alpha = 0) cho MAE {exp6['ols_MAE']}**, chênh "
+        f"{exp6['delta_ols_minus_frozen']:+} so với alpha đã đóng băng."
+    )
+    L.append(f"- {exp6['conclusion']}")
+    L.append(f"- **alpha tốt nhất trên lưới mở rộng:** {exp6['best_on_validation']['label']} "
+             f"(MAE {exp6['best_on_validation']['MAE']}) — có nằm mép lưới không: "
+             f"{'có' if exp6['best_is_edge_of_grid'] else '**không**'}.")
+    better = exp6["alphas_meaningfully_better_than_frozen"]
+    L.append(
+        "- **Không có alpha nào cải thiện có ý nghĩa** (ngưỡng "
+        f"{exp6['meaningful_delta_threshold']} xe/giờ) so với alpha đã đóng băng."
+        if not better
+        else "- ⚠️ Có alpha cải thiện có ý nghĩa: "
+             + ", ".join(f"`{b['label']}` ({b['delta_vs_frozen']:+})" for b in better)
+    )
+    L.append(f"- **{exp6['why_not_changed_now']}**")
+    L.append("")
+
     L.append("## Kết luận giai đoạn phát triển")
     L.append("")
     base_line = (
@@ -1287,9 +1446,17 @@ def main() -> None:
     (reports_dir / "experiments_results.json").write_text(
         json.dumps(results, indent=2, ensure_ascii=False, allow_nan=False), encoding="utf-8"
     )
+
+    # Artifact riêng cho độ nhạy alpha — tái sử dụng đúng kết quả đã tính ở trên,
+    # không chạy lại (cùng seed, cùng dữ liệu => cùng kết quả).
+    (reports_dir / "alpha_sensitivity.json").write_text(
+        json.dumps(results["experiment_6_alpha_sensitivity"], indent=2, ensure_ascii=False),
+        encoding="utf-8",
+    )
     print(report)
     print(f"\nĐã lưu: {reports_dir / 'experiments_report.md'}")
     print(f"Đã lưu: {reports_dir / 'experiments_results.json'}")
+    print(f"Đã lưu: {reports_dir / 'alpha_sensitivity.json'}")
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 343 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 346 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -231,7 +231,7 @@ trên `X_train`.
 
 Quy tắc 4 được **cưỡng chế bằng mã nguồn**, không chỉ bằng lời hứa: `src/experiments.py` gọi
 `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng năm 2018 nào lọt vào
-(`tests/test_experiments.py` — 26 test bảo vệ điều này).
+(`tests/test_experiments.py` — 29 test bảo vệ điều này).
 
 ---
 
@@ -397,11 +397,61 @@ Ghi chú thiết kế:
 **Kết quả:** `alpha = 0,001`.
 
 Diễn giải: Ở vùng alpha nhỏ (0,001–0,3) hiệu năng gần như nhau — dữ liệu không bị quá nhiễu nên
-hiệu chuẩn không cần mạnh. Từ alpha ≥ 10 mô hình bị co quá nặng và MAE tăng vọt. Chọn biên nhỏ nhất
-là lựa chọn ít giả định nhất, và nó cũng cho MAE tốt nhất trên validation.
+hiệu chuẩn không cần mạnh. Từ alpha ≥ 10 mô hình bị co quá nặng và MAE tăng vọt. Chọn biên nhỏ
+nhất là lựa chọn ít giả định nhất, và nó cũng cho MAE tốt nhất trên validation.
 
-**MAE trên VALIDATION của Ridge: 272,12** so với **baseline 278,66** — mô hình đã vượt baseline
-ngay trên tập dùng để chọn tham số. Sự thật này được kiểm tra lại độc lập trên FINAL TEST (§9).
+**MAE trên VALIDATION của Ridge: 272,12** so với **baseline 278,66**.
+
+## 8.1 Độ nhạy cảm của alpha — alpha tối ưu có nằm mép lưới không?
+
+*Sinh bởi `src/experiments.py` (mục 6) → `reports/figures/alpha_sensitivity.json`. Chạy **chỉ trên
+VALIDATION 2017**.*
+
+`alpha = 0,001` là phần tử **nhỏ nhất** của lưới gốc, tức nó nằm ngay mép lưới — cần kiểm tra
+xem đó là lựa chọn hợp lý hay chỉ vì lưới bị hẹp. Vì vậy nhóm chạy lại với **lưới mở rộng**,
+thêm cả `alpha = 0` (tức **OLS** — hồi quy tuyến tính không hiệu chuẩn):
+
+| alpha | MAE (val) | RMSE (val) | R² | Chênh so với alpha đóng băng |
+| --- | --- | --- | --- | --- |
+| **0 (OLS)** | **272,05** | 421,36 | 0,9548 | **−0,07** |
+| 0,000001 | 272,12 | 421,45 | 0,9548 | +0,00 |
+| 0,00001 | 272,12 | 421,45 | 0,9548 | +0,00 |
+| 0,0001 | 272,12 | 421,45 | 0,9548 | +0,00 |
+| **0,001 (đóng băng)** | **272,12** | 421,46 | 0,9548 | +0,00 |
+| 0,003 | 272,13 | 421,46 | 0,9548 | +0,01 |
+| 0,01 | 272,14 | 421,46 | 0,9548 | +0,02 |
+| 0,03 | 272,19 | 421,47 | 0,9548 | +0,07 |
+| 0,1 | 272,35 | 421,50 | 0,9548 | +0,23 |
+| 0,3 | 272,81 | 421,59 | 0,9548 | +0,69 |
+| 1,0 | 274,58 | 422,04 | 0,9547 | +2,46 |
+| 3,0 | 280,77 | 424,37 | 0,9542 | +8,65 |
+| 10,0 | 312,13 | 442,39 | 0,9502 | +40,01 |
+| 30,0 | 429,00 | 539,15 | 0,9260 | +156,88 |
+| 100,0 | 751,03 | 882,70 | 0,8017 | +478,91 |
+| 300,0 | 1.146,97 | 1.332,33 | 0,5483 | +874,85 |
+| 1.000,0 | 1.461,15 | 1.688,71 | 0,2744 | +1.189,03 |
+
+**[QUYẾT ĐỊNH] Kết luận — và đây là một phát hiện trung thực, không phải điều đẹp:**
+
+> Trên toàn vùng `alpha ∈ [0; 0,01]`, MAE validation chỉ dao động trong **272,05 – 272,14**, tức
+> **chênh nhau chỉ 0,09 xe/giờ**. `alpha = 0` (OLS) cho MAE 272,05 — chỉ tốt hơn alpha đã đóng
+> băng **0,07**. Nói cách khác: **Ridge với alpha rất nhỏ gần như đúng bằng OLS, và hiệu chuẩn L2
+> gần như không cải thiện gì trên dữ liệu này.**
+
+**Vì sao?** (1) Dữ liệu không đủ nhiễu để cần co hệ số. (2) Số mẫu (25.329) lớn hơn nhiều so
+với số đặc trưng (217), nên hệ thống phương trình vốn đã ổn định và hiệu chuẩn không thêm được
+gì. (3) Đây cũng là lý do chọn Ridge thay vì OLS thuần **không** phải để tăng độ chính xác, mà
+để giữ một siêu tham số có thể kiểm soát trong trường hợp tương lai cần hiệu chuẩn mạnh hơn.
+
+**Về vị trí mép lưới:** `alpha = 0` mới là giá trị tốt nhất trên lưới mở rộng, nhưng **chỉ hơn
+0,07 xe/giờ** — dưới ngưỡng "cải thiện có ý nghĩa" mà nhóm đặt ra là 0,5 xe/giờ. **Không có alpha
+nào** trong lưới mở rộng cải thiện có ý nghĩa so với alpha đã đóng băng. Vậy việc alpha nằm mép
+lưới gốc **không phải** hệ quả của lưới hẹp.
+
+**[QUYẾT ĐỊNH] Vì sao KHÔNG đổi alpha đã đóng băng:** FINAL TEST 2018 **đã được xem**. Chọn lại
+alpha bây giờ — dù chỉ cải thiện 0,07 — là **test-informed model selection**, đúng thứ mà toàn
+bộ phương pháp của đồ án này cảnh báo. Muốn dùng `alpha = 0` thì phải đánh giá lại trên **một
+holdout mới**.
 
 ---
 
@@ -1130,7 +1180,7 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_data.py` | 39 | collapse trùng, bất biến trong nhóm trùng, quy tắc giá trị vô lý, `holiday` với `keep_default_na=False`, đối chiếu lịch với dataset |
 | `test_features.py` | 19 | Đặc trưng lịch, ngữ nghĩa ngày lễ, time split có assert, random split chỉ để minh hoạ |
 | `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
-| `test_experiments.py` | 26 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, rolling-origin chỉ out-of-sample |
+| `test_experiments.py` | 29 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, độ nhạy alpha chỉ trên validation, rolling-origin chỉ out-of-sample |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
 | `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
@@ -1276,6 +1326,10 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
     13,16 MAE (CI 95 % [+3,80; +22,00]); trên 3/4 cửa sổ dev 2012–2017 Ridge **thua** baseline
     với khoảng tin cậy nằm hẳn về phía baseline (§9.3). Mô hình chỉ đáng tin hơn khi tập
     huấn luyện đủ dày.
+12. **Hiệu chuẩn L2 gần như không có tác dụng.** Trên validation, `alpha ∈ [0; 0,01]` cho MAE
+    chênh nhau chỉ **0,09**; OLS (`alpha = 0`) chỉ tốt hơn alpha đã đóng băng **0,07** (§8.1).
+    Vậy hiệu năng gần như đến từ hồi quy tuyến tính, không phải từ L2. Nhóm giữ
+    `alpha = 0,001` vì FINAL TEST đã bị xem — đổi bây giờ là test-informed model selection.
 
 ## 14.9 Cách dùng ở thời điểm phục vụ
 
@@ -1304,7 +1358,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 343 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
+| Đo lường được bằng máy | 346 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1351,7 +1405,7 @@ Nhóm đã hoàn thành đề tài với kết quả:
    mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
    của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 343 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 346 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1396,7 +1450,7 @@ reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
             viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      343 test
+tests/      346 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1459,7 +1513,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 343 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 6 | FastAPI + 3 màn hình + 346 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 
