@@ -7,6 +7,11 @@
 **Policy:** `non_negative_projection` · phiên bản `frozen-1.0` · đóng băng 2026-09-30T02:47:36+00:00
 **Quy tắc:** `deployed_prediction = max(0, raw_ridge_prediction)`
 
+> Mốc thời gian ở trên đọc thẳng từ `models/serving_policy.json` (`frozen_at_utc`) và
+> được giữ nguyên vĩnh viễn kể từ lần đóng băng đầu tiên — **không** lấy từ đồng hồ khi
+> chạy lại. Vì vậy chạy lại `src/freeze_serving_policy.py` cho ra đúng file này
+> (xem `py src\freeze_serving_policy.py --check`).
+
 ---
 
 ## 1. Quy tắc quyết định (viết trước khi chạy)
@@ -65,3 +70,17 @@ Kiểm chứng thực nghiệm trên VALIDATION: sai số tuyệt đối **khôn
 
 **Chữ ký nội dung:** `aef9a0c9264dc9e80c6996d06cd70548…`
 (dùng để phát hiện việc sửa tay policy sau khi đóng băng)
+
+## 7. Tính lặp lại được của chính bước đóng băng
+
+`models/serving_policy.json` chỉ được ghi **một lần**, tại thời điểm đóng băng thật:
+
+| Việc | Hành vi |
+| --- | --- |
+| Chạy lại, nội dung **khớp** | Không ghi lại file. Giữ nguyên `frozen_at_utc` cũ. |
+| Chạy lại, nội dung **lệch** | Dừng, exit code khác 0, in diff, **không** ghi đè. |
+| Muốn ghi đè | Phải có `--force`, và phải ghi lý do vào `docs/project-log.md`. |
+| Chỉ muốn kiểm tra | `--check`: chỉ tính lại rồi so sánh, exit 0 nếu khớp / 1 nếu lệch, không ghi file nào. |
+
+Nhờ vậy hash của `models/serving_policy.json` là ổn định: máy sạch cài
+`requirements-lock.txt` rồi chạy lại pipeline sẽ sinh ra đúng file đã commit.
