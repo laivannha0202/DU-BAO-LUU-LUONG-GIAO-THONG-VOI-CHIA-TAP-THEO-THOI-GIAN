@@ -510,10 +510,10 @@ Kết quả:
 | Tệp | Nguồn | Công cụ | Quy mô hiện thời điểm |
 | --- | --- | --- | --- |
 | `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 45 bảng, **7 ảnh nhúng** |
-| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **21 trang A4**, dấu tiếng Việt đầy đủ |
+| `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **25 trang A4**, dấu tiếng Việt đầy đủ |
 | `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | **12 slide** (1 bìa + 11 nội dung), 4 ảnh thật |
 
-- Báo cáo **21 trang A4** — nằm trong khoảng mục tiêu 15–25 trang.
+- Báo cáo **25 trang A4** — nằm trong khoảng mục tiêu 15–25 trang.
 - Nếu muốn định dạng đẹp hơn cho DOCX: đặt file mẫu `reference.docx` (mẫu định dạng của
   nhà trường) vào thư mục gốc rồi chạy lại — script tự dùng làm `--reference-doc`.
 - Nếu thiếu một công cụ, script in **"BỎ QUA"** kèm lý do và **không** tạo file rỗng.

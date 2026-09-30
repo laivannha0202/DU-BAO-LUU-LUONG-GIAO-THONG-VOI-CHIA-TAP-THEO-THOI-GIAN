@@ -771,7 +771,7 @@ khoảng thời gian chấm:
 **[QUYẾT ĐỊNH] Cách đọc đúng:** số 259,73 của FINAL TEST 2018 có xu hướng **thấp hơn** so với một
 bài toán cả năm. Điều này **không** làm sai lệch phép so sánh với baseline (cả hai cùng bị thiếu
 quý IV, nên chênh lệch 13,16 vẫn công bằng), nhưng **không được** so sánh tuyệt đối con số này với
-một benchmark đánh giá cả năm. Mọi kết luận về 2018 chỉ áp dụng cho **9 tháng đầu năm**.
+một benchmark đánh giá cả năm — mọi kết luận về 2018 chỉ áp dụng cho **9 tháng đầu năm**.
 
 ### (b) Ngày lễ trong FINAL TEST chỉ có 7 ngày lịch (167 giờ)
 
@@ -790,9 +790,9 @@ lịch**, mỗi ngày chỉ khoảng 24 mẫu giờ. Bảng trên cho thấy cá
 518,33 (Washingtons Birthday) tới 1.508,73 (Independence Day), gần gấp 3 lần — nên **độ bất định
 của ước lượng này lớn**, không nên coi 1.031,44 là một giá trị ổn định. Nguyên nhân: mô hình chỉ có
 một cờ nhị phân `is_holiday`, nên nó học được "một mức dịch chuyển trung bình" cho tất cả ngày lễ,
-trong khi mỗi ngày lễ một kiểu (State Fair khác hẳn ngày lễ liên bang). Ở **State Fair
-(2018-08-23)** baseline tốt hơn Ridge rất nhiều (258,48 so với 985,11) — chỉ một trong 7 ngày, nhưng
-đủ để thấy mô hình xử lý ngày lễ **không đồng đều**.
+trong khi mỗi ngày lễ một kiểu (State Fair khác hẳn ngày lễ liên bang) — ở State Fair
+(2018-08-23) baseline tốt hơn Ridge rất nhiều (258,48 so với 985,11), đủ để thấy mô hình xử lý
+ngày lễ **không đồng đều**.
 
 ### (c) Phân khúc thời tiết không có mẫu
 
@@ -1090,9 +1090,9 @@ Backend tự suy ra toàn bộ đặc trưng kỹ thuật hoá: giờ, thứ, th
 Giao diện tiếng Việt, không thư viện ngoài, responsive (đã kiểm tra ở 1440 px và 820 px).
 
 **Không có số liệu nào được hard-code trong HTML/JS.** Màn 3 lấy mọi con số từ
-`GET /api/dashboard-metrics`, màn 2 lấy danh mục thời tiết hợp lệ từ `GET /api/model-info`. Có test
-`test_no_final_test_metric_is_hardcoded_in_frontend` quét từng file frontend và đối chiếu với giá trị
-trong artifact để bảo đảm điều này không thoát.
+`GET /api/dashboard-metrics`, màn 2 lấy danh mục thời tiết hợp lệ từ `GET /api/model-info`. Test
+`test_no_final_test_metric_is_hardcoded_in_frontend` quét từng file frontend và đối chiếu với
+artifact để bảo đảm điều này không thoát.
 
 ## 12.4 Validation
 
@@ -1120,12 +1120,10 @@ gửi liên tiếp 5 payload sai rồi xác nhận request hợp lệ vẫn tr�
 
 ## 12.5 Chính sách dự báo của tầng phục vụ (đã đóng băng)
 
-Ridge là hồi quy tuyến tính nên **có thể** trả giá trị âm. Lưu lượng xe không thể âm.
-Câu hỏi phương pháp: tầng phục vụ có được phép cắt dự báo âm về 0 không?
-
-Đây là quyết định dễ sinh **test-informed postprocessing**: nếu ta nhìn FINAL TEST 2018 thấy
-"cắt đi, MAE đẹp hơn" rồi mới quyết định cắt, thì kết luận 2018 mất ý nghĩa. Nhóm xử lý
-bằng cách **tách quyết định khỏi đo lường**, và đóng băng quyết định trước.
+Ridge là hồi quy tuyến tính nên **có thể** trả giá trị âm. Lưu lượng xe không thể âm — nhưng đây là
+quyết định dễ sinh **test-informed postprocessing**: nếu nhìn FINAL TEST 2018 thấy "cắt đi, MAE đẹp
+hơn" rồi mới quyết định cắt, thì kết luận 2018 mất ý nghĩa. Nhóm **tách quyết định khỏi đo
+lường** và đóng băng quyết định trước.
 
 ### 12.5.1 Hai thứ phải phân biệt, và quy trình quyết định trước – đo sau
 
@@ -1147,48 +1145,21 @@ Thứ tự chạy **bắt buộc** của nhóm là: `train` → `experiments` �
 | 3 | `src/postprocess_audit.py` | FINAL TEST, chạy **sau** bước 2 | **Chỉ đo lại** hậu quả để báo cáo minh bạch |
 
 Nếu đảo bước 1 và 2 thì chính sách hậu xử lý thành **test-informed postprocessing**: ta chọn cách
-hậu xử lý *vì* đã nhìn thấy kết quả 2018, và FINAL TEST không còn là tập đánh giá độc lập nữu. Chính
-vì vậy `postprocess_audit.py` **từ chối chạy** nếu chưa có policy đã đóng băng hoặc nếu artifact tự
-ghi `final_test_used_for_selection` khác `False`; `uncertainty_audit.py` cũng từ chối chạy theo cùng
-điều kiện. Ngoài ra có test `test_freeze_script_source_never_reads_final_test` kiểm tra ở mức mã
-nguồn rằng `build_policy()` chỉ gọi bằng chứng cho `train` và `validation`, và
-`tests/test_report.py::test_pipeline_order_freezes_policy_before_final_test` kiểm tra mọi tài liệu
-bàn giao đều mô tả đúng thứ tự này.
+hậu xử lý *vì* đã nhìn thấy kết quả 2018, và FINAL TEST không còn là tập đánh giá độc lập nữa. Chính
+vì vậy `postprocess_audit.py` và `uncertainty_audit.py` **từ chối chạy** nếu chưa có policy đã đóng
+băng, hoặc nếu artifact tự ghi `final_test_used_for_selection` khác `False`. Có test
+`test_freeze_script_source_never_reads_final_test` kiểm tra ở mức mã nguồn rằng `build_policy()`
+chỉ gọi bằng chứng cho `train` và `validation`, và
+`test_pipeline_order_freezes_policy_before_final_test` kiểm tra mọi tài liệu bàn giao đều mô tả
+đúng thứ tự này.
 
 ### 12.5.2b Đóng băng phải chạy lại được (idempotent)
 
-"Đóng băng" chỉ có ý nghĩa nếu quyết định được ghi **một lần** và giữ nguyên vĩnh viễn. Ban
-đầu `freeze_serving_policy.py` ghi `frozen_at_utc = datetime.now(...)` ở mỗi lần chạy và
-tái dùng nó trong `serving_policy.md`, nên `models/serving_policy.json` **đổi hash dù quyết
-định không đổi**. Hậu quả: (1) không tái lập được trên máy sạch; (2) một script mang tên
-"freeze" lại ghi đè chính policy đã đóng băng mà không cảnh báo; (3) không chứng minh được
-rằng chạy lại chỉ khác timestamp.
-
-Cách sửa: `build_policy()` giờ trả về **nội dung** quyết định — mọi trường **trừ**
-`frozen_at_utc` — nên kết quả là hằng số và so sánh được giữa các lần chạy. Số thực so
-theo dung sai `1e-6` vì phép tính float có thể khác nhẹ giữa các nền tảng.
-
-| Tình huống | Không cờ | `--check` | `--force` |
-| --- | --- | --- | --- |
-| Chưa có `serving_policy.json` | Tạo mới (ghi mốc hiện tại), exit 0 | Exit 1, không tạo file | — |
-| Đã có, nội dung khớp | **Không ghi lại file**, giữ mốc cũ, exit 0 | Exit 0, **không ghi file nào** | Ký lại + cảnh báo |
-| Đã có, nội dung lệch | In diff, không ghi đè, exit ≠ 0 | In diff, exit 1, không ghi file nào | Ghi đè + cảnh báo, exit 0 |
-
-`content_sha256` là chữ ký chống sửa tay: script **băm lại chính file đang có** rồi so với
-giá trị lưu — lệch nghĩa là file đã bị sửa tay sau khi đóng băng, nên dừng chứ không ghi
-đè. `reports/figures/serving_policy.md` lấy mốc đóng băng từ JSON, không lấy từ đồng hồ.
-`--force` là **đóng băng lại** và bắt buộc phải ghi lý do vào `docs/project-log.md`.
-
-| | Số test |
-| --- | --- |
-| `tests/test_serving_policy.py::test_running_freeze_twice_gives_byte_identical_policy` | Chạy hai lần → bytes `serving_policy.json` giống hệt, `frozen_at_utc` giữ nguyên |
-| `test_rerun_on_matching_policy_does_not_touch_the_file` | Khớp → không ghi lại (kiểm cả hash lẫn mtime) |
-| `test_changed_content_exits_nonzero_and_never_overwrites` | Lệch → exit ≠ 0, file không bị ghi đè |
-| `test_changed_content_prints_a_readable_diff` | Diff chỉ rõ đường dẫn trường và cả hai giá trị |
-| `test_force_overwrites_and_warns_that_it_is_a_refreeze` | `--force` ghi đè được + cảnh báo `docs/project-log.md` |
-| `test_check_writes_no_file_at_all` | `--check` không đụng hash/mtime của bất kỳ file nào |
-| `test_hand_edited_policy_is_detected_and_not_overwritten` | Sửa tay → phát hiện qua chữ ký, không ghi đè |
-| `test_serving_policy_md_shows_only_the_timestamp_stored_in_json` | Tài liệu chỉ chứa mốc từ JSON, không có thời điểm hiện tại |
+"Đóng băng" chỉ có ý nghĩa nếu quyết định được ghi **một lần**. Ban đầu script ghi
+`frozen_at_utc = datetime.now(...)` ở mỗi lần chạy, nên `serving_policy.json` **đổi hash dù quyết
+định không đổi**. Nay `build_policy()` trả về **nội dung** quyết định (trừ `frozen_at_utc`), nên kết
+quả là hằng số: khớp thì **không ghi lại file**; lệch thì in diff và dừng (exit ≠ 0) trừ khi có
+`--force`. `--check` chỉ tính lại rồi so sánh, **không ghi file nào**. Chi tiết ở README.
 
 ### 12.5.3 Quy tắc quyết định (viết trước khi chạy)
 
@@ -1446,7 +1417,7 @@ FINAL TEST 2018 **không** tham gia quyết định. Căn cứ và điều kiệ
 
 - **Rõ mục đích dùng** §14.6 · **rõ ngoài phạm vi** §14.7 · **rõ hạn chế** §14.8.
 - **Số liệu lấy từ artifact, không gõ tay** — toàn bộ; có test kiểm tra frontend không hard-code.
-- **Đo lường được bằng máy** - 385 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
+- **Đo lường được bằng máy** — 385 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
   `pytest --collect-only`.
 - **Người dùng biết khi nào mô hình không đáng tin** — cảnh báo `in_dataset_range`,
   `state_fair_calendar_unknown` trong mọi response.
@@ -1538,22 +1509,11 @@ py -m pytest tests\ -v
 py -m uvicorn app.main:app --reload
 ```
 
-> **Vì sao `freeze_serving_policy.py` phải đứng trước `evaluate.py`.** Chính sách hậu xử lý
-> `max(0,·)` được chốt **chỉ từ TRAIN + VALIDATION**. Nếu chạy `evaluate.py` trước, ta đã nhìn thấy
-> kết quả 2018 trước khi quyết định có cắt âm hay không — tức *test-informed postprocessing*, làm
-> mất ý nghĩa của FINAL TEST. `postprocess_audit.py` và `uncertainty_audit.py` chỉ **đo** hậu quả
-> **sau** khi policy đã đóng băng, và cả hai đều từ chối chạy nếu điều kiện tiên quyết chưa có
-> (chi tiết §12.5.1).
-
-> **Kiểm chứng bước đóng băng trên máy sạch** (chạy được bất cứ lúc nào, không ghi file nào):
+> **Vì sao `freeze_serving_policy.py` phải đứng trước `evaluate.py`** — lý do đầy đủ ở §12.5.2;
+> hai script audit chỉ **đo** hậu quả **sau** khi policy đã đóng băng.
 >
-> ```bat
-> py src\freeze_serving_policy.py --check
-> ```
->
-> Exit 0 = nội dung policy khớp với bản đã đóng băng (số thực so trong dung sai
-> `1e-6`); exit 1 = lệch, kèm diff. Lệnh này là tiêu chí tái lập chính thức cho
-> `models/serving_policy.json` (chi tiết §12.5.2b).
+> **Kiểm chứng trên máy sạch:** `py src\freeze_serving_policy.py --check` — chỉ tính lại rồi so
+> nội dung, **không ghi file nào**; exit 0 = khớp, exit 1 = lệch kèm diff (§12.5.2b).
 
 Nếu chỉ muốn cài theo khoảng version tương thích thay vì tái lập tuyệt đối, dùng
 `py -m pip install -r requirements.txt`. Phiên bản thật của môi trường đã sinh artifact
@@ -1579,12 +1539,13 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 
 | Tuần | Việc | Kết quả |
 | --- | --- | --- |
-| 1 | Brief, data README, data dictionary, kế hoạch baseline | Chốt 7 quy tắc chống rò rỉ **trước khi** động vào dữ liệu |
+| 1 | Brief, data README, dictionary, kế hoạch baseline | Chốt 7 quy tắc chống rò rỉ **trước khi** động vào dữ liệu |
 | 2 | Tải và làm sạch, audit, EDA trên TRAIN, time split | Phát hiện 5.445 nhóm trùng, 10 dòng `temp` vô lý, 1 dòng `rain_1h` sentinel |
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b, 8 (chỉ 2012–2017) | Tách được kích thước / mức năm / khoảng cách thời gian; đo lạc quan 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; điểm yếu ở ngày lễ, tuyết, giờ đêm |
 | 6 | FastAPI + 3 màn hình + 385 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew; bootstrap bất định + kiểm toán alpha |
+| 7 | Đóng băng chạy lại được (`--check` / `--force`) | `serving_policy.json` giữ nguyên hash khi chạy lại |
 
 ## 17.5 Tài liệu phát hành
 
