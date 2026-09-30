@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dashboard &amp; Model Card — Lưu lượng giao thông I-94</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="inner">
+    <p class="site-title">Dự báo lưu lượng giao thông I-94 (chiều westbound) — trạm ATR 301</p>
+    <p class="site-sub">Project 20 · Bài 7: Rò rễ dữ liệu, chia tập đúng và đánh giá trung thực</p>
+    <nav class="site-nav" aria-label="Điều hướng chính">
+      <ul>
+        <li><a href="/">1. Giới thiệu</a></li>
+        <li><a href="/du-bao">2. Dự báo</a></li>
+        <li><a href="/dashboard" aria-current="page">3. Dashboard &amp; Model Card</a></li>
+        <li><a href="/docs">API docs (OpenAPI)</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Dashboard kết quả &amp; Model Card</h1>
+  <p class="lead">
+    Mọi con số dưới đây được <strong>đọc thẳng từ artifact</strong> do `src/train.py`,
+    `src/evaluate.py` và `src/experiments.py` sinh ra — không có số nào được ghi cứng trong
+    HTML/JS.
+  </p>
+
+  <div id="load-status" aria-live="polite">
+    <div class="alert alert-info"><span class="spinner"></span>Đang tải số liệu từ artifact…</div>
+  </div>
+  <div id="dash-error"></div>
+
+  <div id="dash" hidden>
+
+    <!-- ================= FINAL TEST ================= -->
+    <section id="sec-final">
+      <h2>1. FINAL TEST — kết quả chính thức <span class="badge badge-final">2018 · out-of-sample</span></h2>
+      <div class="alert alert-info">
+        <p class="mb0"><strong>Đây là kết luận chính thức của báo cáo.</strong> Tập 2018
+          <strong>không tham gia</strong> chọn mô hình hay chọn tham số. Mọi lựa chọn
+          (tiền xử lý, đặc trưng, alpha, baseline) đã được chốt trên
+          <strong>2012–2017</strong> và đóng băng trước khi đánh giá.</p>
+      </div>
+      <div class="metrics" id="final-metrics"></div>
+      <div class="table-wrap"><table id="final-table"></table></div>
+      <p class="small muted" id="final-note"></p>
+    </section>
+
+    <!-- ================= TIME SPLIT ================= -->
+    <section id="sec-split">
+      <h2>2. Chia tập theo thời gian</h2>
+      <p>Chia theo thời gian, <strong>không xáo trộn</strong>, có assert chặn chồng lấn
+        (không dùng <code>train_test_split</code> ngẫu nhiên cho kết luận chính thức).</p>
+      <div class="table-wrap"><table id="split-table"></table></div>
+      <p class="small muted" id="split-assert"></p>
+    </section>
+
+    <!-- ================= ALPHA ================= -->
+    <section id="sec-alpha">
+      <h2>3. Chọn tham số <code>alpha</code> trên VALIDATION</h2>
+      <p class="small muted">Tiêu chí: MAE trên tập validation. Tập test không được chạm vào ở bước này.</p>
+      <div class="table-wrap"><table id="alpha-table"></table></div>
+    </section>
+
+    <!-- ================= ERROR BY HOUR ================= -->
+    <section id="sec-hour">
+      <h2>4. Sai số theo giờ trong ngày (FINAL TEST 2018)</h2>
+      <p class="small muted" id="avp-note"></p>
+      <div class="card">
+        <h3 class="mt0">Lưu lượng thực vs dự báo — trung bình theo giờ</h3>
+        <div class="bars" id="avp-chart" role="img" aria-label="So sánh lưu lượng thực và dự báo theo giờ"></div>
+        <div class="bar-axis" id="avp-axis"></div>
+        <div class="legend">
+          <span><i class="swatch-a"></i>Lưu lượng thực (mean_actual)</span>
+          <span><i class="swatch-b"></i>Lưu lượng dự báo (mean_pred)</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3 class="mt0">MAE theo giờ — Ridge so với baseline</h3>
+        <div class="bars" id="hour-chart" role="img" aria-label="MAE theo giờ của Ridge và baseline"></div>
+        <div class="bar-axis" id="hour-axis"></div>
+        <div class="legend">
+          <span><i class="swatch-a"></i>MAE Ridge (thấp hơn là tốt hơn)</span>
+          <span><i class="swatch-b"></i>MAE baseline</span>
+        </div>
+      </div>
+      <div class="table-wrap"><table id="hour-table"></table></div>
+    </section>
+
+    <!-- ================= ERROR BY DOW ================= -->
+    <section id="sec-dow">
+      <h2>5. Sai số theo ngày trong tuần (FINAL TEST 2018)</h2>
+      <div class="table-wrap"><table id="dow-table"></table></div>
+    </section>
+
+    <!-- ================= HOLIDAY ================= -->
+    <section id="sec-holiday">
+      <h2>6. Sai số ở ngày lễ (kèm số mẫu)</h2>
+      <div class="table-wrap"><table id="holiday-table"></table></div>
+      <p class="small muted" id="holiday-note"></p>
+    </section>
+
+    <!-- ================= EXTREME WEATHER ================= -->
+    <section id="sec-weather">
+      <h2>7. Sai số theo thời tiết &amp; thời tiết cực đoan (kèm số mẫu)</h2>
+      <div class="table-wrap"><table id="weather-table"></table></div>
+      <p class="small muted" id="weather-note"></p>
+      <div class="table-wrap"><table id="extreme-table"></table></div>
+      <p class="small muted" id="extreme-note"></p>
+    </section>
+
+    <!-- ================= HÌNH ẢNH THẬT ================= -->
+    <section id="sec-figures">
+      <h2>8. Biểu đồ sinh từ mã nguồn</h2>
+      <div class="grid-2" id="figures-grid"></div>
+    </section>
+
+    <!-- ================= THÍ NGHIỆM PHÁT TRIỂN ================= -->
+    <section id="sec-experiments">
+      <h2>9. Thí nghiệm phát triển <span class="badge badge-dev">2012–2017 · KHÔNG dùng 2018</span></h2>
+      <div class="alert alert-warn">
+        <p class="mb0">Phần này <strong>không phải</strong> kết quả trên FINAL TEST. Toàn bộ thí nghiệm
+          dưới đây chạy trong cửa sổ 2012–2017, có chốt chặn không cho dòng nào của năm 2018 lọt vào.</p>
+      </div>
+
+      <h3>9a. Thí nghiệm 1 — random split so với time split</h3>
+      <div class="table-wrap"><table id="exp1-table"></table></div>
+      <p class="small muted" id="exp1-note"></p>
+
+      <h3>9b. Thí nghiệm 1b — kiểm soát rò rễ (cùng một tập test cho cả ba arm)</h3>
+      <div class="table-wrap"><table id="exp1b-table"></table></div>
+      <p class="small muted" id="exp1b-note"></p>
+
+      <h3>9c. Thí nghiệm 3 — rolling origin (drift, chỉ out-of-sample)</h3>
+      <div class="table-wrap"><table id="exp3-table"></table></div>
+      <p class="small muted" id="exp3-note"></p>
+
+      <h3>9d. Thí nghiệm 3b — kiểm tra dịch chuyển phân bố (PSI)</h3>
+      <div class="table-wrap"><table id="psi-table"></table></div>
+      <p class="small muted" id="psi-note"></p>
+    </section>
+
+    <!-- ================= MODEL CARD ================= -->
+    <section id="sec-card">
+      <h2>10. Model Card</h2>
+
+      <div class="card">
+        <h3 class="mt0">Tóm tắt</h3>
+        <div class="table-wrap"><table id="card-summary"></table></div>
+      </div>
+
+      <div class="card">
+        <h3 class="mt0">Dữ liệu</h3>
+        <div class="table-wrap"><table id="card-data"></table></div>
+      </div>
+
+      <div class="card">
+        <h3 class="mt0">Đặc trưng &amp; tiền xử lý</h3>
+        <div class="table-wrap"><table id="card-features"></table></div>
+      </div>
+
+      <div class="card">
+        <h3 class="mt0">Số liệu đánh giá</h3>
+        <div class="table-wrap"><table id="card-metrics"></table></div>
+      </div>
+
+      <div id="postprocess-note"></div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h3 class="mt0">Mục đích sử dụng dự kiến</h3>
+          <ul>
+            <li>Ước lượng lưu lượng theo giờ tại trạm ATR 301 khi chưa có số đo thực tế.</li>
+            <li>So sánh kịch bản lưu lượng giữa các ngày khác điều kiện thời tiết.</li>
+            <li>Minh hoạ giá trị của chia tập theo thời gian và đánh giá trung thực
+                trên một bài toán chuỗi thời gian thực tế.</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h3 class="mt0">Ngoài phạm vi sử dụng</h3>
+          <ul>
+            <li>Điều khiển giao thông, điều khiển tín hiệu, định tuyến phương tiện.</li>
+            <li>Cảnh báo an toàn hoặc bất kỳ quyết định <em>safety-critical</em>.</li>
+            <li>Suy rộng sang trạm khác, hướng khác, hoặc đại diện cho toàn thành phố.</li>
+            <li>Dùng như số liệu thống kê chính thức của cơ quan quản lý giao thông.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="mt0">Hạn chế</h3>
+        <ol id="card-limitations"></ol>
+      </div>
+
+      <div class="card">
+        <h3 class="mt0">Cách dùng ở thời điểm phục vụ (serving)</h3>
+        <ul>
+          <li>Ứng dụng <strong>chỉ nạp</strong> artifact đã đóng băng: không huấn luyện, không chọn lại
+              alpha, không fit encoder/imputer/scaler mới, không đọc giá trị mục tiêu từ dữ liệu.</li>
+          <li>Mọi đặc trưng sinh bằng <strong>cùng hàm</strong> <code>src.features.build_features</code>
+              dùng lúc huấn luyện → không có <em>train-serving skew</em>.</li>
+          <li><code>is_holiday</code> tính từ lịch tất định <code>src/holidays.py</code>,
+              người dùng không phải nhập tay.</li>
+          <li>Nhiệt độ nhập theo °C; backend tự quy đổi sang Kelvin (K = °C + 273,15).</li>
+          <li>Thời tiết mã hoá <strong>multi-hot</strong>: nhiều hiện tượng cùng lúc được giữ đủ.</li>
+          <li>Chính sách hậu xử lý: <code>max(0, dự báo thô)</code> — lưu lượng không thể âm;
+              API trả kèm <code>raw_model_output</code> và cờ <code>clipped_to_zero</code> để
+              không giấu việc chặn. Mức ảnh hưởng được đo và hiển thị ở mục ngay trên.</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+</main>
+
+<footer class="site-footer">
+  Nguồn số liệu: <code>/api/dashboard-metrics</code> ←
+  <code>reports/figures/evaluation_results.json</code>,
+  <code>reports/figures/experiments_results.json</code>,
+  <code>models/model_metadata.json</code>, <code>data/processed/data_audit.json</code>
+</footer>
+<script src="/static/js/dashboard.js" defer></script>
+</body>
+</html>

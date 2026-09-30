@@ -1,0 +1,18 @@
+# Công cụ XUẤT TÀI LIỆU PHÁT HÀNH (không bắt buộc cho ứng dụng)
+#
+# Ứng dụng web/API và toàn bộ test KHÔNG cần các gói này.
+# Chỉ cần khi muốn sinh bản nộp: DOCX / PDF / PPTX từ các file Markdown.
+#
+#     py -m pip install -r requirements-export.txt
+#     py src\export_docs.py all
+#
+# Script tự báo "BỎ QUA" cho phần thiếu công cụ — KHÔNG tạo file rỗng.
+
+# --- DOCX: qua pandoc (pypandoc-binary kèm sẵn bản pandoc cho Windows) ---
+pypandoc-binary>=1.13
+
+# --- PDF: reportlab (tự dịch Markdown -> flowables, nhúng font Arial cho dấu tiếng Việt) ---
+reportlab>=4.0
+
+# --- PPTX: dựng slide từ docs/slides-outline.md ---
+python-pptx>=0.6.23

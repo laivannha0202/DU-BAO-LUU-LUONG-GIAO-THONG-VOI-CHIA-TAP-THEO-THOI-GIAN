@@ -1,0 +1,56 @@
+{
+  "seed": 42,
+  "best_alpha": 0.001,
+  "alpha_grid": [
+    0.001,
+    0.003,
+    0.01,
+    0.03,
+    0.1,
+    0.3,
+    1.0,
+    3.0,
+    10.0,
+    30.0,
+    100.0,
+    300.0,
+    1000.0
+  ],
+  "alpha_selection_criterion": "validation MAE",
+  "split": {
+    "train_end": "2016-12-31 23:00:00",
+    "val_end": "2017-12-31 23:00:00",
+    "strategy": "time_series_no_shuffle"
+  },
+  "feature_columns_categorical": [
+    "hour_dow",
+    "month",
+    "weather_main_mode",
+    "weather_family"
+  ],
+  "feature_columns_numeric": [
+    "temp",
+    "rain_1h",
+    "snow_1h",
+    "clouds_all",
+    "weather_severity"
+  ],
+  "feature_columns_binary": [
+    "is_holiday",
+    "wm_clear",
+    "wm_clouds",
+    "wm_drizzle",
+    "wm_fog",
+    "wm_haze",
+    "wm_mist",
+    "wm_rain",
+    "wm_smoke",
+    "wm_snow",
+    "wm_squall",
+    "wm_thunderstorm"
+  ],
+  "n_train": 25329,
+  "n_val": 8713,
+  "n_test": 6533,
+  "pipeline": "ColumnTransformer[OneHotEncoder | SimpleImputer->StandardScaler | passthrough] -> Ridge(lsqr)"
+}

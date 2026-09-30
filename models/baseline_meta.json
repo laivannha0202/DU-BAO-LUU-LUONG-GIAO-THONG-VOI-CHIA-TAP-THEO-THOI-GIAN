@@ -1,0 +1,14 @@
+{
+  "global_fallback": 3252.5119428323264,
+  "fit_split": "train_only",
+  "fit_rows": 25329,
+  "fit_range": [
+    "2012-10-02 09:00:00",
+    "2016-12-31 23:00:00"
+  ],
+  "grouping": [
+    "hour",
+    "day_of_week"
+  ],
+  "seed": 42
+}

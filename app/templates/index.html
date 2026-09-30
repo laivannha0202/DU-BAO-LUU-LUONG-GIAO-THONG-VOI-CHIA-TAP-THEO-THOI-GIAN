@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Giới thiệu — Dự báo lưu lượng giao thông I-94 (westbound)</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="inner">
+    <p class="site-title">Dự báo lưu lượng giao thông I-94 (chiều westbound) — trạm ATR 301</p>
+    <p class="site-sub">Project 20 · Bài 7: Rò rỉ dữ liệu, chia tập đúng và đánh giá trung thực</p>
+    <nav class="site-nav" aria-label="Điều hướng chính">
+      <ul>
+        <li><a href="/" aria-current="page">1. Giới thiệu</a></li>
+        <li><a href="/du-bao">2. Dự báo</a></li>
+        <li><a href="/dashboard">3. Dashboard &amp; Model Card</a></li>
+        <li><a href="/docs">API docs (OpenAPI)</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Giới thiệu đề tài</h1>
+  <p class="lead">
+    Xây dựng mô hình dự báo <strong>lưu lượng giao thông theo giờ</strong> tại một trạm đo
+    trên đường liên bang I-94, hướng westbound, dựa trên thông tin lịch và thời tiết
+    — với mục tiêu hỗ trợ ước lượng lưu lượng phục vụ lập kế hoạch.
+  </p>
+
+  <div class="card">
+    <h2 class="mt0">Thông tin nghiên cứu</h2>
+    <div class="table-wrap">
+      <table>
+        <caption>Các thông tin cốt lõi của nghiên cứu</caption>
+        <tbody>
+          <tr><th scope="row">Tên đề tài</th>
+              <td>Dự báo lưu lượng giao thông I-94 westbound (ATR 301) theo giờ bằng hồi quy Ridge
+                  với chia tập theo thời gian</td></tr>
+          <tr><th scope="row">Bộ dữ liệu</th>
+              <td>Metro Interstate Traffic Volume — UCI Machine Learning Repository
+                  (giấy phép CC BY 4.0)</td></tr>
+          <tr><th scope="row">Vị trí &amp; hướng</th>
+              <td>I-94 <strong>westbound</strong>, trạm đo lưu lượng <strong>ATR 301</strong></td></tr>
+          <tr><th scope="row">Khoảng thời gian</th>
+              <td>2012 – 2018 (dữ liệu kết thúc 30/09/2018)</td></tr>
+          <tr><th scope="row">Đơn vị quan sát</th>
+              <td>1 giờ tại một trạm đo</td></tr>
+          <tr><th scope="row">Biến mục tiêu</th>
+              <td><code>traffic_volume</code> — <strong>lưu lượng, đơn vị xe/giờ</strong></td></tr>
+          <tr><th scope="row">Loại bài toán</th>
+              <td>Hồi quy chuỗi thời gian (time series regression)</td></tr>
+          <tr><th scope="row">Mô hình</th>
+              <td>Ridge (hồi quy tuyến tính L2) trong <code>sklearn.pipeline.Pipeline</code></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 class="mt0">Mục tiêu</h2>
+    <ol>
+      <li>Ước lượng <strong>lưu lượng xe theo giờ</strong> tại trạm ATR 301 chỉ từ thông tin
+          <em>biết trước hoặc quan sát được tại đúng giờ cần dự báo</em> (lịch + thời tiết).</li>
+      <li>Kiểm chứng mô hình có <strong>vượt được baseline theo lịch</strong> (trung bình lưu lượng
+          theo giờ × thứ trong tuần) hay không.</li>
+      <li>Đánh giá <strong>trung thực</strong>: chia tập theo thời gian, toàn bộ tiền xử lý và
+          encoder/scaler/imputer chỉ fit trên tập huấn luyện, tập kiểm định cuối (2018) không
+          tham gia chọn mô hình.</li>
+      <li>Cung cấp <strong>API + giao diện web</strong> chạy được cục bộ, chỉ nạp artifact
+          đã đóng băng, không huấn luyện lại ở thời điểm phục vụ.</li>
+    </ol>
+  </div>
+
+  <div class="card">
+    <h2 class="mt0">Phạm vi sử dụng</h2>
+    <p>Ứng dụng dựng được <strong>dành cho mục đích ước lượng &amp; lập kế hoạch</strong>:</p>
+    <ul>
+      <li>Ước lượng sơ bộ lưu lượng theo giờ khi chưa có số đo thực tế.</li>
+      <li>So sánh kịch bản lưu lượng giữa các ngày có điều kiện thời tiết khác nhau.</li>
+      <li>Đối chiếu, minh hoạ giá trị của phương pháp chia tập theo thời gian và đánh giá
+          trung thực trên một bài toán dữ liệu chuỗi thời gian thực tế.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2 class="mt0">Giới hạn &amp; ngoài phạm vi sử dụng</h2>
+    <div class="alert alert-warn">
+      <p><strong>Các giới hạn sau đã được đo, không phải suy đoán:</strong></p>
+      <ul>
+        <li>Chỉ một trạm đo I-94 westbound (ATR 301) — <strong>không đại diện cho toàn thành phố</strong>
+            và không suy rộng được cho các trạm khác.</li>
+        <li>Sai số lớn hơn nhiều ở <strong>ngày lễ</strong> và <strong>thời tiết cực đoan</strong>
+            (chi tiết và số mẫu nằm trong mục Dashboard).</li>
+        <li>Tập kiểm định cuối 2018 chỉ kéo dài <strong>tới 30/09/2018</strong>.</li>
+        <li>Dữ liệu là <strong>lịch sử 2012–2018</strong>: mô hình không tự cập nhật theo
+            thay đổi hạ tầng, chính sách giao thông hay hành vi người dùng sau thời điểm đó.</li>
+        <li>Ngày lễ <em>State Fair</em> không có quy tắc lịch nên được lấy từ bảng ngày công bố
+            chỉ cho một khoảng năm hữu hạn (xem <code>/api/model-info</code>); ngoài khoảng đó
+            hệ thống <strong>báo rõ thay vì tự đoán</strong>.</li>
+      </ul>
+    </div>
+    <p><strong>KHÔNG dùng cho</strong> điều khiển giao thông, tín hiệu giao thông, cảnh báo
+       an toàn hoặc bất kỳ quyết định <em>safety-critical</em> nào. Đây là mô hình học thuật
+       để minh hoạ phương pháp, không phải hệ thống vận hành.</p>
+  </div>
+
+  <div class="card soft">
+    <h2 class="mt0">Ba màn hình của ứng dụng</h2>
+    <ul>
+      <li><a href="/">Màn 1 — Giới thiệu</a> (trang này): đề tài, dữ liệu, mục tiêu, phạm vi, giới hạn.</li>
+      <li><a href="/du-bao">Màn 2 — Dự báo</a>: nhập ngày, giờ, nhiệt độ, mưa, tuyết, mây, thời tiết
+          → gọi <code>POST /api/traffic-forecast</code>.</li>
+      <li><a href="/dashboard">Màn 3 — Dashboard &amp; Model Card</a>: số liệu đánh giá,
+          phân tích lỗi và thẻ mô hình — <strong>đọc thẳng từ artifact</strong>.</li>
+    </ul>
+  </div>
+</main>
+
+<footer class="site-footer">
+  Dữ liệu: UCI Machine Learning Repository — Metro Interstate Traffic Volume (CC BY 4.0) ·
+  Mô hình: Ridge đã đóng băng, ứng dụng KHÔNG huấn luyện lại.
+</footer>
+</body>
+</html>

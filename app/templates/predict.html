@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Dự báo — Lưu lượng giao thông I-94 westbound</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="inner">
+    <p class="site-title">Dự báo lưu lượng giao thông I-94 (chiều westbound) — trạm ATR 301</p>
+    <p class="site-sub">Project 20 · Bài 7: Rò rỉ dữ liệu, chia tập đúng và đánh giá trung thực</p>
+    <nav class="site-nav" aria-label="Điều hướng chính">
+      <ul>
+        <li><a href="/">1. Giới thiệu</a></li>
+        <li><a href="/du-bao" aria-current="page">2. Dự báo</a></li>
+        <li><a href="/dashboard">3. Dashboard &amp; Model Card</a></li>
+        <li><a href="/docs">API docs (OpenAPI)</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <h1>Dự báo lưu lượng</h1>
+  <p class="lead">
+    Nhập các thông tin <strong>thực sự có được tại thời điểm dự báo</strong>. Backend tự suy ra
+    giờ, thứ, tháng, cuối tuần, <code>is_holiday</code> và các đặc trưng thời tiết bằng
+    <strong>đúng các hàm đã dùng lúc huấn luyện</strong> — bạn không cần nhập tay và không thể
+    vô tình làm lộ thông tin.
+  </p>
+
+  <div class="card">
+    <form id="forecast-form" novalidate>
+      <div class="form-grid">
+        <div class="field">
+          <label for="date">Ngày <span aria-hidden="true">*</span></label>
+          <input type="date" id="date" name="date" required>
+          <span class="hint" id="date-hint">Định dạng năm–tháng–ngày.</span>
+          <span class="err" id="date-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="time">Giờ <span aria-hidden="true">*</span></label>
+          <input type="time" id="time" name="time" required step="3600">
+          <span class="hint">Dữ liệu ghi nhận theo giờ (0–23), đơn vị lưu lượng là xe/giờ.</span>
+          <span class="err" id="time-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="temperature">Nhiệt độ (°C) <span aria-hidden="true">*</span></label>
+          <input type="number" id="temperature" name="temperature" step="0.1" required
+                 inputmode="decimal" autocomplete="off">
+          <span class="hint" id="temperature-hint">Backend tự đổi °C → K (cộng 273,15).</span>
+          <span class="err" id="temperature-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="clouds">Độ phủ mây (%) <span aria-hidden="true">*</span></label>
+          <input type="number" id="clouds" name="clouds" min="0" max="100" step="1" required
+                 inputmode="numeric" autocomplete="off">
+          <span class="hint">Số nguyên từ 0 đến 100.</span>
+          <span class="err" id="clouds-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="rain">Lượng mưa 1 giờ (mm)</label>
+          <input type="number" id="rain" name="rain" min="0" step="0.1" value="0"
+                 inputmode="decimal" autocomplete="off">
+          <span class="hint">Phải ≥ 0. Để trống = không mưa.</span>
+          <span class="err" id="rain-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field">
+          <label for="snow">Lượng tuyết 1 giờ (mm)</label>
+          <input type="number" id="snow" name="snow" min="0" step="0.1" value="0"
+                 inputmode="decimal" autocomplete="off">
+          <span class="hint">Phải ≥ 0. Để trống = không có tuyết.</span>
+          <span class="err" id="snow-err" role="alert" hidden></span>
+        </div>
+
+        <div class="field full">
+          <fieldset>
+            <legend>Điều kiện thời tiết trong giờ đó <span aria-hidden="true">*</span></legend>
+            <p class="hint small mt0 mb0" style="margin-bottom:.5rem">
+              Có thể chọn <strong>nhiều hiện tượng cùng lúc</strong> (ví dụ vừa mưa vừa tuyết) —
+              backend mã hoá multi-hot, không phải chỉ chọn một nhãn.
+            </p>
+            <div class="check-grid" id="weather-list" role="group"
+                 aria-describedby="weather-err">
+              <p class="small muted" id="weather-loading">Đang tải danh mục thời tiết…</p>
+            </div>
+            <span class="err" id="weather-err" role="alert" hidden></span>
+          </fieldset>
+        </div>
+
+        <div class="field full">
+          <details>
+            <summary class="small">Tuỳ chọn nâng cao: ngày khai mạc State Fair</summary>
+            <label for="state-fair" class="small" style="display:block;margin:.5rem 0 .2rem">
+              Ngày khai mạc Minnesota State Fair
+            </label>
+            <input type="date" id="state-fair" name="state_fair" style="max-width:16rem">
+            <p class="hint">
+              Bảng lịch trong hệ thống chỉ có ngày State Fair cho một khoảng năm hữu hạn
+              (hiển thị ở <a href="/api/model-info" target="_blank" rel="noopener">/api/model-info</a>).
+              Nếu bạn dự báo cho năm ngoài khoảng đó, hãy nhập ngày ở đây — hệ thống
+              <strong>không tự đoán</strong> ngày này.
+            </p>
+            <span class="err" id="state-fair-err" role="alert" hidden></span>
+          </details>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button type="submit" id="submit-btn">DỰ BÁO LƯU LƯỢNG</button>
+        <button type="button" class="secondary" id="reset-btn">Xoá form</button>
+        <span class="small muted" id="model-hint"></span>
+      </div>
+    </form>
+  </div>
+
+  <div id="status-area" aria-live="polite"></div>
+  <div id="result-area"></div>
+
+  <div class="card soft small">
+    <p class="mt0 mb0">
+      <strong>Lưu ý về tính trung thực:</strong> ứng dụng này chỉ nạp mô hình Ridge đã đóng băng
+      (<code>models/ridge_pipeline.joblib</code>). Nó không huấn luyện, không chọn lại alpha,
+      không fit encoder/imputer/scaler mới và không đọc giá trị lưu lượng thật từ dữ liệu.
+      Mọi đặc trưng đều sinh bằng cùng hàm <code>src.features.build_features</code> dùng lúc
+      huấn luyện, nên không có <em>train-serving skew</em>.
+    </p>
+  </div>
+</main>
+
+<footer class="site-footer">
+  Dữ liệu: UCI Machine Learning Repository — Metro Interstate Traffic Volume (CC BY 4.0) ·
+  Endpoint: <code>POST /api/traffic-forecast</code>
+</footer>
+<script src="/static/js/predict.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+{
+  "report_type": "post-freeze impact report (kh\u00f4ng quy\u1ebft \u0111\u1ecbnh g\u00ec)",
+  "frozen_policy": {
+    "policy_id": "non_negative_projection",
+    "version": "frozen-1.0",
+    "rule": "deployed_prediction = max(0, raw_ridge_prediction)",
+    "selected_on": [
+      "TRAIN 2012-2016",
+      "VALIDATION 2017"
+    ],
+    "final_test_used_for_selection": false,
+    "content_sha256": "aef9a0c9264dc9e80c6996d06cd70548d4ef50bce44b5fe089a2c044475e73a1"
+  },
+  "metric_convention": {
+    "raw_model": "Ridge \u2014 \u0111\u00e2y l\u00e0 metric c\u1ee7a m\u00f4 h\u00ecnh, k\u1ebft lu\u1eadn ch\u00ednh th\u1ee9c.",
+    "deployed_predictor": "max(0,\u00b7) \u2218 Ridge \u2014 wrapper ph\u1ee5c v\u1ee5, KH\u00d4NG ph\u1ea3i m\u00f4 h\u00ecnh kh\u00e1c; metric b\u00e1o ri\u00eang."
+  },
+  "source_pipeline": "models/ridge_pipeline.joblib",
+  "trains_or_tunes": false,
+  "splits": [
+    {
+      "split": "validation (2017)",
+      "n_rows": 8713,
+      "n_raw_negative": 58,
+      "share_raw_negative_pct": 0.67,
+      "min_raw_prediction": -790.56,
+      "min_actual_target": 186.0,
+      "mean_actual_on_negative_rows": 529.91,
+      "hours_with_negative_raw": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        23
+      ],
+      "n_holiday_rows_among_negative": 51,
+      "metrics_raw": {
+        "MAE": 272.12,
+        "RMSE": 421.46,
+        "R2": 0.9548
+      },
+      "metrics_deployed": {
+        "MAE": 269.55,
+        "RMSE": 416.73,
+        "R2": 0.9558
+      },
+      "pointwise_abs_error_never_increases": true,
+      "n_rows_where_clip_changes_error": 58,
+      "any_nan_or_inf": false
+    },
+    {
+      "split": "FINAL TEST (2018)",
+      "n_rows": 6533,
+      "n_raw_negative": 34,
+      "share_raw_negative_pct": 0.52,
+      "min_raw_prediction": -911.35,
+      "min_actual_target": 151.0,
+      "mean_actual_on_negative_rows": 572.56,
+      "hours_with_negative_raw": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "n_holiday_rows_among_negative": 32,
+      "metrics_raw": {
+        "MAE": 259.73,
+        "RMSE": 416.78,
+        "R2": 0.9554
+      },
+      "metrics_deployed": {
+        "MAE": 257.54,
+        "RMSE": 412.25,
+        "R2": 0.9564
+      },
+      "pointwise_abs_error_never_increases": true,
+      "n_rows_where_clip_changes_error": 34,
+      "any_nan_or_inf": false
+    }
+  ]
+}

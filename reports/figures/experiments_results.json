@@ -1,0 +1,331 @@
+{
+  "dev_window": {
+    "start": "2012-10-02 09:00:00",
+    "end": "2017-12-31 23:00:00",
+    "n_rows": 34042,
+    "excluded": "2018 (FINAL TEST) — chưa được chạm vào ở giai đoạn này"
+  },
+  "baseline_vs_ridge_on_pseudo_test": {
+    "pseudo_test_range": [
+      "2016-01-01 00:00:00",
+      "2017-12-31 23:00:00"
+    ],
+    "train_range": [
+      "2012-10-02 09:00:00",
+      "2015-12-31 23:00:00"
+    ],
+    "baseline": {
+      "MAE": 294.95,
+      "RMSE": 495.71,
+      "R2": 0.9364,
+      "n": 16551
+    },
+    "ridge": {
+      "MAE": 306.48,
+      "RMSE": 472.61,
+      "R2": 0.9422,
+      "n": 16551
+    }
+  },
+  "experiment_1_random_vs_time_split": {
+    "window": {
+      "start": "2012-10-02 09:00:00",
+      "end": "2017-12-31 23:00:00",
+      "n_rows": 34042,
+      "contains_2018": false
+    },
+    "time_split": {
+      "MAE": 306.48,
+      "RMSE": 472.61,
+      "R2": 0.9422,
+      "n": 16551,
+      "train_range": [
+        "2012-10-02 09:00:00",
+        "2015-12-31 23:00:00"
+      ],
+      "test_range": [
+        "2016-01-01 00:00:00",
+        "2017-12-31 23:00:00"
+      ],
+      "test_years": [
+        2016,
+        2017
+      ]
+    },
+    "random_split": {
+      "MAE": 298.61,
+      "RMSE": 481.99,
+      "R2": 0.9415,
+      "n": 5107,
+      "test_years": [
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017
+      ]
+    },
+    "delta_mae_random_minus_time": -7.87,
+    "caveat": "Hai tập test KHÁC thành phần năm (time split test = 2016-2017 còn nguyên; random split test = mẫu ngẫu nhiên rải rác 2012-2017), nên chênh lệch KHÔNG chứng minh được rò rỉ. Thí nghiệm 1b mới là phép so sánh công bằng."
+  },
+  "experiment_1b_leakage_controlled": {
+    "shared_test": {
+      "range": [
+        "2017-01-01 01:00:00",
+        "2017-12-31 23:00:00"
+      ],
+      "n": 4357,
+      "note": "Dùng CHUNG cho cả 3 arm — đây là điểm làm phép so sánh công bằng."
+    },
+    "arms": {
+      "A_train_le_2015": {
+        "MAE": 270.32,
+        "RMSE": 421.3,
+        "R2": 0.955,
+        "n": 4357,
+        "n_train": 17491,
+        "train_end": "2015-12-31 23:00:00",
+        "gap_to_test_years": 2
+      },
+      "B_train_le_2016": {
+        "MAE": 269.32,
+        "RMSE": 420.73,
+        "R2": 0.9551,
+        "n": 4357,
+        "n_train": 25329,
+        "train_end": "2016-12-31 23:00:00",
+        "gap_to_test_years": 1
+      },
+      "C_train_le_2016_plus_half_2017": {
+        "MAE": 262.77,
+        "RMSE": 414.02,
+        "R2": 0.9565,
+        "n": 4357,
+        "n_train": 29685,
+        "train_end": "2017-12-31 22:00:00",
+        "gap_to_test_years": 0
+      }
+    },
+    "mae_improvement_closest_vs_farthest": 7.55,
+    "interpretation": "Càng đưa dữ liệu sát thời điểm dự báo vào train, MAE càng giảm — nhưng phần giảm đó KHÔNG đến từ năng lực mô hình mà từ việc mô hình đã nhìn thấy 'hàng xóm' của chính dòng cần dự báo. Đây chính là rò rễ mà time split loại bỏ, và là lý do kết luận trên 2018 phải được công bố từ một mô hình chưa từng thấy năm 2018."
+  },
+  "experiment_3_rolling_origin": {
+    "design": "expanding-window rolling origin; mọi fold đều out-of-sample",
+    "folds": [
+      {
+        "fold": 1,
+        "test_year": 2015,
+        "train_range": [
+          "2012-10-02 09:00:00",
+          "2014-08-08 01:00:00"
+        ],
+        "test_range": [
+          "2015-06-11 20:00:00",
+          "2015-12-31 23:00:00"
+        ],
+        "evaluation_type": "out_of_sample",
+        "MAE": 325.98,
+        "RMSE": 497.93,
+        "R2": 0.9362,
+        "n": 3593
+      },
+      {
+        "fold": 2,
+        "test_year": 2016,
+        "train_range": [
+          "2012-10-02 09:00:00",
+          "2015-12-31 23:00:00"
+        ],
+        "test_range": [
+          "2016-01-01 00:00:00",
+          "2016-12-31 23:00:00"
+        ],
+        "evaluation_type": "out_of_sample",
+        "MAE": 343.77,
+        "RMSE": 523.66,
+        "R2": 0.9274,
+        "n": 7838
+      },
+      {
+        "fold": 3,
+        "test_year": 2017,
+        "train_range": [
+          "2012-10-02 09:00:00",
+          "2016-12-31 23:00:00"
+        ],
+        "test_range": [
+          "2017-01-01 00:00:00",
+          "2017-12-31 23:00:00"
+        ],
+        "evaluation_type": "out_of_sample",
+        "MAE": 272.12,
+        "RMSE": 421.46,
+        "R2": 0.9548,
+        "n": 8713
+      }
+    ],
+    "mae_trend": {
+      "years": [
+        2015,
+        2016,
+        2017
+      ],
+      "maes": [
+        325.98,
+        343.77,
+        272.12
+      ],
+      "mae_change_first_to_last": -53.86,
+      "verdict": "MAE giảm 53.9 (16.5%) — chất lượng được cải thiện, có thể do năm gần nhất (2017) dễ hơn, không nhất thiết là mô hình tiến bộ."
+    },
+    "pooled_out_of_sample": {
+      "years": [
+        2015,
+        2016,
+        2017
+      ],
+      "n": 20144,
+      "MAE": 309.61,
+      "by_month": {
+        "1": {
+          "MAE": 319.16,
+          "n": 1205
+        },
+        "2": {
+          "MAE": 282.53,
+          "n": 1166
+        },
+        "3": {
+          "MAE": 238.85,
+          "n": 1212
+        },
+        "4": {
+          "MAE": 248.77,
+          "n": 1312
+        },
+        "5": {
+          "MAE": 235.61,
+          "n": 1464
+        },
+        "6": {
+          "MAE": 217.36,
+          "n": 1582
+        },
+        "7": {
+          "MAE": 389.87,
+          "n": 2216
+        },
+        "8": {
+          "MAE": 304.93,
+          "n": 2216
+        },
+        "9": {
+          "MAE": 308.3,
+          "n": 2079
+        },
+        "10": {
+          "MAE": 320.32,
+          "n": 1955
+        },
+        "11": {
+          "MAE": 360.89,
+          "n": 1830
+        },
+        "12": {
+          "MAE": 393.66,
+          "n": 1907
+        }
+      },
+      "by_season": {
+        "Autumn": {
+          "MAE": 328.72,
+          "n": 5864
+        },
+        "Spring": {
+          "MAE": 240.93,
+          "n": 3988
+        },
+        "Summer": {
+          "MAE": 313.19,
+          "n": 6014
+        },
+        "Winter": {
+          "MAE": 342.39,
+          "n": 4278
+        }
+      }
+    }
+  },
+  "experiment_3b_covariate_drift": {
+    "reference_year": 2013,
+    "psi_thresholds": {
+      "stable": 0.1,
+      "moderate": 0.25
+    },
+    "traffic_volume_by_year": {
+      "2012": {
+        "mean": 3226.7,
+        "median": 3202.0,
+        "std": 2005.6,
+        "n": 2103
+      },
+      "2013": {
+        "mean": 3309.55,
+        "median": 3369.0,
+        "std": 2030.71,
+        "n": 7294
+      },
+      "2014": {
+        "mean": 3270.14,
+        "median": 3336.0,
+        "std": 1992.65,
+        "n": 4501
+      },
+      "2015": {
+        "mean": 3258.04,
+        "median": 3385.0,
+        "std": 1970.84,
+        "n": 3593
+      },
+      "2016": {
+        "mean": 3193.7,
+        "median": 3306.5,
+        "std": 1943.76,
+        "n": 7838
+      },
+      "2017": {
+        "mean": 3376.59,
+        "median": 3593.0,
+        "std": 1982.58,
+        "n": 8713
+      }
+    },
+    "psi_vs_reference": {
+      "traffic_volume": {
+        "2012": 0.021,
+        "2013": 0.0,
+        "2014": 0.0041,
+        "2015": 0.0298,
+        "2016": 0.0345,
+        "2017": 0.0196
+      },
+      "temp": {
+        "2012": 1.1035,
+        "2013": 0.0,
+        "2014": 0.0794,
+        "2015": 0.7389,
+        "2016": 0.1619,
+        "2017": 0.1027
+      },
+      "clouds_all": {
+        "2012": 0.3329,
+        "2013": 0.0,
+        "2014": 0.0593,
+        "2015": 0.698,
+        "2016": 0.0715,
+        "2017": 0.3532
+      }
+    }
+  }
+}

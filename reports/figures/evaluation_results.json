@@ -1,0 +1,663 @@
+{
+  "config": {
+    "alpha": 0.001,
+    "solver": "lsqr",
+    "model": "ridge_pipeline",
+    "imputer_fit_scope": "TRAIN ONLY",
+    "holiday_source": "src/holidays.py (deterministic calendar, no dataset dependency)",
+    "config_frozen_before_final_eval": true,
+    "dev_experiments_window": "2012-2017 (src/experiments.py, guarded by assert_no_final_test_rows)"
+  },
+  "time_split": {
+    "train": {
+      "name": "train",
+      "n_rows": 25329,
+      "start": "2012-10-02 09:00:00",
+      "end": "2016-12-31 23:00:00",
+      "n_years": [
+        2012,
+        2013,
+        2014,
+        2015,
+        2016
+      ]
+    },
+    "validation": {
+      "name": "validation",
+      "n_rows": 8713,
+      "start": "2017-01-01 00:00:00",
+      "end": "2017-12-31 23:00:00",
+      "n_years": [
+        2017
+      ]
+    },
+    "test": {
+      "name": "test",
+      "n_rows": 6533,
+      "start": "2018-01-01 00:00:00",
+      "end": "2018-09-30 23:00:00",
+      "n_years": [
+        2018
+      ]
+    },
+    "assertions": {
+      "max_train_lt_min_validation": true,
+      "max_validation_lt_min_test": true,
+      "no_shared_timestamps": true
+    }
+  },
+  "final_test": {
+    "baseline": {
+      "MAE": 272.9,
+      "RMSE": 473.13,
+      "R2": 0.9426,
+      "n": 6533
+    },
+    "ridge": {
+      "MAE": 259.73,
+      "RMSE": 416.78,
+      "R2": 0.9554,
+      "n": 6533
+    }
+  },
+  "validation_reference": {
+    "ridge": {
+      "MAE": 272.12,
+      "RMSE": 421.46,
+      "R2": 0.9548,
+      "n": 8713
+    }
+  },
+  "error_analysis": {
+    "hour": {
+      "by": "hour",
+      "segments": [
+        {
+          "segment": "hour_00",
+          "n_samples": 273,
+          "MAE": 176.39,
+          "RMSE": 266.87,
+          "bias": 34.3,
+          "mean_actual": 830.62,
+          "mean_pred": 864.91,
+          "small_sample": false,
+          "baseline_MAE": 110.72
+        },
+        {
+          "segment": "hour_01",
+          "n_samples": 273,
+          "MAE": 160.99,
+          "RMSE": 248.6,
+          "bias": 44.04,
+          "mean_actual": 505.97,
+          "mean_pred": 550.01,
+          "small_sample": false,
+          "baseline_MAE": 69.01
+        },
+        {
+          "segment": "hour_02",
+          "n_samples": 264,
+          "MAE": 157.06,
+          "RMSE": 236.89,
+          "bias": 51.93,
+          "mean_actual": 380.31,
+          "mean_pred": 432.24,
+          "small_sample": false,
+          "baseline_MAE": 52.95
+        },
+        {
+          "segment": "hour_03",
+          "n_samples": 270,
+          "MAE": 142.14,
+          "RMSE": 209.67,
+          "bias": 36.26,
+          "mean_actual": 371.57,
+          "mean_pred": 407.84,
+          "small_sample": false,
+          "baseline_MAE": 31.14
+        },
+        {
+          "segment": "hour_04",
+          "n_samples": 272,
+          "MAE": 120.63,
+          "RMSE": 170.82,
+          "bias": -4.63,
+          "mean_actual": 735.43,
+          "mean_pred": 730.79,
+          "small_sample": false,
+          "baseline_MAE": 77.22
+        },
+        {
+          "segment": "hour_05",
+          "n_samples": 272,
+          "MAE": 197.44,
+          "RMSE": 274.99,
+          "bias": -92.66,
+          "mean_actual": 2211.31,
+          "mean_pred": 2118.64,
+          "small_sample": false,
+          "baseline_MAE": 240.62
+        },
+        {
+          "segment": "hour_06",
+          "n_samples": 272,
+          "MAE": 260.24,
+          "RMSE": 517.25,
+          "bias": 19.75,
+          "mean_actual": 4166.76,
+          "mean_pred": 4186.51,
+          "small_sample": false,
+          "baseline_MAE": 328.21
+        },
+        {
+          "segment": "hour_07",
+          "n_samples": 271,
+          "MAE": 355.75,
+          "RMSE": 643.42,
+          "bias": -2.46,
+          "mean_actual": 4813.29,
+          "mean_pred": 4810.83,
+          "small_sample": false,
+          "baseline_MAE": 422.46
+        },
+        {
+          "segment": "hour_08",
+          "n_samples": 272,
+          "MAE": 376.07,
+          "RMSE": 582.09,
+          "bias": -20.23,
+          "mean_actual": 4629.79,
+          "mean_pred": 4609.56,
+          "small_sample": false,
+          "baseline_MAE": 434.41
+        },
+        {
+          "segment": "hour_09",
+          "n_samples": 272,
+          "MAE": 300.01,
+          "RMSE": 444.36,
+          "bias": -54.25,
+          "mean_actual": 4434.17,
+          "mean_pred": 4379.92,
+          "small_sample": false,
+          "baseline_MAE": 345.74
+        },
+        {
+          "segment": "hour_10",
+          "n_samples": 273,
+          "MAE": 218.97,
+          "RMSE": 343.92,
+          "bias": -27.74,
+          "mean_actual": 4234.76,
+          "mean_pred": 4207.02,
+          "small_sample": false,
+          "baseline_MAE": 274.46
+        },
+        {
+          "segment": "hour_11",
+          "n_samples": 273,
+          "MAE": 232.58,
+          "RMSE": 355.72,
+          "bias": -9.78,
+          "mean_actual": 4505.28,
+          "mean_pred": 4495.5,
+          "small_sample": false,
+          "baseline_MAE": 282.56
+        },
+        {
+          "segment": "hour_12",
+          "n_samples": 273,
+          "MAE": 235.93,
+          "RMSE": 375.37,
+          "bias": -4.8,
+          "mean_actual": 4746.04,
+          "mean_pred": 4741.25,
+          "small_sample": false,
+          "baseline_MAE": 277.28
+        },
+        {
+          "segment": "hour_13",
+          "n_samples": 273,
+          "MAE": 248.65,
+          "RMSE": 397.12,
+          "bias": 38.95,
+          "mean_actual": 4722.25,
+          "mean_pred": 4761.2,
+          "small_sample": false,
+          "baseline_MAE": 268.41
+        },
+        {
+          "segment": "hour_14",
+          "n_samples": 273,
+          "MAE": 275.51,
+          "RMSE": 393.77,
+          "bias": 81.14,
+          "mean_actual": 4905.73,
+          "mean_pred": 4986.87,
+          "small_sample": false,
+          "baseline_MAE": 283.75
+        },
+        {
+          "segment": "hour_15",
+          "n_samples": 273,
+          "MAE": 282.25,
+          "RMSE": 445.32,
+          "bias": -19.11,
+          "mean_actual": 5287.31,
+          "mean_pred": 5268.2,
+          "small_sample": false,
+          "baseline_MAE": 342.04
+        },
+        {
+          "segment": "hour_16",
+          "n_samples": 273,
+          "MAE": 408.8,
+          "RMSE": 587.75,
+          "bias": -115.36,
+          "mean_actual": 5793.82,
+          "mean_pred": 5678.46,
+          "small_sample": false,
+          "baseline_MAE": 485.32
+        },
+        {
+          "segment": "hour_17",
+          "n_samples": 273,
+          "MAE": 373.38,
+          "RMSE": 565.55,
+          "bias": 20.51,
+          "mean_actual": 5329.43,
+          "mean_pred": 5349.94,
+          "small_sample": false,
+          "baseline_MAE": 422.64
+        },
+        {
+          "segment": "hour_18",
+          "n_samples": 273,
+          "MAE": 276.55,
+          "RMSE": 446.32,
+          "bias": 8.29,
+          "mean_actual": 4285.79,
+          "mean_pred": 4294.09,
+          "small_sample": false,
+          "baseline_MAE": 327.25
+        },
+        {
+          "segment": "hour_19",
+          "n_samples": 273,
+          "MAE": 240.94,
+          "RMSE": 376.16,
+          "bias": -51.96,
+          "mean_actual": 3345.84,
+          "mean_pred": 3293.88,
+          "small_sample": false,
+          "baseline_MAE": 295.68
+        },
+        {
+          "segment": "hour_20",
+          "n_samples": 273,
+          "MAE": 242.32,
+          "RMSE": 347.0,
+          "bias": -89.36,
+          "mean_actual": 2939.14,
+          "mean_pred": 2849.78,
+          "small_sample": false,
+          "baseline_MAE": 298.71
+        },
+        {
+          "segment": "hour_21",
+          "n_samples": 273,
+          "MAE": 289.47,
+          "RMSE": 403.45,
+          "bias": -44.38,
+          "mean_actual": 2732.79,
+          "mean_pred": 2688.41,
+          "small_sample": false,
+          "baseline_MAE": 290.31
+        },
+        {
+          "segment": "hour_22",
+          "n_samples": 273,
+          "MAE": 348.61,
+          "RMSE": 470.04,
+          "bias": -19.94,
+          "mean_actual": 2233.71,
+          "mean_pred": 2213.77,
+          "small_sample": false,
+          "baseline_MAE": 323.83
+        },
+        {
+          "segment": "hour_23",
+          "n_samples": 273,
+          "MAE": 308.77,
+          "RMSE": 450.41,
+          "bias": -17.68,
+          "mean_actual": 1512.34,
+          "mean_pred": 1494.66,
+          "small_sample": false,
+          "baseline_MAE": 256.17
+        }
+      ]
+    },
+    "day_of_week": {
+      "by": "day_of_week",
+      "segments": [
+        {
+          "segment": "Mon",
+          "n_samples": 936,
+          "MAE": 347.28,
+          "RMSE": 618.15,
+          "bias": 80.41,
+          "mean_actual": 3260.87,
+          "mean_pred": 3341.28,
+          "small_sample": false,
+          "day_of_week": 0,
+          "baseline_MAE": 390.36
+        },
+        {
+          "segment": "Tue",
+          "n_samples": 933,
+          "MAE": 226.68,
+          "RMSE": 352.91,
+          "bias": 33.39,
+          "mean_actual": 3542.38,
+          "mean_pred": 3575.78,
+          "small_sample": false,
+          "day_of_week": 1,
+          "baseline_MAE": 239.49
+        },
+        {
+          "segment": "Wed",
+          "n_samples": 935,
+          "MAE": 210.36,
+          "RMSE": 379.63,
+          "bias": 3.5,
+          "mean_actual": 3630.01,
+          "mean_pred": 3633.51,
+          "small_sample": false,
+          "day_of_week": 2,
+          "baseline_MAE": 224.95
+        },
+        {
+          "segment": "Thu",
+          "n_samples": 932,
+          "MAE": 230.6,
+          "RMSE": 331.98,
+          "bias": -25.98,
+          "mean_actual": 3729.58,
+          "mean_pred": 3703.6,
+          "small_sample": false,
+          "day_of_week": 3,
+          "baseline_MAE": 234.97
+        },
+        {
+          "segment": "Fri",
+          "n_samples": 935,
+          "MAE": 221.27,
+          "RMSE": 290.75,
+          "bias": -58.86,
+          "mean_actual": 3772.11,
+          "mean_pred": 3713.24,
+          "small_sample": false,
+          "day_of_week": 4,
+          "baseline_MAE": 236.16
+        },
+        {
+          "segment": "Sat",
+          "n_samples": 927,
+          "MAE": 321.27,
+          "RMSE": 475.13,
+          "bias": -58.84,
+          "mean_actual": 2879.52,
+          "mean_pred": 2820.68,
+          "small_sample": false,
+          "day_of_week": 5,
+          "baseline_MAE": 322.4
+        },
+        {
+          "segment": "Sun",
+          "n_samples": 935,
+          "MAE": 260.93,
+          "RMSE": 380.22,
+          "bias": -44.49,
+          "mean_actual": 2450.87,
+          "mean_pred": 2406.38,
+          "small_sample": false,
+          "day_of_week": 6,
+          "baseline_MAE": 262.05
+        }
+      ]
+    },
+    "holiday": {
+      "by": "holiday",
+      "segments": [
+        {
+          "segment": "non_holiday",
+          "n_samples": 6366,
+          "MAE": 239.49,
+          "RMSE": 362.87,
+          "bias": -11.86,
+          "mean_actual": 3346.74,
+          "mean_pred": 3334.88,
+          "small_sample": false,
+          "baseline_MAE": 250.58
+        },
+        {
+          "segment": "holiday",
+          "n_samples": 167,
+          "MAE": 1031.44,
+          "RMSE": 1332.59,
+          "bias": 58.68,
+          "mean_actual": 2453.41,
+          "mean_pred": 2512.09,
+          "small_sample": false,
+          "baseline_MAE": 1123.43
+        }
+      ],
+      "mae_delta": 791.95,
+      "n_holiday_dates": 7
+    },
+    "weather_main": {
+      "by": "weather_main (multi-hot)",
+      "segments": [
+        {
+          "segment": "Clear",
+          "n_samples": 2328,
+          "MAE": 245.15,
+          "RMSE": 412.94,
+          "bias": -23.27,
+          "mean_actual": 2989.63,
+          "mean_pred": 2966.36,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 256.64
+        },
+        {
+          "segment": "Clouds",
+          "n_samples": 1996,
+          "MAE": 243.39,
+          "RMSE": 340.57,
+          "bias": -57.3,
+          "mean_actual": 3924.41,
+          "mean_pred": 3867.11,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 254.11
+        },
+        {
+          "segment": "Drizzle",
+          "n_samples": 278,
+          "MAE": 207.16,
+          "RMSE": 275.92,
+          "bias": 31.5,
+          "mean_actual": 3569.06,
+          "mean_pred": 3600.56,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 211.26
+        },
+        {
+          "segment": "Fog",
+          "n_samples": 192,
+          "MAE": 536.05,
+          "RMSE": 925.24,
+          "bias": 315.75,
+          "mean_actual": 2224.91,
+          "mean_pred": 2540.66,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 640.17
+        },
+        {
+          "segment": "Haze",
+          "n_samples": 272,
+          "MAE": 313.56,
+          "RMSE": 516.53,
+          "bias": 3.6,
+          "mean_actual": 3213.19,
+          "mean_pred": 3216.78,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 332.9
+        },
+        {
+          "segment": "Mist",
+          "n_samples": 1099,
+          "MAE": 295.41,
+          "RMSE": 481.17,
+          "bias": 79.46,
+          "mean_actual": 2840.57,
+          "mean_pred": 2920.02,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 319.87
+        },
+        {
+          "segment": "Rain",
+          "n_samples": 992,
+          "MAE": 246.88,
+          "RMSE": 391.05,
+          "bias": 14.83,
+          "mean_actual": 3391.65,
+          "mean_pred": 3406.48,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 254.91
+        },
+        {
+          "segment": "Smoke",
+          "n_samples": 2,
+          "MAE": 137.93,
+          "RMSE": 143.99,
+          "bias": 137.93,
+          "mean_actual": 4443.0,
+          "mean_pred": 4580.93,
+          "small_sample": true,
+          "note": "Mẫu nhỏ — thận trọng.",
+          "baseline_MAE": 88.11
+        },
+        {
+          "segment": "Snow",
+          "n_samples": 521,
+          "MAE": 524.5,
+          "RMSE": 784.62,
+          "bias": 238.88,
+          "mean_actual": 2800.6,
+          "mean_pred": 3039.48,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 585.36
+        },
+        {
+          "segment": "Squall",
+          "n_samples": 0,
+          "MAE": null,
+          "RMSE": null,
+          "bias": null,
+          "mean_actual": null,
+          "mean_pred": null,
+          "small_sample": true,
+          "note": "KHÔNG CÓ MẪU — không đánh giá được."
+        },
+        {
+          "segment": "Thunderstorm",
+          "n_samples": 268,
+          "MAE": 266.76,
+          "RMSE": 409.84,
+          "bias": 79.74,
+          "mean_actual": 3246.82,
+          "mean_pred": 3326.57,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 269.18
+        }
+      ]
+    },
+    "extreme_weather": {
+      "by": "extreme_weather",
+      "segments": [
+        {
+          "segment": "Snow",
+          "n_samples": 521,
+          "MAE": 524.5,
+          "RMSE": 784.62,
+          "bias": 238.88,
+          "mean_actual": 2800.6,
+          "mean_pred": 3039.48,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 585.36
+        },
+        {
+          "segment": "Thunderstorm",
+          "n_samples": 268,
+          "MAE": 266.76,
+          "RMSE": 409.84,
+          "bias": 79.74,
+          "mean_actual": 3246.82,
+          "mean_pred": 3326.57,
+          "small_sample": false,
+          "note": "Mẫu đủ.",
+          "baseline_MAE": 269.18
+        },
+        {
+          "segment": "Squall",
+          "n_samples": 0,
+          "MAE": null,
+          "RMSE": null,
+          "bias": null,
+          "mean_actual": null,
+          "mean_pred": null,
+          "small_sample": true,
+          "note": "KHÔNG CÓ MẪU trong FINAL TEST — không đánh giá được."
+        },
+        {
+          "segment": "any_extreme_weather",
+          "n_samples": 784,
+          "MAE": 434.08,
+          "RMSE": 675.09,
+          "bias": 180.94,
+          "mean_actual": 2958.81,
+          "mean_pred": 3139.75,
+          "small_sample": false,
+          "baseline_MAE": 475.09
+        },
+        {
+          "segment": "no_extreme_weather",
+          "n_samples": 5749,
+          "MAE": 235.96,
+          "RMSE": 367.75,
+          "bias": -36.1,
+          "mean_actual": 3373.69,
+          "mean_pred": 3337.59,
+          "small_sample": false,
+          "baseline_MAE": 245.32
+        }
+      ],
+      "multi_label_note": "Các phân khúc dùng multi-hot nên Snow/Thunderstorm/Squall có thể trùng nhau; tổng n có thể vượt số dòng của FINAL TEST."
+    }
+  },
+  "figures": {
+    "hour_dow": "reports/figures/final_mae_by_hour_dow.png",
+    "weather": "reports/figures/final_mae_by_weather.png"
+  }
+}

@@ -1,0 +1,21 @@
+# Dữ liệu — không đưa vào Git theo yêu cầu đề, dùng src/download_data.py để tái tạo
+data/raw/*.csv
+data/raw/*.csv.gz
+data/raw/*.zip
+data/processed/*.csv
+
+# Model đã train — lưu riêng, không commit file lớn
+models/*.joblib
+models/*.pkl
+
+# Bản phát hành DOCX/PDF/PPTX — sinh tự động bằng `py src\export_docs.py all`
+# (bỏ dòng dưới nếu muốn commit bản phát hành đã sinh)
+release/
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+*.egg-info/
+.DS_Store

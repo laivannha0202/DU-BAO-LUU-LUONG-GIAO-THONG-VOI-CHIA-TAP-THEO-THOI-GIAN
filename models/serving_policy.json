@@ -1,0 +1,77 @@
+{
+  "policy_id": "non_negative_projection",
+  "version": "frozen-1.0",
+  "frozen_at_utc": "2026-09-30T02:47:36+00:00",
+  "frozen_by": "src/freeze_serving_policy.py",
+  "rule": "deployed_prediction = max(0, raw_ridge_prediction)",
+  "selected_on": [
+    "TRAIN 2012-2016",
+    "VALIDATION 2017"
+  ],
+  "final_test_used_for_selection": false,
+  "final_test_excluded_because": "FINAL TEST 2018 (bat ky dong nao)",
+  "decision_rule": {
+    "D1_domain_floor": "min(traffic_volume) tren TRAIN >= 0",
+    "D2_model_extrapolates_below_floor": "co it nhat 1 du bao tho < 0 tren TRAIN hoac VALIDATION",
+    "D3_validation_not_worse": "MAE(max(0, y_hat)) <= MAE(y_hat) tren VALIDATION 2017",
+    "otherwise": "policy = none (khong cat)"
+  },
+  "decision_trace": {
+    "D1_domain_floor_non_negative": true,
+    "D2_model_extrapolates_below_floor": true,
+    "D3_validation_clipped_not_worse": true,
+    "policy_adopted": true
+  },
+  "domain_floor_from_train": 0.0,
+  "mathematical_argument": "Voi thuc te y >= 0 va san b = 0: |y - max(0, y_hat)| <= |y - y_hat| voi MOI gia tri y_hat. Chung minh: neu y_hat >= 0 thi hai ve bang nhau; neu y_hat < 0 thi |y - 0| = y va |y - y_hat| = y - y_hat > y. => cat ve san khong bao gio lam tang sai so tuyet doi o bat ky dong nao. Day la phep chieu dung dac nhanh khong phai sieu tham so fit tu du lieu.",
+  "evidence": {
+    "train": {
+      "split": "TRAIN 2012-2016",
+      "n_rows": 25329,
+      "n_raw_negative": 187,
+      "share_raw_negative_pct": 0.74,
+      "min_raw_prediction": -869.35,
+      "min_actual_target": 0.0,
+      "mean_actual_on_negative_rows": 497.99,
+      "metrics_raw": {
+        "MAE": 298.76,
+        "RMSE": 477.08,
+        "R2": 0.9424
+      },
+      "metrics_clipped": {
+        "MAE": 295.86,
+        "RMSE": 472.46,
+        "R2": 0.9435
+      },
+      "pointwise_abs_error_never_increases": true,
+      "n_rows_where_clip_changes_error": 187
+    },
+    "validation": {
+      "split": "VALIDATION 2017",
+      "n_rows": 8713,
+      "n_raw_negative": 58,
+      "share_raw_negative_pct": 0.67,
+      "min_raw_prediction": -790.56,
+      "min_actual_target": 186.0,
+      "mean_actual_on_negative_rows": 529.91,
+      "metrics_raw": {
+        "MAE": 272.12,
+        "RMSE": 421.46,
+        "R2": 0.9548
+      },
+      "metrics_clipped": {
+        "MAE": 269.55,
+        "RMSE": 416.73,
+        "R2": 0.9558
+      },
+      "pointwise_abs_error_never_increases": true,
+      "n_rows_where_clip_changes_error": 58
+    }
+  },
+  "reporting_convention": {
+    "raw_model": "Ridge(alpha=0.001, solver=lsqr) — metric cua MO HINH la day. Day la con so duoc bao cao trong evaluation_results.json va la ket luan chinh thuc cua bao cao.",
+    "deployed_predictor": "max(0, Ridge) — mot WRAPPER phuc vu, KHONG phai mot mo hinh khac. Metric cua no chi duoc bao cao rieng va khong duoc goi cung ten voi metric cua mo hinh.",
+    "explicitly_not_a_claim": "Policy KHONG duoc chon vi thay so duong am tren FINAL TEST. Evidence chi lay tu TRAIN + VALIDATION; FINAL TEST chi duoc bao cao sau khi policy da dong bang de minh bach."
+  },
+  "content_sha256": "aef9a0c9264dc9e80c6996d06cd70548d4ef50bce44b5fe089a2c044475e73a1"
+}

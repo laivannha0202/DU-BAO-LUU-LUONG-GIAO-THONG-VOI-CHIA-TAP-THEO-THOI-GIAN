@@ -1,0 +1,155 @@
+{
+  "model_name": "ridge_pipeline",
+  "model_version": "checkpoint3",
+  "created_by": "src/train.py",
+  "seed": 42,
+  "hyperparameters": {
+    "alpha": 0.001,
+    "solver": "lsqr"
+  },
+  "target": "traffic_volume",
+  "n_features_out": 217,
+  "feature_columns": {
+    "categorical": [
+      "hour_dow",
+      "month",
+      "weather_main_mode",
+      "weather_family"
+    ],
+    "numeric": [
+      "temp",
+      "rain_1h",
+      "snow_1h",
+      "clouds_all",
+      "weather_severity"
+    ],
+    "binary": [
+      "is_holiday",
+      "wm_clear",
+      "wm_clouds",
+      "wm_drizzle",
+      "wm_fog",
+      "wm_haze",
+      "wm_mist",
+      "wm_rain",
+      "wm_smoke",
+      "wm_snow",
+      "wm_squall",
+      "wm_thunderstorm"
+    ]
+  },
+  "preprocessing": {
+    "numeric": [
+      "SimpleImputer(strategy=median)",
+      "StandardScaler()"
+    ],
+    "categorical": [
+      "OneHotEncoder(handle_unknown=ignore, sparse_output=False)"
+    ],
+    "binary": [
+      "passthrough"
+    ],
+    "fit_scope": "TRAIN ONLY (imputer, scaler, encoder \u0111\u1ec1u fit tr\u00ean TRAIN)",
+    "imputer_median_train": {
+      "temp": 282.08,
+      "rain_1h": 0.0,
+      "snow_1h": 0.0,
+      "clouds_all": 40.0,
+      "weather_severity": 1.0
+    },
+    "scaler_mean_train": {
+      "temp": 280.9479,
+      "rain_1h": 0.1054,
+      "snow_1h": 0.0002,
+      "clouds_all": 45.433,
+      "weather_severity": 1.1751
+    },
+    "n_encoder_categories_train": 4
+  },
+  "fit_data": {
+    "split": "train_only",
+    "n_rows": 25329,
+    "start": "2012-10-02 09:00:00",
+    "end": "2016-12-31 23:00:00"
+  },
+  "time_split": {
+    "train": {
+      "name": "train",
+      "n_rows": 25329,
+      "start": "2012-10-02 09:00:00",
+      "end": "2016-12-31 23:00:00",
+      "n_years": [
+        2012,
+        2013,
+        2014,
+        2015,
+        2016
+      ]
+    },
+    "validation": {
+      "name": "validation",
+      "n_rows": 8713,
+      "start": "2017-01-01 00:00:00",
+      "end": "2017-12-31 23:00:00",
+      "n_years": [
+        2017
+      ]
+    },
+    "test": {
+      "name": "test",
+      "n_rows": 6533,
+      "start": "2018-01-01 00:00:00",
+      "end": "2018-09-30 23:00:00",
+      "n_years": [
+        2018
+      ]
+    },
+    "assertions": {
+      "max_train_lt_min_validation": true,
+      "max_validation_lt_min_test": true,
+      "no_shared_timestamps": true
+    }
+  },
+  "validation_metrics": {
+    "MAE": 272.12,
+    "RMSE": 421.46,
+    "R2": 0.9548,
+    "n": 8713
+  },
+  "baseline_validation_metrics": {
+    "MAE": 278.66,
+    "RMSE": 461.0,
+    "R2": 0.9459,
+    "n": 8713
+  },
+  "alpha_tuning": {
+    "criterion": "validation MAE",
+    "best_alpha": 0.001
+  },
+  "expected_inputs_at_serving": {
+    "note": "API/Web ph\u1ea3i t\u1ea1o \u0111\u00fang c\u00e1c c\u1ed9t feature tr\u00ean t\u1eeb date_time + th\u1eddi ti\u1ebft, d\u00f9ng CHUNG h\u00e0m src.features.build_features \u0111\u1ec3 kh\u00f4ng c\u00f3 train-serving skew.",
+    "required_engineered_columns": [
+      "hour_dow",
+      "month",
+      "weather_main_mode",
+      "weather_family",
+      "temp",
+      "rain_1h",
+      "snow_1h",
+      "clouds_all",
+      "weather_severity",
+      "is_holiday",
+      "wm_clear",
+      "wm_clouds",
+      "wm_drizzle",
+      "wm_fog",
+      "wm_haze",
+      "wm_mist",
+      "wm_rain",
+      "wm_smoke",
+      "wm_snow",
+      "wm_squall",
+      "wm_thunderstorm"
+    ]
+  }
+}

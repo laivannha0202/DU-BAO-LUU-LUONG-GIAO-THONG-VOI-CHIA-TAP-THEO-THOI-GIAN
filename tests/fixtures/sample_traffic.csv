@@ -1,0 +1,70 @@
+holiday,temp,rain_1h,snow_1h,clouds_all,weather_main,weather_description,date_time,traffic_volume
+New Years Day,0.0,0.0,0.0,40,Clear,sky is clear,2013-01-01 00:00:00,3150
+None,304.0,9831.3,0.0,40,Clear,sky is clear,2013-01-01 01:00:00,3160
+None,305,0.0,0.0,60,Clear,sky is clear,2013-01-01 02:00:00,3002
+None,306,0.0,0.0,70,Clouds,broken clouds,2013-01-01 03:00:00,3003
+None,307,0.0,0.0,80,Clear,sky is clear,2013-01-01 04:00:00,3004
+None,308,0.0,0.0,40,Clouds,broken clouds,2013-01-01 05:00:00,3005
+None,309,0.0,0.0,50,Clear,sky is clear,2013-01-01 06:00:00,3006
+None,310,0.0,0.0,60,Clouds,broken clouds,2013-01-01 07:00:00,3007
+None,311,0.0,0.0,70,Clear,sky is clear,2013-01-01 08:00:00,3008
+None,312,0.0,0.0,80,Clouds,broken clouds,2013-01-01 09:00:00,3009
+None,313,0.0,0.0,40,Clear,sky is clear,2013-01-01 10:00:00,3010
+None,314,0.0,0.0,50,Clouds,broken clouds,2013-01-01 11:00:00,3011
+None,315,0.0,0.0,60,Clear,sky is clear,2013-01-01 12:00:00,3012
+None,316,0.0,0.0,70,Clouds,broken clouds,2013-01-01 13:00:00,3013
+None,317,0.0,0.0,80,Clear,sky is clear,2013-01-01 14:00:00,3014
+None,318,0.0,0.0,40,Clouds,broken clouds,2013-01-01 15:00:00,3015
+None,319,0.0,0.0,50,Clear,sky is clear,2013-01-01 16:00:00,3016
+None,320,0.0,0.0,60,Clouds,broken clouds,2013-01-01 17:00:00,3017
+None,321,0.0,0.0,70,Clear,sky is clear,2013-01-01 18:00:00,3018
+None,322,0.0,0.0,80,Clouds,broken clouds,2013-01-01 19:00:00,3019
+None,323,0.0,0.0,40,Clear,sky is clear,2013-01-01 20:00:00,3020
+None,324,0.0,0.0,50,Clouds,broken clouds,2013-01-01 21:00:00,3021
+None,325,0.0,0.0,60,Clear,sky is clear,2013-01-01 22:00:00,3022
+None,326,0.0,0.0,70,Clouds,broken clouds,2013-01-01 23:00:00,3023
+None,280.0,0.0,0.0,20,Thunderstorm,thunderstorm with light rain,2013-01-01 06:00:00,3006
+None,290.0,0.0,0.0,90,Thunderstorm,thunderstorm with light rain,2013-01-01 06:00:00,3006
+None,290.0,0.0,0.0,20,Mist,mist,2013-01-01 07:00:00,3007
+None,310.0,55.63,0.0,95,Squall,SQUALLS,2013-01-01 07:00:00,3007
+None,296.0,0.0,0.0,50,Mist,mist,2013-01-01 07:00:00,3007
+None,288,0,0,40,Clear,sky is clear,2013-01-02 00:00:00,3000
+None,290,0,0,40,Clouds,scattered clouds,2013-01-02 01:00:00,3010
+None,291,0,0,50,Clouds,broken clouds,2013-01-02 02:00:00,3020
+None,292,0,0,50,Clear,sky is clear,2013-01-02 03:00:00,3030
+None,293,0,0,50,Clouds,overcast clouds,2013-01-02 04:00:00,3040
+None,294,0,0,60,Clear,sky is clear,2013-01-02 05:00:00,3050
+None,295,0,0,60,Clouds,overcast clouds,2013-01-02 06:00:00,3060
+None,296,0,0,60,Clouds,broken clocks,2013-01-02 07:00:00,3070
+None,298,0,0,70,Clear,sky is clear,2013-01-02 10:00:00,3090
+None,299,0,0,70,Clouds,overcast clouds,2013-01-02 11:00:00,3100
+None,300,0,0,70,Clear,sky is clear,2013-01-02 12:00:00,3110
+None,301,0,0,80,Clouds,scattered clouds,2013-01-02 13:00:00,3120
+None,302,0,0,80,Clear,sky is clear,2013-01-02 14:00:00,3130
+None,303,0,0,80,Clouds,broken clouds,2013-01-02 15:00:00,3140
+None,304,0,0,90,Clear,sky is clear,2013-01-02 16:00:00,3150
+None,305,0,0,90,Clouds,overcast clouds,2013-01-02 17:00:00,3160
+None,306,0,0,90,Clear,sky is clear,2013-01-02 18:00:00,3170
+None,307,0,0,40,Clouds,scattered clouds,2013-01-02 19:00:00,3180
+None,308,0,0,40,Clear,sky is clear,2013-01-02 20:00:00,3190
+None,309,0,0,50,Clouds,broken clouds,2013-01-02 21:00:00,3200
+None,310,0,0,50,Clear,sky is clear,2013-01-02 22:00:00,3210
+None,311,0,0,50,Clouds,overcast clouds,2013-01-02 23:00:00,3220
+None,240,1.5,0,90,Rain,light rain,2013-01-03 00:00:00,2000
+None,241,2.5,0,90,Rain,light rain,2013-01-03 01:00:00,1900
+None,242,3.5,0,95,Snow,light snow,2013-01-03 02:00:00,1800
+None,243,4.5,0,95,Snow,light snow,2013-01-03 03:00:00,1700
+None,244,5.5,0,95,Thunderstorm,thunderstorm with light rain,2013-01-03 04:00:00,1600
+None,245,6.5,0,95,Thunderstorm,proximity thunderstorm,2013-01-03 05:00:00,1500
+None,246,7.5,0,90,Squall,SQUALLS,2013-01-03 06:00:00,1400
+None,247,8.5,0,90,Rain,very heavy rain,2013-01-03 07:00:00,1300
+None,248,9.5,0,90,Clouds,broken clouds,2013-01-03 08:00:00,1200
+None,249,10.5,0,90,Clouds,broken clouds,2013-01-03 09:00:00,1100
+None,250,11.5,0,90,Clear,sky is clear,2013-01-03 10:00:00,1000
+None,251,12.5,0,90,Clear,sky is clear,2013-01-03 11:00:00,900
+None,252,0,0,50,Mist,mist,2013-01-03 12:00:00,800
+None,253,0,0,50,Haze,haze,2013-01-03 13:00:00,700
+None,254,0,0,50,Fog,fog,2013-01-03 14:00:00,600
+None,255,0,0,50,Smoke,smoke,2013-01-03 15:00:00,500
+None,256,0,0,50,Drizzle,light intensity drizzle,2013-01-03 16:00:00,400
+None,257,0,0,50,Clouds,broken clouds,2013-01-03 17:00:00,300
