@@ -371,3 +371,373 @@ def test_serving_policy_report_exists_and_is_consistent():
     assert "KHÔNG đọc FINAL TEST 2018" in text
     assert "RAW MODEL" in text
     assert "DEPLOYED PREDICTOR" in text
+
+
+# ---------------------------------------------------------------------------
+# 8. ĐÓNG BĂNG LẶP LẠI ĐƯỢC (idempotent)
+#
+# Lỗi gốc: script ghi `frozen_at_utc = datetime.now(...)` ở mỗi lần chạy và tái dùng
+# nó trong `serving_policy.md`, nên `models/serving_policy.json` đổi hash dù quyết
+# định không đổi. Ba hậu quả: (1) không tái lập được trên máy sạch; (2) một script
+# tên "freeze" lại ghi đè chính policy đã đóng băng mà không cảnh báo; (3) không
+# chứng minh được rằng chạy lại chỉ khác timestamp.
+#
+# Test ở đây chạy `main()` trong tiến trình với `POLICY_PATH` trỏ vào thư mục tạm —
+# KHÔNG bao giờ chạm vào `models/` thật. `build_policy()` thật chỉ được gọi MỘT lần
+# (fixture `real_content`) vì nó phải nạp pipeline + dữ liệu (~6 giây).
+# ---------------------------------------------------------------------------
+CLEAN_DATA = ROOT / "data" / "processed" / "traffic_clean.csv"
+RIDGE = ROOT / "models" / "ridge_pipeline.joblib"
+
+REASON_NO_INPUTS = (
+    "Chưa có dữ liệu/artifact để tính lại policy. Chạy:\n"
+    "    py src\\download_data.py\n"
+    "    py src\\data.py\n"
+    "    py src\\train.py"
+)
+requires_freeze_inputs = pytest.mark.skipif(
+    not (CLEAN_DATA.exists() and RIDGE.exists()), reason=REASON_NO_INPUTS
+)
+
+
+@pytest.fixture(scope="session")
+def real_content() -> dict:
+    """Nội dung policy tính bằng `build_policy()` THẬT — gọi một lần cho cả module."""
+    from src.freeze_serving_policy import build_policy
+
+    return build_policy()
+
+
+@pytest.fixture()
+def sandbox(tmp_path, monkeypatch):
+    """Bản sao policy + báo cáo trong thư mục tạm, và script trỏ vào đó.
+
+    Nhờ vậy các test dưới đây thử ghi đè / tạo mới mà `models/` thật không bị đụng.
+    """
+    from src import freeze_serving_policy as fsp
+
+    models = tmp_path / "models"
+    figures = tmp_path / "figures"
+    models.mkdir()
+    figures.mkdir()
+
+    real_md = config.reports_dir() / "serving_policy.md"
+    policy_file = models / "serving_policy.json"
+    md_file = figures / "serving_policy.md"
+    if POLICY_PATH.exists():
+        policy_file.write_bytes(POLICY_PATH.read_bytes())
+    if real_md.exists():
+        md_file.write_bytes(real_md.read_bytes())
+
+    monkeypatch.setattr(fsp, "POLICY_PATH", policy_file)
+    monkeypatch.setattr(fsp, "POLICY_MD_PATH", md_file)
+    return {"json": policy_file, "md": md_file, "module": fsp}
+
+
+def _stamp_of(path: Path) -> str:
+    return json.loads(path.read_text(encoding="utf-8"))["frozen_at_utc"]
+
+
+# --- 8.1. Nguyên nhân gốc: nội dung phải tách khỏi đồng hồ ---------------------
+def test_build_policy_content_carries_no_wallclock_field(real_content):
+    """`build_policy()` không được nhúng thời điểm chạy vào nội dung quyết định.
+
+    Đây là điều kiện tiên quyết để chạy lại cho ra cùng một file: nếu `frozen_at_utc`
+    nằm trong kết quả của `build_policy()` thì mọi lần ghi đều khác nhau.
+    """
+    assert "frozen_at_utc" not in real_content
+    assert "content_sha256" not in real_content
+
+
+def _code_of(source: str, header: str, next_header: str) -> str:
+    """Cắt phần MÃ (bỏ docstring) giữa hai mốc nguồn.
+
+    Docstring của `render_markdown()` giải thích rằng nó KHÔNG gọi đồng hồ và có
+    chữ `datetime.now()` trong câu đó — nên phải bỏ docstring thì mới kiểm tra
+    được phần thực thi, thay vì kiểm tra nhầm vào lời giải thích.
+    """
+    body = source[source.index(header):source.index(next_header)]
+    first_quote = body.index('"""')
+    after_open = body[first_quote + 3:]
+    if after_open.lstrip().startswith('"""'):  # docstring một dòng
+        return after_open[after_open.index('"""') + 3:]
+    return after_open[after_open.index('"""', 1) + 3:]
+
+
+def test_freeze_script_does_not_stamp_wallclock_into_content():
+    """Bằng chứng ở mức mã nguồn: chỗ duy nhất đọc đồng hồ là lần đóng băng MỚI."""
+    source = FREEZE_SCRIPT.read_text(encoding="utf-8")
+    # `build_policy()` và `render_markdown()` phải là hàm thuần theo nội dung
+    assert "datetime.now(" not in _code_of(source, "def build_policy", "def render_markdown"), (
+        "build_policy() không được đọc đồng hồ — nội dung phải là hằng số"
+    )
+    assert "datetime.now(" not in _code_of(
+        source, "def render_markdown", "# Đóng băng lặp lại được"
+    ), "render_markdown() không được gọi đồng hồ"
+    # chỗ duy nhất được phép đọc đồng hồ là trong `main()`, tại lần tạo policy MỚI
+    main_code = source[source.index("def main("):source.index('if __name__ == "__main__"')]
+    assert main_code.count("datetime.now(") == 2, (
+        "trong main() chỉ được đọc đồng hồ ở lần tạo policy MỚI (có fallback khi "
+        f"thiếu frozen_at_utc); đang có {main_code.count('datetime.now(')} chỗ"
+    )
+    assert 'datetime.now(timezone.utc).isoformat(timespec="seconds")' in source
+
+
+def test_markdown_timestamp_is_read_from_json_not_the_clock():
+    """`serving_policy.md` lấy mốc đóng băng từ JSON, không từ `datetime.now()`."""
+    source = FREEZE_SCRIPT.read_text(encoding="utf-8")
+    body = _code_of(source, "def render_markdown", "# Đóng băng lặp lại được")
+    assert "datetime.now(" not in body, "render_markdown() không được gọi đồng hồ"
+    assert "p['frozen_at_utc']" in body or 'p["frozen_at_utc"]' in body
+
+
+# --- 8.2. Chạy hai lần -> bytes giống hệt ------------------------------------
+@requires_policy
+@requires_freeze_inputs
+def test_running_freeze_twice_gives_byte_identical_policy(sandbox, real_content):
+    """Chạy lại lần nữa phải cho ra ĐÚNG file đã có — kể cả byte-for-byte."""
+    fsp = sandbox["module"]
+    policy_file = sandbox["json"]
+
+    first_exit = fsp.main([])
+    first_bytes = policy_file.read_bytes()
+    first_stamp = _stamp_of(policy_file)
+
+    second_exit = fsp.main([])
+    second_bytes = policy_file.read_bytes()
+
+    assert first_exit == 0
+    assert second_exit == 0
+    assert second_bytes == first_bytes, (
+        "chạy lại lần 2 phải cho ra đúng bytes của lần 1 "
+        f"({len(first_bytes)} vs {len(second_bytes)} bytes)"
+    )
+    assert _stamp_of(policy_file) == first_stamp, "frozen_at_utc bị đặt lại"
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_rerun_on_matching_policy_does_not_touch_the_file(sandbox, capsys):
+    """Nội dung khớp -> KHÔNG ghi lại file, in đúng thông điệp yêu cầu."""
+    fsp = sandbox["module"]
+    policy_file = sandbox["json"]
+    before_bytes = policy_file.read_bytes()
+    before_mtime = policy_file.stat().st_mtime_ns
+
+    assert fsp.main([]) == 0
+
+    out = capsys.readouterr().out
+    assert "policy đã đóng băng, nội dung khớp" in out
+    assert policy_file.read_bytes() == before_bytes
+    assert policy_file.stat().st_mtime_ns == before_mtime, (
+        "file đã bị ghi lại dù nội dung không đổi"
+    )
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_rerun_keeps_the_original_freeze_timestamp(sandbox):
+    """Mốc đóng băng thật phải được giữ nguyên, không đặt lại thành 'bây giờ'."""
+    fsp = sandbox["module"]
+    policy_file = sandbox["json"]
+    original = _stamp_of(policy_file)
+
+    fsp.main([])
+    fsp.main([])
+
+    assert _stamp_of(policy_file) == original
+
+
+# --- 8.3. Nội dung lệch -> dừng, không ghi đè --------------------------------
+def _tampered_content(real_content: dict) -> dict:
+    """Nội dung KHÁC quyết định thật — dùng để ép nhánh 'lệch'."""
+    bad = json.loads(json.dumps(real_content))
+    bad["evidence"]["validation"]["metrics_raw"]["MAE"] += 5.0
+    return bad
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_changed_content_exits_nonzero_and_never_overwrites(sandbox, real_content, monkeypatch):
+    fsp = sandbox["module"]
+    monkeypatch.setattr(fsp, "build_policy", lambda: _tampered_content(real_content))
+    policy_file = sandbox["json"]
+    before = policy_file.read_bytes()
+
+    assert fsp.main([]) != 0, "nội dung lệch mà vẫn exit 0"
+    assert policy_file.read_bytes() == before, "file đã đóng băng bị ghi đè khi không có --force"
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_changed_content_prints_a_readable_diff(sandbox, real_content, monkeypatch, capsys):
+    fsp = sandbox["module"]
+    monkeypatch.setattr(fsp, "build_policy", lambda: _tampered_content(real_content))
+
+    assert fsp.main([]) != 0
+
+    out = capsys.readouterr().out
+    assert "KHÔNG KHỚP" in out
+    assert "evidence.validation.metrics_raw.MAE" in out, "diff phải chỉ rõ đường dẫn trường"
+    assert "file hiện có" in out and "tính lại được" in out, "diff phải hiện cả hai giá trị"
+    assert "--force" in out, "phải chỉ ra lối thoát: cần --force"
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_check_exits_1_when_content_differs(sandbox, real_content, monkeypatch):
+    fsp = sandbox["module"]
+    monkeypatch.setattr(fsp, "build_policy", lambda: _tampered_content(real_content))
+
+    assert fsp.main(["--check"]) == 1
+
+
+# --- 8.4. --force: ghi đè được, nhưng phải cảnh báo --------------------------
+@requires_policy
+@requires_freeze_inputs
+def test_force_overwrites_and_warns_that_it_is_a_refreeze(sandbox, real_content, monkeypatch, capsys):
+    fsp = sandbox["module"]
+    monkeypatch.setattr(fsp, "build_policy", lambda: _tampered_content(real_content))
+    policy_file = sandbox["json"]
+    original_stamp = _stamp_of(policy_file)
+
+    assert fsp.main(["--force"]) == 0
+
+    out = capsys.readouterr().out
+    assert "CẢNH BÁO" in out, "--force phải in cảnh báo"
+    assert "docs/project-log.md" in out, (
+        "cảnh báo phải yêu cầu ghi lý do vào docs/project-log.md"
+    )
+
+    frozen = json.loads(policy_file.read_text(encoding="utf-8"))
+    assert frozen["evidence"]["validation"]["metrics_raw"]["MAE"] == pytest.approx(
+        _tampered_content(real_content)["evidence"]["validation"]["metrics_raw"]["MAE"]
+    ), "--force phải ghi nội dung mới"
+    assert frozen["frozen_at_utc"] == original_stamp, (
+        "đóng băng lại không được tự ý đổi mốc đóng băng đã có"
+    )
+
+
+# --- 8.5. --check: không ghi bất kỳ file nào --------------------------------
+@requires_policy
+@requires_freeze_inputs
+def test_check_writes_no_file_at_all(sandbox):
+    """`--check` là chế độ CHỈ ĐỌC: cả hash lẫn mtime của mọi file đều không đổi."""
+    fsp = sandbox["module"]
+    watched = [p for p in (sandbox["json"], sandbox["md"]) if p.exists()]
+    assert watched, "sandbox phải có file để theo dõi"
+    before = {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in watched}
+
+    assert fsp.main(["--check"]) == 0
+
+    for path, (data, mtime) in before.items():
+        assert path.exists(), f"--check đã xoá {path.name}"
+        assert path.read_bytes() == data, f"--check đã ghi lại {path.name}"
+        assert path.stat().st_mtime_ns == mtime, f"--check đã chạm vào mtime của {path.name}"
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_check_does_not_create_a_policy_that_does_not_exist_yet(sandbox):
+    """Chưa đóng băng + `--check` -> exit 1, KHÔNG tạo file."""
+    fsp = sandbox["module"]
+    policy_file = sandbox["json"]
+    policy_file.unlink()
+
+    assert fsp.main(["--check"]) == 1
+    assert not policy_file.exists(), "--check không được tạo policy"
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_check_reports_the_existing_frozen_timestamp(sandbox, capsys):
+    fsp = sandbox["module"]
+    original = _stamp_of(sandbox["json"])
+
+    assert fsp.main(["--check"]) == 0
+    assert original in capsys.readouterr().out
+
+
+# --- 8.6. Chữ ký nội dung bắt được việc sửa tay ------------------------------
+@requires_policy
+@requires_freeze_inputs
+def test_hand_edited_policy_is_detected_and_not_overwritten(sandbox, capsys):
+    """Sửa tay `serving_policy.json` phải bị phát hiện qua chữ ký nội dung."""
+    fsp = sandbox["module"]
+    policy_file = sandbox["json"]
+    tampered = json.loads(policy_file.read_text(encoding="utf-8"))
+    tampered["policy_id"] = "none"
+    policy_file.write_text(json.dumps(tampered, indent=2, ensure_ascii=False), encoding="utf-8")
+    before = policy_file.read_bytes()
+
+    assert fsp.main([]) != 0
+
+    out = capsys.readouterr().out
+    assert "SỬA TAY" in out, "phải báo file đã bị sửa tay sau khi đóng băng"
+    assert policy_file.read_bytes() == before
+
+
+def test_content_hash_detects_a_single_field_edit(real_content):
+    """Chữ ký nội dung phải đổi khi chỉ một trường duy nhất bị sửa."""
+    from src.freeze_serving_policy import check_integrity, stamp
+
+    good = stamp(real_content, "2020-01-01T00:00:00+00:00")
+    assert check_integrity(good)[0] is True
+
+    edited = dict(good)
+    edited["policy_id"] = "none"
+    assert check_integrity(edited)[0] is False
+
+
+# --- 8.7. So sánh số thực theo dung sai -------------------------------------
+def test_float_comparison_uses_tolerance():
+    """Float có thể khác nhẹ giữa nền tảng — chênh nhỏ KHÔNG được coi là lệch."""
+    from src.freeze_serving_policy import compare_content
+
+    assert compare_content({"v": 272.12}, {"v": 272.12 + 1e-9}) == []
+    assert compare_content({"v": 272.12}, {"v": 272.1200004}) == []
+    # nhưng lệch thật thì phải bị bắt
+    diffs = compare_content({"v": 272.12}, {"v": 272.90})
+    assert len(diffs) == 1
+    assert diffs[0]["path"] == "v"
+
+
+def test_booleans_are_not_treated_as_numbers():
+    """`True` KHÔNG được coi là bằng `1` — nếu không, quyết định D1-D3 có thể lọt."""
+    from src.freeze_serving_policy import compare_content
+
+    assert compare_content({"policy_adopted": True}, {"policy_adopted": 1}) != []
+
+
+# --- 8.8. serving_policy.md chỉ chứa mốc đóng băng từ JSON ------------------
+@requires_policy
+def test_serving_policy_md_shows_only_the_timestamp_stored_in_json():
+    """Tài liệu được sinh tự động không được chứa thời điểm hiện tại.
+
+    Mọi mốc thời gian dạng ISO-8601 trong `serving_policy.md` phải đúng bằng
+    `frozen_at_utc` trong JSON — nếu có mốc nào khác thì tài liệu đã bị ghi bằng
+    đồng hồ lúc chạy, tức mất tính tái lập.
+    """
+    md = config.reports_dir() / "serving_policy.md"
+    if not md.exists():
+        pytest.skip("Chưa sinh reports/figures/serving_policy.md")
+    frozen_at = _stamp_of(POLICY_PATH)
+    stamps = set(re.findall(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z)?", md.read_text(encoding="utf-8")))
+    assert stamps == {frozen_at}, (
+        f"serving_policy.md chứa mốc thời gian {stamps} khác frozen_at_utc {frozen_at!r}"
+    )
+
+
+@requires_policy
+@requires_freeze_inputs
+def test_generated_md_follows_the_json_timestamp(sandbox, real_content):
+    """Sinh lại tài liệu với một mốc đóng băng khác -> tài liệu phải theo mốc đó."""
+    fsp = sandbox["module"]
+    from src.freeze_serving_policy import render_markdown, stamp
+
+    chosen = "2019-05-04T03:02:01+00:00"
+    md_text = render_markdown(stamp(real_content, chosen))
+    stamps = set(re.findall(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{2}:\d{2}|Z)?", md_text))
+    assert stamps == {chosen}, (
+        f"tài liệu sinh ra phải chỉ chứa mốc đóng bang {chosen}, thực tế {stamps}"
+    )
