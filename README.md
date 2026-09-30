@@ -198,6 +198,11 @@ Server **không crash** khi nhận input sai (đã có test dồn nhiều reques
 
 - Dữ liệu chỉ phủ **2012-10-02 09:00 → 2018-09-30 23:00**. Dự báo ngoài khoảng này: API vẫn trả kết quả
   nhưng kèm cảnh báo `in_dataset_range = false`.
+- **FINAL TEST chỉ có 9 tháng đầu 2018.** Đo trên validation 2017 cho thấy chấm Jan–Sep cho MAE
+  thấp hơn cả năm **21,16** (250,96 so với 272,12) — tức số 2018 được đo trên **phần dễ hơn**
+  của năm. Mọi kết luận về 2018 chỉ áp dụng cho 9 tháng đầu năm.
+- **Ngày lễ trong FINAL TEST chỉ có 7 ngày lịch** (167 giờ), và MAE từng ngày lệch nhau gần 3 lần
+  (518,33 → 1.508,73) → con số "MAE ngày lễ" có độ bất định lớn, không đọc như giá trị ổn định.
 - Bảng lịch **State Fair** chỉ có ngày cho các năm **2012–2020**. Ngoài khoảng đó API **không tự đoán**:
   trả cảnh báo `state_fair_calendar_unknown` và cho phép người dùng truyền
   `state_fair_start_date` để tính đúng.
@@ -327,7 +332,7 @@ docs/
   project-log.md         # NHẬT KÝ DỰ ÁN (thời gian · người · giờ · kết quả · vấn đề)
   slides-outline.md       # 11 slide
   demo-script.md          # kịch bản demo 5-7 phút
-  viva-questions.md       # 33 câu hỏi + đáp án
+  viva-questions.md       # 35 câu hỏi + đáp án
 tests/
   conftest.py             # fixture dùng chung
   test_data.py            # holiday, duplicate, outlier, invariant, lịch tất định
@@ -351,7 +356,7 @@ release/
 ```
 
 **Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
-Con số tổng **346 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+Con số tổng **351 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
 và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
 
 ---

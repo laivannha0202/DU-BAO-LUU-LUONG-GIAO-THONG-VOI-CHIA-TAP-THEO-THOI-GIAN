@@ -425,6 +425,71 @@
         }
       ]
     },
+    "holidays": {
+      "n_holiday_dates": 7,
+      "n_holiday_hours": 167,
+      "n_non_holiday_hours": 6366,
+      "MAE_ridge_holiday": 1031.44,
+      "MAE_baseline_holiday": 1123.43,
+      "MAE_ridge_non_holiday": 239.49,
+      "MAE_baseline_non_holiday": 250.58,
+      "by_holiday_date": [
+        {
+          "date": "2018-01-01",
+          "holiday_name": "New Years Day",
+          "n_hours": 24,
+          "MAE_ridge": 1346.79,
+          "MAE_baseline": 1816.0
+        },
+        {
+          "date": "2018-01-15",
+          "holiday_name": "Martin Luther King Jr Day",
+          "n_hours": 24,
+          "MAE_ridge": 679.28,
+          "MAE_baseline": 656.76
+        },
+        {
+          "date": "2018-02-19",
+          "holiday_name": "Washingtons Birthday",
+          "n_hours": 24,
+          "MAE_ridge": 518.33,
+          "MAE_baseline": 877.77
+        },
+        {
+          "date": "2018-05-28",
+          "holiday_name": "Memorial Day",
+          "n_hours": 24,
+          "MAE_ridge": 1208.26,
+          "MAE_baseline": 1309.72
+        },
+        {
+          "date": "2018-07-04",
+          "holiday_name": "Independence Day",
+          "n_hours": 24,
+          "MAE_ridge": 1508.73,
+          "MAE_baseline": 1828.42
+        },
+        {
+          "date": "2018-08-23",
+          "holiday_name": "State Fair",
+          "n_hours": 23,
+          "MAE_ridge": 985.11,
+          "MAE_baseline": 258.48
+        },
+        {
+          "date": "2018-09-03",
+          "holiday_name": "Labor Day",
+          "n_hours": 24,
+          "MAE_ridge": 971.69,
+          "MAE_baseline": 1080.85
+        }
+      ],
+      "weather_categories_with_zero_samples": [
+        "Squall"
+      ],
+      "warning": "FINAL TEST 2018 chỉ có **7 ngày lễ** (167 giờ) trong tập đánh giá. Ước lượng MAE ngày lễ vì vậy có độ bất định lớn và KHÔNG nên đọc như một giá trị ổn định — mỗi ngày lễ trong bảng bên dưới chỉ có khoảng 24 mẫu giờ, và hành vi từng ngày lễ khác nhau rõ rệt (ví dụ ngày lễ cuối năm khác hẳn ngày lễ đầu năm).",
+      "zero_sample_note": "Phân khúc thời tiết có n = 0 được ghi rõ là **không có mẫu, không đánh giá được** — không bao giờ báo số 0 cho trường hợp này."
+    },
     "_draws_mae": "[18.12423772  8.62827798 17.51924342 ... 10.81183901 20.66223413\n 19.36549974]"
   },
   "dev_windows": [

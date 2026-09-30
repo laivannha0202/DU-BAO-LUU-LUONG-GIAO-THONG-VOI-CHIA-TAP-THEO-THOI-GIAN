@@ -213,6 +213,36 @@ Lặp lại trên 5 seed cố định ([11, 23, 37, 53, 71]); báo cáo trung b�
 - **Không có alpha nào cải thiện có ý nghĩa** (ngưỡng 0.5 xe/giờ) so với alpha đã đóng băng.
 - **Kể cả khi một alpha khác cho MAE validation thấp hơn, nhóm **không** đổi alpha đã đóng băng: FINAL TEST 2018 đã được xem, nên chọn lại alpha lúc này là test-informed model selection. Muốn dùng alpha khác thì phải đánh giá lại trên một holdout mới.**
 
+## 7. Thí nghiệm 7 — Hệ quả của việc FINAL TEST thiếu tháng 10–12
+
+- Thiết kế: Cung mot mo hinh (train <= 2016), cham VALIDATION 2017 theo hai khoang: ca nam va Jan-Sep (cung do dai nhu FINAL TEST 2018). Do chi cach do dac trong khi mo hinh giong het.
+
+| Khoảng chấm trên VALIDATION 2017 | n | MAE |
+| --- | --- | --- |
+| Cả năm 2017 | 8.713 | **272.12** |
+| Chỉ Jan–Sep 2017 (giống phạm vi FINAL TEST 2018) | 6.513 | **250.96** |
+| Chỉ Oct–Dec 2017 | 2.200 | **334.78** |
+
+- **Chênh lệch (Jan–Sep) − (cả năm) = -21.16** xe/giờ — MAE của Jan–Sep THẤP HƠN cả năm.
+- Vì FINAL TEST 2018 chỉ tới 30/09, con số MAE 2018 có xu hướng **thấp hơn** một bài toán cả năm — tức phép so sánh với baseline trên 2018 là so sánh trên phần **dễ hơn** của năm. Chênh lệch đo được trên validation là -21.16 xe/giờ.
+
+| Tháng của 2017 | MAE | n |
+| --- | --- | --- |
+| Jan | 301.71 | 744 |
+| Feb | 258.76 | 657 |
+| Mar | 252.41 | 740 |
+| Apr | 221.22 | 711 |
+| May | 233.5 | 744 |
+| Jun | 207.27 | 720 |
+| Jul | 279.66 | 738 |
+| Aug | 226.82 | 743 |
+| Sep | 276.63 | 716 |
+| Oct | 265.37 | 744 |
+| Nov | 344.52 | 716 |
+| Dec | 395.14 | 740 |
+
+- Ba tháng tệ nhất của 2017: **Dec** (395.14), **Nov** (344.52), **Jan** (301.71) — tức các tháng mà FINAL TEST 2018 **không hề có**.
+
 ## Kết luận giai đoạn phát triển
 
 1. Trên pseudo-test 2016–2017: ⚠️ Ridge **kém baseline về MAE** (306.48 vs 294.95) nhưng **tốt hơn về RMSE** (472.61 vs 495.71) — đã biết **trước khi** nhìn vào 2018.

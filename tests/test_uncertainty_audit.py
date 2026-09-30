@@ -278,3 +278,47 @@ def test_audit_night_hour_section_appears_in_markdown():
     assert f"{nh['n_hours_ridge_worse']}/{nh['n_hours']} giờ" in text
     # Phải trỏ về nơi kiểm chứng trên dev
     assert "experiments_report.md" in text
+
+
+# ===========================================================================
+# 6. Ngày lễ trong FINAL TEST: số ngày, MAE từng ngày, cảnh báo mẫu nhỏ
+# ===========================================================================
+@needs_audit
+def test_holiday_detail_lists_every_holiday_date_with_warning():
+    a = _load_audit()
+    h = a["final_test"]["holidays"]
+
+    assert h["n_holiday_dates"] == len(h["by_holiday_date"]), (
+        "Số ngày lễ phải khớp số dòng bảng chi tiết"
+    )
+    assert h["n_holiday_dates"] > 0
+    assert h["n_holiday_hours"] + h["n_non_holiday_hours"] == a["final_test"]["n_rows"]
+    assert sum(r["n_hours"] for r in h["by_holiday_date"]) == h["n_holiday_hours"]
+    for r in h["by_holiday_date"]:
+        assert r["MAE_ridge"] > 0 and r["MAE_baseline"] > 0
+        assert r["n_hours"] > 0
+    # Ngày lẻ 7 ngày rất khác nhau -> phải có cảnh báo mẫu nhỏ
+    assert "độ bất định lớn" in h["warning"]
+    assert str(h["n_holiday_dates"]) in h["warning"]
+
+
+@needs_audit
+def test_holiday_detail_records_zero_sample_weather_without_faking_zero():
+    """Phân khúc không có mẫu phải được nêu tên, không được báo số 0."""
+    a = _load_audit()
+    h = a["final_test"]["holidays"]
+    assert "Squall" in h["weather_categories_with_zero_samples"]
+    assert "không có mẫu" in h["zero_sample_note"].lower()
+    text = AUDIT_MD.read_text(encoding="utf-8")
+    assert "Squall" in text
+    assert "không có mẫu" in text.lower()
+
+
+@needs_audit
+def test_audit_markdown_shows_holiday_table():
+    text = AUDIT_MD.read_text(encoding="utf-8")
+    a = _load_audit()
+    h = a["final_test"]["holidays"]
+    assert f"{h['n_holiday_dates']} ngày lịch" in text
+    for row in h["by_holiday_date"]:
+        assert row["date"] in text, f"Thiếu ngày lễ {row['date']} trong báo cáo"

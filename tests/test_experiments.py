@@ -452,6 +452,50 @@ def test_alpha_sensitivity_json_artifact_is_written():
     assert len(data["results"]) == len(data["grid"])
 
 
+# ===========================================================================
+# 3e. Thí nghiệm 7 — hệ quả của việc FINAL TEST thiếu quý IV
+# ===========================================================================
+@needs_data
+def test_test_window_bias_quantifies_missing_q4():
+    """Phải định lượng được việc thiếu tháng 10–12, không chỉ nói 'không có dữ liệu'."""
+    from src.features import build_features, load_clean, time_split
+
+    df = build_features(load_clean())
+    train_df, val_df, _test_df = time_split(df)
+    e7 = exp.experiment_test_window_bias(train_df, val_df, 0.001)
+
+    assert "2018-" not in json.dumps(e7, default=str)
+    full = e7["validation_full_year"]
+    jan_sep = e7["validation_jan_sep"]
+    q4 = e7["validation_oct_dec"]
+    # Tổng các phần phải khớp cả năm
+    assert full["n"] == jan_sep["n"] + q4["n"]
+    # Jan–Sep và Oct–Dec là hai khoảng rời nhau
+    assert jan_sep["n"] > 0 and q4["n"] > 0
+    # Chênh lệch phải khớp phép trừ
+    assert e7["delta_mae_jan_sep_minus_full_year"] == pytest.approx(
+        round(jan_sep["MAE"] - full["MAE"], 2), abs=0.01
+    )
+    assert e7["test_window_last_month"] == 9
+    # Có báo cáo 3 tháng tệ nhất, và phải chứa tháng 11 và 12 (quý IV bị thiếu)
+    worst_months = [m for m, _ in e7["worst_months"]]
+    assert 11 in worst_months and 12 in worst_months
+    assert set(e7["by_month"]) == set(range(1, 13))
+    assert e7["direction"] and e7["interpretation"]
+
+
+@needs_data
+def test_test_window_bias_uses_only_validation_rows():
+    """Cửa sổ đo phải nằm trong 2017, không tràn sang 2018."""
+    from src.features import build_features, load_clean, time_split
+
+    df = build_features(load_clean())
+    train_df, val_df, _test_df = time_split(df)
+    assert val_df["date_time"].max() < exp.FINAL_TEST_START
+    e7 = exp.experiment_test_window_bias(train_df, val_df, 0.001)
+    assert e7["validation_full_year"]["n"] == len(val_df)
+
+
 
 @needs_data
 def test_rolling_origin_folds_are_all_out_of_sample():

@@ -72,7 +72,26 @@
 
 > Phần **kiểm chứng trên dữ liệu dev 2012–2017** (các fold rolling-origin) và phần thử log-target nằm ở `experiments_report.md` mục 4 và 5 — vì 2018 không được dùng để quyết định bất cứ điều gì.
 
-## 4. Có nhất quán qua các năm khác không? (chỉ dữ liệu dev 2012–2017)
+## 4. Ngày lễ trong FINAL TEST — mẫu nhỏ, đọc ra sao?
+
+- **Số ngày lễ có trong FINAL TEST 2018: 7 ngày lịch** (167 giờ) so với 6366 giờ ngày thường.
+- MAE ngày lễ: Ridge 1031.44 vs baseline 1123.43; ngày thường: Ridge 239.49 vs baseline 250.58.
+
+| Ngày | Tên lễ | Số giờ | MAE Ridge | MAE baseline |
+| --- | --- | --- | --- | --- |
+| 2018-01-01 | New Years Day | 24 | 1346.79 | 1816.0 |
+| 2018-01-15 | Martin Luther King Jr Day | 24 | 679.28 | 656.76 |
+| 2018-02-19 | Washingtons Birthday | 24 | 518.33 | 877.77 |
+| 2018-05-28 | Memorial Day | 24 | 1208.26 | 1309.72 |
+| 2018-07-04 | Independence Day | 24 | 1508.73 | 1828.42 |
+| 2018-08-23 | State Fair | 23 | 985.11 | 258.48 |
+| 2018-09-03 | Labor Day | 24 | 971.69 | 1080.85 |
+
+> ⚠️ **CẢNH BÁO:** FINAL TEST 2018 chỉ có **7 ngày lễ** (167 giờ) trong tập đánh giá. Ước lượng MAE ngày lễ vì vậy có độ bất định lớn và KHÔNG nên đọc như một giá trị ổn định — mỗi ngày lễ trong bảng bên dưới chỉ có khoảng 24 mẫu giờ, và hành vi từng ngày lễ khác nhau rõ rệt (ví dụ ngày lễ cuối năm khác hẳn ngày lễ đầu năm).
+
+- Phân khúc thời tiết **không có mẫu** trong FINAL TEST: `Squall`. Phân khúc thời tiết có n = 0 được ghi rõ là **không có mẫu, không đánh giá được** — không bao giờ báo số 0 cho trường hợp này.
+
+## 5. Có nhất quán qua các năm khác không? (chỉ dữ liệu dev 2012–2017)
 
 | Cửa sổ | n | MAE baseline | MAE Ridge | Hiệu MAE | CI 95 % | % Ridge thắng | Tháng Ridge thắng |
 | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -81,7 +100,7 @@
 | fold 2 — test year 2016 | 7.838 | 317.29 | 343.77 | -26.48 | [-38.32; -14.72] | 0.0 % | 5/12 |
 | fold 3 — test year 2017 | 8.713 | 278.66 | 272.12 | +6.54 | [-4.5; 16.5] | 88.75 % | 8/12 |
 
-## 5. Kết luận — sinh từ số liệu trên
+## 6. Kết luận — sinh từ số liệu trên
 
 - **Trên 2018:** Ridge tốt hơn baseline trên 2018, và khoảng tin cậy 95 % của hiệu MAE không chứa 0.
 - **Số tháng Ridge thắng:** 8/9 · **số cửa sổ dev mà Ridge thắng:** 1/4 · **chiều nhất quán qua các cửa sổ dev:** False

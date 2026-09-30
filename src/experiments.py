@@ -753,6 +753,73 @@ def experiment_alpha_sensitivity(train_df: pd.DataFrame, val_df: pd.DataFrame, a
     }
 
 
+#: FINAL TEST chỉ kéo dài tới 30/09 — tức không có quý IV. Dùng để định lượng hệ quả.
+TEST_WINDOW_LAST_MONTH = 9
+
+
+def experiment_test_window_bias(train_df: pd.DataFrame, val_df: pd.DataFrame, alpha: float) -> dict:
+    """Định lượng hậu quả của việc FINAL TEST thiếu tháng 10–12.
+
+    FINAL TEST 2018 kết thúc 30/09, trong khi rolling-origin cho thấy MAE tháng 11–12 là
+    cao nhất. Để biết việc thiếu quý IV **làm sai lệch** kết luận bao nhiêu, ta dùng
+    VALIDATION 2017 làm phép thử: cùng một mô hình (train ≤ 2016), nhưng chấm
+      (a) toàn năm 2017, và
+      (b) chỉ Jan–Sep 2017 — đúng khoảng thời gian giống FINAL TEST 2018.
+
+    ⚠️ CHỈ dùng dữ liệu dev 2012–2017. Không đụng FINAL TEST.
+    """
+    assert_no_final_test_rows(train_df, "exp7:window_bias:train")
+    assert_no_final_test_rows(val_df, "exp7:window_bias:val")
+
+    pipe = make_ridge_pipeline(alpha)
+    pipe.fit(*get_X_y(train_df))
+    X_val, y_val = get_X_y(val_df)
+    pred = np.asarray(pipe.predict(X_val), dtype=float)
+    y = y_val.to_numpy(dtype=float)
+
+    work = val_df[["month"]].copy()
+    work["abs_err"] = np.abs(y - pred)
+
+    full_mae = float(work["abs_err"].mean())
+    jan_sep = work[work["month"] <= TEST_WINDOW_LAST_MONTH]
+    jan_sep_mae = float(jan_sep["abs_err"].mean())
+
+    by_month = {
+        int(m): {"MAE": round(float(g["abs_err"].mean()), 2), "n": int(len(g))}
+        for m, g in work.groupby("month")
+    }
+    q4 = work[work["month"] >= 10]
+    q4_mae = float(q4["abs_err"].mean())
+
+    return {
+        "design": (
+            "Cung mot mo hinh (train <= 2016), cham VALIDATION 2017 theo hai khoang: ca nam "
+            "va Jan-Sep (cung do dai nhu FINAL TEST 2018). Do chi cach do dac trong khi "
+            "mo hinh giong het."
+        ),
+        "test_window_last_month": TEST_WINDOW_LAST_MONTH,
+        "validation_full_year": {"n": int(len(work)), "MAE": round(full_mae, 2)},
+        "validation_jan_sep": {"n": int(len(jan_sep)), "MAE": round(jan_sep_mae, 2)},
+        "validation_oct_dec": {"n": int(len(q4)), "MAE": round(q4_mae, 2)},
+        "delta_mae_jan_sep_minus_full_year": round(jan_sep_mae - full_mae, 2),
+        "direction": (
+            "MAE của Jan–Sep THẤP HƠN cả năm"
+            if jan_sep_mae < full_mae
+            else "MAE của Jan–Sep CAO HƠN cả năm"
+        ),
+        "interpretation": (
+            "Vì FINAL TEST 2018 chỉ tới 30/09, con số MAE 2018 có xu hướng **thấp hơn** "
+            "một bài toán cả năm — tức phép so sánh với baseline trên 2018 là so sánh trên "
+            "phần **dễ hơn** của năm. Chênh lệch đo được trên validation là "
+            f"{jan_sep_mae - full_mae:+.2f} xe/giờ."
+        ),
+        "by_month": by_month,
+        "worst_months": sorted(
+            by_month.items(), key=lambda kv: kv[1]["MAE"], reverse=True
+        )[:3],
+    }
+
+
 # ===========================================================================
 # Thí nghiệm 4 — Kiểm tra giả thuyết "Ridge kém ở giờ đêm" (CHỈ dữ liệu dev)
 # ===========================================================================
@@ -984,6 +1051,9 @@ def run_all(df: pd.DataFrame, alpha: float) -> dict:
         "experiment_4_night_hour_failure": experiment_night_hour_failure(dev, alpha),
         "experiment_5_log_target_probe": experiment_log_target_probe(dev, alpha),
         "experiment_6_alpha_sensitivity": experiment_alpha_sensitivity(
+            *_train_val_split(df), alpha
+        ),
+        "experiment_7_test_window_bias": experiment_test_window_bias(
             *_train_val_split(df), alpha
         ),
     }
@@ -1379,6 +1449,40 @@ def render_report(results: dict) -> str:
              + ", ".join(f"`{b['label']}` ({b['delta_vs_frozen']:+})" for b in better)
     )
     L.append(f"- **{exp6['why_not_changed_now']}**")
+    L.append("")
+
+    L.append("## 7. Thí nghiệm 7 — Hệ quả của việc FINAL TEST thiếu tháng 10–12")
+    L.append("")
+    exp7 = results["experiment_7_test_window_bias"]
+    L.append(f"- Thiết kế: {exp7['design']}")
+    L.append("")
+    L.append("| Khoảng chấm trên VALIDATION 2017 | n | MAE |")
+    L.append("| --- | --- | --- |")
+    for key, label in [
+        ("validation_full_year", "Cả năm 2017"),
+        ("validation_jan_sep", "Chỉ Jan–Sep 2017 (giống phạm vi FINAL TEST 2018)"),
+        ("validation_oct_dec", "Chỉ Oct–Dec 2017"),
+    ]:
+        w = exp7[key]
+        L.append(f"| {label} | {w['n']:,} | **{w['MAE']}** |".replace(",", "."))
+    L.append("")
+    L.append(
+        f"- **Chênh lệch (Jan–Sep) − (cả năm) = "
+        f"{exp7['delta_mae_jan_sep_minus_full_year']:+}** xe/giờ — {exp7['direction']}."
+    )
+    L.append(f"- {exp7['interpretation']}")
+    L.append("")
+    L.append("| Tháng của 2017 | MAE | n |")
+    L.append("| --- | --- | --- |")
+    for m, v in exp7["by_month"].items():
+        L.append(f"| {MONTH_LABELS[m - 1]} | {v['MAE']} | {v['n']:,} |".replace(",", "."))
+    L.append("")
+    worst = exp7["worst_months"]
+    L.append(
+        "- Ba tháng tệ nhất của 2017: "
+        + ", ".join(f"**{MONTH_LABELS[m - 1]}** ({v['MAE']})" for m, v in worst)
+        + f" — tức các tháng mà FINAL TEST 2018 **không hề có**."
+    )
     L.append("")
 
     L.append("## Kết luận giai đoạn phát triển")

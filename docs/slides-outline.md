@@ -221,17 +221,23 @@ tính được từ ngày tháng."
 1. Một trạm I-94 westbound — **không đại diện toàn thành phố**
 2. Ngày lễ: MAE gấp 4,3 lần
 3. Thời tiết cực đoan: MAE gấp 1,84 lần
-4. Test 2018 chỉ tới **30/09**
-5. Dữ liệu lịch sử **2012–2018**
-6. Lịch State Fair chỉ có **2012–2020**; ngoài phạm vi hệ thống **báo rõ, không tự đoán**
-7. **Không dùng cho mục đích safety-critical**
-8. Dự báo thô âm ở 34/6.533 dòng → API chặn về 0 theo policy `max(0, ·)`
+4. Test 2018 chỉ tới **30/09** — và đây lại là phần **dễ hơn** của năm: chấm Jan–Sep 2017 cho
+   MAE **250,96** so với **272,12** cả năm (chênh **−21,16**). Tháng 11–12 là hai tháng tệ nhất.
+5. Ngày lễ chỉ **7 ngày lịch** (167 giờ), MAE từng ngày lệch nhau gần 3 lần (518 → 1.509)
+6. Dữ liệu lịch sử **2012–2018**
+7. Lịch State Fair chỉ có **2012–2020**; ngoài phạm vi hệ thống **báo rõ, không tự đoán**
+8. **Không dùng cho mục đích safety-critical**
+9. Dự báo thô âm ở 34/6.533 dòng → API chặn về 0 theo policy `max(0, ·)`
+10. Mô hình ≈ OLS: `alpha ∈ [0; 0,01]` chỉ chênh 0,09 MAE trên validation
+11. Ridge **thua** baseline ở 3/4 cửa sổ dev 2012–2017
 
-**Nói:** "Điểm 6 là ví dụ của nguyên tắc mà nhóm em theo: khi ngoài phạm vi, hệ thống **báo rõ
-ra** thay vì âm thầm đoán. Điểm 8 nhóm em muốn nhấn mạnh: nhóm em phân biệt **RAW MODEL** với
-**DEPLOYED PREDICTOR** — số 259,73 là của mô hình, số 257,54 là của lớp phục vụ, và hai thứ đó
-không được gọi chung tên. Chính sách cắt về sàn được đóng băng trên TRAIN + VALIDATION trước khi
-nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
+**Nói:** "Điểm 7 là ví dụ của nguyên tắc mà nhóm em theo: khi ngoài phạm vi, hệ thống **báo rõ
+ra** thay vì âm thầm đoán. Điểm 4 nhóm em muốn nhấn mạnh: test 2018 thiếu quý IV, mà quý IV lại là
+phần khó nhất — nhóm em **định lượng** được việc này bằng validation chứ không chỉ nói miệng.
+Điểm 9 nhóm em phân biệt **RAW MODEL** với **DEPLOYED PREDICTOR** — số 259,73 là của mô hình,
+số 257,54 là của lớp phục vụ, và hai thứ đó không được gọi chung tên. Chính sách cắt về sàn được
+đóng băng trên TRAIN + VALIDATION trước khi nhìn kết quả 2018, nên nó không phải test-informed
+postprocessing."
 
 ---
 
@@ -265,5 +271,5 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 346 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 351 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |

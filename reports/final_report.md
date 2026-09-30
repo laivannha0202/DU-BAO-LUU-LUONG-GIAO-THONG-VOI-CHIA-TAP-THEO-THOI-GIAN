@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 346 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 351 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -231,7 +231,7 @@ trên `X_train`.
 
 Quy tắc 4 được **cưỡng chế bằng mã nguồn**, không chỉ bằng lời hứa: `src/experiments.py` gọi
 `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng năm 2018 nào lọt vào
-(`tests/test_experiments.py` — 29 test bảo vệ điều này).
+(`tests/test_experiments.py` — 31 test bảo vệ điều này).
 
 ---
 
@@ -255,8 +255,12 @@ chính dòng cần dự báo — đây chính là dạng rò rỉ mà đề tài
 lạc quan do random split, có tách riêng kích thước tập huấn luyện và khoảng cách thời gian.
 
 **[HẠN CHẾ]** FINAL TEST chỉ kéo dài tới **30/09/2018** — không có dữ liệu tháng 10–12/2018. Ba
-tháng cuối năm (mùa cao điểm thu lượng) không được đánh giá. Mọi kết luận về 2018 áp dụng cho
-9 tháng đầu năm.
+tháng cuối năm lại là những tháng khó nhất: trên VALIDATION 2017, MAE tháng 11 là 344,52 và
+tháng 12 là 395,14, so với 272,12 cho cả năm. Định lượng hệ quả bằng chính validation: chấm
+cùng mô hình trên Jan–Sep 2017 cho MAE 250,96, tức **thấp hơn cả năm 21,16** — nghĩa là số
+259,73 của FINAL TEST được đo trên **phần dễ hơn** của năm. Phép so sánh với baseline vẫn
+công bằng (cùng thiếu quý IV), nhưng mọi kết luận về 2018 chỉ áp dụng cho 9 tháng đầu năm.
+Chi tiết ở §10.9.
 
 ---
 
@@ -634,7 +638,8 @@ cao nhất (3.772) nhưng MAE thấp (221,27), bias âm (−58,86).
 - Ridge vẫn tốt hơn baseline ở cả hai phân khúc — nhưng **cả hai mô hình đều yếu** ở ngày lễ.
 
 **[HẠN CHẾ]** Trong FINAL TEST 2018 chỉ có **7 ngày lễ** (167 giờ). Ước lượng trên một mẫu nhỏ như
-vậy có độ bất định lớn; con số 1.031,44 không nên đọc như một giá trị ổn định.
+vậy có độ bất định lớn; con số 1.031,44 không nên đọc như một giá trị ổn định. Bảng MAE theo
+từng ngày lễ cho thấy các ngày lễ khác nhau gần gấp 3 lần (518,33 → 1.508,73) — xem §10.9.
 
 ## 10.4 Thời tiết
 
@@ -771,7 +776,68 @@ tương đối, và MAE giờ đêm phải giảm mạnh. Nhóm thử trên **ch
 | **Mô hình phi tuyến (`HistGradientBoosting`)** | Tự học tương tác mà không cần đặc trưng thủ công; ở 18/24 giờ Ridge vẫn hơn baseline nên có thể giữ được lợi thế ban ngày | Dễ rơi vào bẫy chọn mô hình theo test; đề tài thiên về minh hoạ phương pháp |
 | **Log-target có chọn lọc** (ví dụ chỉ dùng cho giờ thấp) | Kết quả ở trên cho thấy log-target thắng rõ ở giờ đêm và thua ở giờ cao điểm | Cách chia nhánh phải chốt từ validation, không từ 2018 |
 
-## 10.8 Kết luận phân tích lỗi
+## 10.9 Giới hạn của tập FINAL TEST — thiếu quý IV và mẫu ngày lễ quá nhỏ
+
+*Phần định lượng trên VALIDATION sinh bởi `src/experiments.py` (mục 7); phần mô tả trên 2018
+sinh bởi `src/uncertainty_audit.py` (mục 4).*
+
+### (a) FINAL TEST không có tháng 10–12 — và điều đó làm số liệu *thuận lợi*
+
+FINAL TEST 2018 kết thúc **30/09**. Trong khi đó, ba tháng tệ nhất của năm lại rơi vào cuối năm:
+
+| Tháng của 2017 | MAE (validation, train ≤ 2016) |
+| --- | --- |
+| Nov | 344,52 |
+| Dec | 395,14 |
+| Jan | 301,71 |
+
+**Định lượng hệ quả** — dùng chính VALIDATION 2017 làm phép thử, cùng một mô hình, chỉ khác
+khoảng thời gian chấm:
+
+| Khoảng chấm trên VALIDATION 2017 | n | MAE |
+| --- | --- | --- |
+| Cả năm 2017 | 8.713 | 272,12 |
+| **Chỉ Jan–Sep 2017** (cùng phạm vi với FINAL TEST 2018) | 6.513 | **250,96** |
+| Chỉ Oct–Dec 2017 | 2.200 | 334,78 |
+
+**Chênh lệch: −21,16 xe/giờ.** MAE của Jan–Sep **thấp hơn** cả năm gần 8 %.
+
+**[QUYẾT ĐỊNH] Cách đọc đúng:** con số MAE 259,73 của FINAL TEST 2018 có xu hướng **thấp hơn**
+so với một bài toán cả năm. Điều này **không** làm sai lệch phép so sánh với baseline (cả hai
+cùng bị thiếu quý IV, nên chênh lệch 13,16 vẫn công bằng), nhưng **không được** so sánh tuyệt đối
+con số 259,73 này với một benchmark đánh giá cả năm. Mọi kết luận về 2018 chỉ áp dụng cho
+**9 tháng đầu năm**.
+
+### (b) Ngày lễ trong FINAL TEST chỉ có 7 ngày lịch (167 giờ)
+
+| Ngày | Tên lễ | Số giờ | MAE Ridge | MAE baseline |
+| --- | --- | --- | --- | --- |
+| 2018-01-01 | New Years Day | 24 | 1.346,79 | 1.816,00 |
+| 2018-01-15 | Martin Luther King Jr Day | 24 | 679,28 | 656,76 |
+| 2018-02-19 | Washingtons Birthday | 24 | 518,33 | 877,77 |
+| 2018-05-28 | Memorial Day | 24 | 1.208,26 | 1.309,72 |
+| 2018-07-04 | Independence Day | 24 | 1.508,73 | 1.828,42 |
+| 2018-08-23 | State Fair | 23 | 985,11 | 258,48 |
+| 2018-09-03 | Labor Day | 24 | 971,69 | 1.080,85 |
+
+⚠️ **Cảnh báo khi diễn giải:** con số "MAE ngày lễ = 1.031,44" ở §10.3 là **trung bình của 7 ngày
+lịch**, mỗi ngày chỉ khoảng 24 mẫu giờ. Bảng trên cho thấy các ngày lễ **khác nhau rất xa**:
+từ 518,33 (Washingtons Birthday) tới 1.508,73 (Independence Day) — gần gấp 3 lần. Vì vậy:
+
+1. Độ bất định của ước lượng này **lớn**; không nên coi 1.031,44 là một giá trị ổn định.
+2. Hành vi ngày lễ **không đồng nhất** — mô hình chỉ có một cờ nhị phân `is_holiday`, nên nó học
+   được "một mức dịch chuyển trung bình" cho tất cả ngày lễ, trong khi thực tế mỗi ngày lễ một
+   kiểu (State Fair khác hẳn ngày lễ liên bang).
+3. Ở **State Fair (2018-08-23)** baseline tốt hơn Ridge rất nhiều (258,48 so với 985,11) — một
+   trong 7 ngày, nhưng đủ để thấy mô hình xử lý ngày lễ **không đồng đều**.
+
+### (c) Phân khúc thời tiết không có mẫu
+
+**`Squall` có 0 mẫu trong FINAL TEST.** Báo cáo ghi rõ *"không có mẫu — không đánh giá được"* chứ
+**không** báo số 0. Nguyên tắc: *không có dữ liệu ≠ dự báo bằng 0*. Cơ chế bảo vệ này được kiểm
+tra bằng `test_error_segments_include_sample_sizes`.
+
+## 10.10 Kết luận phân tích lỗi
 
 Mô hình **vượt baseline trên toàn bộ 7/7 ngày trong tuần và 17/24 giờ**, nhưng **sai số tập trung ở
 ba nơi, đều có lý do giải thích được**:
@@ -1180,12 +1246,12 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_data.py` | 39 | collapse trùng, bất biến trong nhóm trùng, quy tắc giá trị vô lý, `holiday` với `keep_default_na=False`, đối chiếu lịch với dataset |
 | `test_features.py` | 19 | Đặc trưng lịch, ngữ nghĩa ngày lễ, time split có assert, random split chỉ để minh hoạ |
 | `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
-| `test_experiments.py` | 29 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, độ nhạy alpha chỉ trên validation, rolling-origin chỉ out-of-sample |
+| `test_experiments.py` | 31 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, độ nhạy alpha chỉ trên validation, rolling-origin chỉ out-of-sample |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
 | `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
 | `test_report.py` | 89 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, chính tả "rò rỉ", không lộ đường dẫn cá nhân |
-| `test_uncertainty_audit.py` | 13 | Bootstrap cặp theo khối ngày lịch tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018, phân tích giờ đêm trên 2018 |
+| `test_uncertainty_audit.py` | 16 | Bootstrap cặp theo khối ngày lịch tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018, phân tích giờ đêm và ngày lễ trên 2018 |
 | **Tổng** | **336** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
@@ -1302,12 +1368,19 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 1. **Một trạm duy nhất** (ATR 301, I-94 westbound). Kết quả **không đại diện cho toàn thành phố** và
    không suy rộng được cho trạm hoặc hướng khác.
 2. **Ngày lễ: MAE = 1.031,44** với n = 167 giờ (7 ngày lễ), so với 239,49 ở ngày thường
-   (chênh 791,95). Mô hình dự báo **cao hơn thực tế 58,68 xe/giờ** ở ngày lễ. Mẫu nhỏ nên độ bất
-   định lớn.
+   (chênh 791,95). Mô hình dự báo **cao hơn thực tế 58,68 xe/giờ** ở ngày lễ. ⚠️ Mẫu chỉ có
+   **7 ngày lịch** và các ngày lễ khác nhau rất xa (MAE từ 518,33 tới 1.508,73) → độ bất định
+   lớn, không đọc như một giá trị ổn định. Ở State Fair (2018-08-23) baseline còn tốt hơn
+   Ridge (258,48 so với 985,11). Chi tiết ở §10.9.
 3. **Thời tiết cực đoan: MAE = 434,08** (n = 784) so với 235,96 khi không có (n = 5.749) — gấp
    1,84 lần. Riêng tuyết: MAE 524,50 (gấp 2,22 lần), bias +238,88. Sương mù còn tệ hơn: MAE 536,05,
    bias +315,75.
-4. **Final test chỉ tới 30/09/2018** — không có dữ liệu tháng 10–12/2018.
+4. **Final test chỉ tới 30/09/2018** — không có dữ liệu tháng 10–12/2018, và đây lại là ba
+   tháng khó nhất (MAE validation 2017: Nov 344,52 · Dec 395,14). Chấm Jan–Sep 2017 cho
+   MAE 250,96, tức thấp hơn cả năm **21,16** → số 2018 được đo trên phần dễ hơn của năm (§10.9).
+4b. **Ngày lễ trong FINAL TEST chỉ 7 ngày lịch** (167 giờ). MAE ngày lễ 1.031,44 là trung bình
+   của 7 ngày rất khác nhau (518,33 → 1.508,73) → độ bất định lớn, không đọc như giá trị ổn
+   định. Ở State Fair (2018-08-23) baseline còn tốt hơn Ridge (258,48 so với 985,11) (§10.9).
 5. **Dữ liệu lịch sử 2012–2018.** Mô hình không cập nhật theo thay đổi hạ tầng, chính sách giao
    thông, giá nhiên liệu hay hành vi người dùng sau thời điểm này.
 6. **State Fair có phạm vi năm hữu hạn.** Bảng lịch chỉ có năm **2012–2020** vì ngày khai mạc do
@@ -1358,7 +1431,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 346 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
+| Đo lường được bằng máy | 351 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1405,7 +1478,7 @@ Nhóm đã hoàn thành đề tài với kết quả:
    mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
    của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 346 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 351 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1450,7 +1523,7 @@ reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
             viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      346 test
+tests/      351 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1499,7 +1572,7 @@ nằm trong `models/environment.json`. Seed cố định: `42`.
 | `models/environment.json` | Phiên bản Python & thư viện + seed, đọc được bằng máy |
 | `requirements-export.txt` | Công cụ xuất DOCX/PDF/PPTX |
 | `docs/demo-script.md` | Kịch bản demo 5–7 phút |
-| `docs/viva-questions.md` | 33 câu hỏi + đáp án |
+| `docs/viva-questions.md` | 35 câu hỏi + đáp án |
 
 ## 17.4 Nhật ký phát triển
 
@@ -1513,7 +1586,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 346 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 6 | FastAPI + 3 màn hình + 351 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 
@@ -1545,7 +1618,7 @@ Các tài liệu đi kèm (giữ nguyên dạng Markdown vì nhóm còn phải �
 | `docs/project-log.md` | nhật ký dự án theo tuần — **cần người dùng điền** tên + giờ thật |
 | `docs/slides-outline.md` | dàn ý 11 slide + phụ lục trình chiếu |
 | `docs/demo-script.md` | kịch bản demo 6 phút 40 giây, 11 bước |
-| `docs/viva-questions.md` | 33 câu hỏi + đáp án, và 9 câu bổ sung |
+| `docs/viva-questions.md` | 35 câu hỏi + đáp án, và 10 câu bổ sung |
 
 ## 17.6 Nhóm & phân công
 

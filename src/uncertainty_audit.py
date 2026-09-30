@@ -273,6 +273,66 @@ def night_hour_analysis(part: pd.DataFrame, err_baseline: np.ndarray, err_ridge:
     }
 
 
+def holiday_detail(part: pd.DataFrame, err_baseline: np.ndarray, err_ridge: np.ndarray) -> dict:
+    """MAE theo TỪNG ngày lễ trong FINAL TEST — MÔ TẢ, kèm cảnh báo mẫu nhỏ.
+
+    Nhóm lễ trong FINAL TEST 2018 rất ít, nên ước lượng "MAE ngày lễ" có độ bất định
+    lớn. Bảng này cho phép người đọc tự thấy điều đó thay vì chỉ nhìn một con số trung bình.
+    """
+    work = pd.DataFrame({
+        "day": part["date_time"].dt.normalize(),
+        "is_holiday": part["is_holiday"].to_numpy(),
+        "holiday_name": part["holiday_name"].to_numpy(),
+        "abs_b": np.abs(err_baseline),
+        "abs_r": np.abs(err_ridge),
+    })
+    holidays = work[work["is_holiday"] == 1]
+    normal = work[work["is_holiday"] == 0]
+
+    by_date = []
+    for day, grp in holidays.groupby("day"):
+        names = sorted({str(x) for x in grp["holiday_name"]})
+        by_date.append({
+            "date": str(pd.Timestamp(day).date()),
+            "holiday_name": ", ".join(names),
+            "n_hours": int(len(grp)),
+            "MAE_ridge": round(float(grp["abs_r"].mean()), 2),
+            "MAE_baseline": round(float(grp["abs_b"].mean()), 2),
+        })
+    by_date.sort(key=lambda r: r["date"])
+
+    # Kiểm tra rõ ràng hiện tượng "không có mẫu" — không được báo số 0
+    from src.weather import WEATHER_MAIN_CATEGORIES
+
+    empty_categories = [
+        cat for cat in WEATHER_MAIN_CATEGORIES
+        if int((part[f"wm_{cat.lower()}"] == 1).sum()) == 0
+    ]
+
+    return {
+        "n_holiday_dates": int(holidays["day"].nunique()),
+        "n_holiday_hours": int(len(holidays)),
+        "n_non_holiday_hours": int(len(normal)),
+        "MAE_ridge_holiday": round(float(holidays["abs_r"].mean()), 2) if len(holidays) else None,
+        "MAE_baseline_holiday": round(float(holidays["abs_b"].mean()), 2) if len(holidays) else None,
+        "MAE_ridge_non_holiday": round(float(normal["abs_r"].mean()), 2) if len(normal) else None,
+        "MAE_baseline_non_holiday": round(float(normal["abs_b"].mean()), 2) if len(normal) else None,
+        "by_holiday_date": by_date,
+        "weather_categories_with_zero_samples": empty_categories,
+        "warning": (
+            f"FINAL TEST 2018 chỉ có **{holidays['day'].nunique()} ngày lễ** "
+            f"({len(holidays)} giờ) trong tập đánh giá. Ước lượng MAE ngày lễ vì vậy có độ "
+            "bất định lớn và KHÔNG nên đọc như một giá trị ổn định — mỗi ngày lễ trong bảng "
+            "bên dưới chỉ có khoảng 24 mẫu giờ, và hành vi từng ngày lễ khác nhau rõ rệt "
+            "(ví dụ ngày lễ cuối năm khác hẳn ngày lễ đầu năm)."
+        ),
+        "zero_sample_note": (
+            "Phân khúc thời tiết có n = 0 được ghi rõ là **không có mẫu, không đánh giá "
+            "được** — không bao giờ báo số 0 cho trường hợp này."
+        ),
+    }
+
+
 def final_test_window(df: pd.DataFrame, frozen_pipe, baseline_table, fallback) -> dict:
     """FINAL TEST 2018 — dùng đúng artifact ĐÃ ĐÓNG BĂNG, không fit lại."""
     _train, _val, test_df = time_split(df)
@@ -292,6 +352,7 @@ def final_test_window(df: pd.DataFrame, frozen_pipe, baseline_table, fallback) -
         "bootstrap": {k: v for k, v in boot.items() if not k.startswith("_")},
         "months": by_month_table(test_df, err_b, err_r),
         "night_hour": night_hour_analysis(test_df, err_b, err_r),
+        "holidays": holiday_detail(test_df, err_b, err_r),
         "_draws_mae": boot["_draws_mae"],
     }
     return out
@@ -545,7 +606,37 @@ def render_markdown(result: dict) -> str:
     )
     L.append("")
 
-    L.append("## 4. Có nhất quán qua các năm khác không? (chỉ dữ liệu dev 2012–2017)")
+    L.append("## 4. Ngày lễ trong FINAL TEST — mẫu nhỏ, đọc ra sao?")
+    L.append("")
+    h = f["holidays"]
+    L.append(
+        f"- **Số ngày lễ có trong FINAL TEST 2018: {h['n_holiday_dates']} ngày lịch** "
+        f"({h['n_holiday_hours']} giờ) so với {h['n_non_holiday_hours']} giờ ngày thường."
+    )
+    L.append(
+        f"- MAE ngày lễ: Ridge {h['MAE_ridge_holiday']} vs baseline {h['MAE_baseline_holiday']}; "
+        f"ngày thường: Ridge {h['MAE_ridge_non_holiday']} vs baseline {h['MAE_baseline_non_holiday']}."
+    )
+    L.append("")
+    L.append("| Ngày | Tên lễ | Số giờ | MAE Ridge | MAE baseline |")
+    L.append("| --- | --- | --- | --- | --- |")
+    for row in h["by_holiday_date"]:
+        L.append(
+            f"| {row['date']} | {row['holiday_name']} | {row['n_hours']} | "
+            f"{row['MAE_ridge']} | {row['MAE_baseline']} |"
+        )
+    L.append("")
+    L.append(f"> ⚠️ **CẢNH BÁO:** {h['warning']}")
+    L.append("")
+    if h["weather_categories_with_zero_samples"]:
+        L.append(
+            "- Phân khúc thời tiết **không có mẫu** trong FINAL TEST: "
+            + ", ".join(f"`{c}`" for c in h["weather_categories_with_zero_samples"])
+            + f". {h['zero_sample_note']}"
+        )
+        L.append("")
+
+    L.append("## 5. Có nhất quán qua các năm khác không? (chỉ dữ liệu dev 2012–2017)")
     L.append("")
     L.append("| Cửa sổ | n | MAE baseline | MAE Ridge | Hiệu MAE | CI 95 % | % Ridge thắng | Tháng Ridge thắng |")
     L.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
@@ -559,7 +650,7 @@ def render_markdown(result: dict) -> str:
         )
     L.append("")
 
-    L.append("## 5. Kết luận — sinh từ số liệu trên")
+    L.append("## 6. Kết luận — sinh từ số liệu trên")
     L.append("")
     L.append(f"- **Trên 2018:** {v['verdict_2018']}")
     L.append(

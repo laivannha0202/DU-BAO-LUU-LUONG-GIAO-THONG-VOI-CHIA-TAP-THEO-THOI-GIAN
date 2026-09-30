@@ -290,7 +290,10 @@ Gọi `POST /api/traffic-forecast` với:
 > Hai — ở **ngày lễ** MAE là 1.031, gấp 4,3 lần ngày thường, nhưng chỉ có 7 ngày lễ trong 2018
 > nên độ bất định lớn.
 > Ba — **thời tiết cực đoan**: có tuyết thì MAE 524,5, có sương mù 536, so với 236 khi bình thường.
-> Bốn — final test 2018 **chỉ tới 30/09**.
+> Bốn — final test 2018 **chỉ tới 30/09**. Nhóm em đã **định lượng** hệ quả của việc này: chấm
+> cùng mô hình trên validation 2017 chỉ Jan–Sep thì MAE là 250,96, so với 272,12 cho cả năm —
+> tức test 2018 rơi vào phần **dễ hơn** của năm. Phép so sánh với baseline vẫn công bằng vì cả hai
+> cùng thiếu quý IV, nhưng nhóm em nói rõ điều đó chứ không giấu đi.
 > Năm — dữ liệu là **lịch sử 2012–2018**, mô hình không tự cập nhật.
 > Sáu — lịch State Fair chỉ có từ năm 2012 đến 2020; nếu dự báo ngoài khoảng đó, hệ thống **báo
 > rõ ra** thay vì tự đoán — người dùng có thể tự truyền ngày vào.
@@ -332,14 +335,14 @@ py -m uvicorn app.main:app --reload
 ```bat
 py -m pytest tests\ -v
 ```
-> "346 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
+> "351 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
 > theo đường dẫn của web, rồi so **từng cột** với feature sinh ra lúc huấn luyện — bảo đảm không có
 > train-serving skew."
 
 ## Dự phòng — nếu mạng hoặc server chết giữa chừng
 
 1. Dừng demo web, chuyển sang chỉ slide 6, 7, 8 (vẫn đủ thông điệp chính).
-2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 346 test, em trình bày lại bằng slide."
+2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 351 test, em trình bày lại bằng slide."
 3. **Không** bịa số liệu thay thế.
 
 ## Danh sách câu hỏi GV hay hỏi (chuẩn bị sẵn)

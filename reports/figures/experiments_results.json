@@ -1914,5 +1914,97 @@
     "conclusion": "Ridge với alpha rất nhỏ gần như **đúng bằng OLS**: MAE validation chỉ khác 0.09 xe/giờ trên toàn vùng alpha ∈ [0; 0,01]. Hiệu chuẩn L2 gần như **không cải thiện** gì trên dữ liệu này — vì dữ liệu không đủ nhiễu để cần co hệ số, và số mẫu (25.329) lớn hơn số đặc trưng (217) nên hệ thống phương trình vốn đã ổn định.",
     "frozen_alpha_kept": true,
     "why_not_changed_now": "Kể cả khi một alpha khác cho MAE validation thấp hơn, nhóm **không** đổi alpha đã đóng băng: FINAL TEST 2018 đã được xem, nên chọn lại alpha lúc này là test-informed model selection. Muốn dùng alpha khác thì phải đánh giá lại trên một holdout mới."
+  },
+  "experiment_7_test_window_bias": {
+    "design": "Cung mot mo hinh (train <= 2016), cham VALIDATION 2017 theo hai khoang: ca nam va Jan-Sep (cung do dai nhu FINAL TEST 2018). Do chi cach do dac trong khi mo hinh giong het.",
+    "test_window_last_month": 9,
+    "validation_full_year": {
+      "n": 8713,
+      "MAE": 272.12
+    },
+    "validation_jan_sep": {
+      "n": 6513,
+      "MAE": 250.96
+    },
+    "validation_oct_dec": {
+      "n": 2200,
+      "MAE": 334.78
+    },
+    "delta_mae_jan_sep_minus_full_year": -21.16,
+    "direction": "MAE của Jan–Sep THẤP HƠN cả năm",
+    "interpretation": "Vì FINAL TEST 2018 chỉ tới 30/09, con số MAE 2018 có xu hướng **thấp hơn** một bài toán cả năm — tức phép so sánh với baseline trên 2018 là so sánh trên phần **dễ hơn** của năm. Chênh lệch đo được trên validation là -21.16 xe/giờ.",
+    "by_month": {
+      "1": {
+        "MAE": 301.71,
+        "n": 744
+      },
+      "2": {
+        "MAE": 258.76,
+        "n": 657
+      },
+      "3": {
+        "MAE": 252.41,
+        "n": 740
+      },
+      "4": {
+        "MAE": 221.22,
+        "n": 711
+      },
+      "5": {
+        "MAE": 233.5,
+        "n": 744
+      },
+      "6": {
+        "MAE": 207.27,
+        "n": 720
+      },
+      "7": {
+        "MAE": 279.66,
+        "n": 738
+      },
+      "8": {
+        "MAE": 226.82,
+        "n": 743
+      },
+      "9": {
+        "MAE": 276.63,
+        "n": 716
+      },
+      "10": {
+        "MAE": 265.37,
+        "n": 744
+      },
+      "11": {
+        "MAE": 344.52,
+        "n": 716
+      },
+      "12": {
+        "MAE": 395.14,
+        "n": 740
+      }
+    },
+    "worst_months": [
+      [
+        12,
+        {
+          "MAE": 395.14,
+          "n": 740
+        }
+      ],
+      [
+        11,
+        {
+          "MAE": 344.52,
+          "n": 716
+        }
+      ],
+      [
+        1,
+        {
+          "MAE": 301.71,
+          "n": 744
+        }
+      ]
+    ]
   }
 }
