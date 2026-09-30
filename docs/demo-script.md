@@ -24,7 +24,7 @@ Mở sẵn `/docs`. Để terminal chạy uvicorn ở góc màn hình để th�
 | 3 | Time split | 30 s | 1:20 |
 | 4 | Dashboard metric | 40 s | 2:00 |
 | 5 | Baseline vs Ridge | 40 s | 2:40 |
-| 6 | Thí nghiệm rò rỉ (1b) | 60 s | 3:40 |
+| 6 | Thí nghiệm 1b/1c | 60 s | 3:40 |
 | 7 | Form prediction | 45 s | 4:25 |
 | 8 | API prediction | 40 s | 5:05 |
 | 9 | Invalid input | 30 s | 5:35 |
@@ -123,31 +123,41 @@ Mở sẵn `/docs`. Để terminal chạy uvicorn ở góc màn hình để th�
 
 ---
 
-## Bước 6 — Thí nghiệm rò rễ (60 s) — **điểm hay nhất**
+## Bước 6 — Thí nghiệm 1b/1c (60 s) — **điểm hay nhất**
 
-**Màn hình:** dashboard, mục **9b. Thí nghiệm 1b — kiểm soát rò rễ**
+**Màn hình:** dashboard, mục **9b. Thí nghiệm 1b** và **9c. Thí nghiệm 1c**
 
 **Nói:**
 > "Đây là thí nghiệm quan trọng nhất của nhóm em.
 >
-> Bối cảnh: thí nghiệm 1 so sánh random split với time split thì random split trông có vẻ tốt
-> hơn. Nhưng hai tập test đó khác nhau về thành phần, nên chênh lệch **không** chứng minh được rò rỉ.
-> Vì vậy nhóm em thiết kế thí nghiệm 1b: ba arm dùng **chung một tập test** năm 2017, chỉ khác
-> nhau ở khoảng thời gian huấn luyện.
+> Trước hết là câu hỏi nghiên cứu của đề: random split lạc quan bao nhiêu so với time split? Nhóm em
+> lặp trên 5 seed cố định. Nếu so sánh kiểu thông thường — mỗi arm dùng tập test riêng — thì ra
+> −14,79 điểm, nhưng hai tập test đó **khác thành phần năm** nên con số không đáng tin. Nhóm em chấm
+> hai mô hình trên **cùng một tập dòng đánh giá**: random split lạc quan **5,43 ± 0,81 MAE**. Nó nhỏ
+> hơn nhiều so với bài toán chuỗi thời gian có đặc trưng lag, vì mô hình của em **không có lag** nên
+> không thể nhớ giá trị của dòng lân cận.
 >
-> Kết quả: arm train tới 2015 cho MAE 270,32; tới 2016 cho 269,32; và tới giữa 2017 cho 262,77.
-> Càng đưa dữ liệu sát thời điểm dự báo vào train, MAE càng giảm. Nhưng phần giảm đó **không** đến
-> từ năng lực mô hình — mà từ việc mô hình đã nhìn thấy hàng xóm của chính dòng cần dự báo.
+> Vì vậy nhóm em thiết kế thí nghiệm 1b: bốn arm dùng **chung một tập test** năm 2017, chỉ khác tập
+> huấn luyện. Arm D là arm đối chứng — lấy ngẫu nhiên từ arm C **đúng bằng số dòng của arm B**.
 >
-> Nếu nhóm em lấy con số 262,77 và tuyên bố đó là hiệu năng mô hình, nhóm em đang quảng cáo sai.
-> Vì vậy kết luận trên 2018 bắt buộc phải đến từ một mô hình chưa từng thấy năm 2018."
+> Kết quả: thêm dữ liệu 2017 làm MAE giảm 6,55 ± 0,37 điểm. Nhưng arm D **cùng kích thước** với
+> arm B vẫn giữ 6,76 ± 0,39 điểm — chênh nhau chỉ 0,21. Nghĩa là hiệu ứng **không** do nhiều dữ
+> liệu hơn.
+>
+> Thí nghiệm 1c dùng khối liên tục: tháng chẵn của 2017 vào train, tháng lẻ làm test. Ở đó có 2017
+> nhưng ở tháng khác, và chỉ được 2,40 điểm. Chênh 4,15 điểm là do **dữ liệu 2017 nằm ở cùng tháng**
+> với dòng cần dự báo.
+>
+> Và nhóm em **không** kết luận đó là 'mô hình nhìn thấy hàng xóm'. Mô hình không có lag nên không
+> thể nhớ giá trị dòng lân cận. Đây là **mô tả hiệu ứng**, không phải bằng chứng nhân quả — và chính
+> vì thế kết luận trên 2018 phải đến từ mô hình chưa từng thấy năm 2018."
 
 **Dừng 1 giây sau câu cuối.**
 
 **Nếu bị hỏi "vậy có gọi là rò rỉ không":**
-> "Gọi là rò rỉ thông tin theo thời gian — temporal leakage. Thí nghiệm 1b được thiết kế công bằng
-> nên chỉ tập test giống nhau, nên chênh lệch 7,55 điểm này là do *khoảng cách thời gian*, không
-> phải do khác biệt bài toán."
+> "Gọi là phụ thuộc theo thời gian — temporal dependence. Thí nghiệm được thiết kế để các arm dùng
+> chung tập test, nên chênh lệch này **không** do khác biệt bài toán. Nhưng cơ chế cụ thể thì nhóm em
+> **không khẳng định**, vì mô hình không có đặc trưng lag."
 
 ---
 
@@ -283,10 +293,12 @@ Gọi `POST /api/traffic-forecast` với:
 > Và nhấn mạnh: **không dùng cho mục đích an toàn**."
 
 **Câu kết (nói chậm, nhìn GV):**
-> "Bài học lớn nhất của nhóm em: trên cùng một bộ dữ liệu, chỉ **cách chia tập** đã làm MAE chênh
-> 7,55 điểm — gần bằng cả cải thiện mà mô hình đạt được so với baseline là 13,17 điểm. Nói
-> cách khác: **cách ta chia tập quan trọng ngang với việc ta chọn mô hình**, và nói trung thực về
-> giới hạn là một phần của kết quả chứ không phải điểm trừ."
+> "Bài học lớn nhất của nhóm em: trên cùng một bộ dữ liệu, **cách ta đánh giá** đã làm MAE chênh
+> nhau đáng kể — random split lạc quan 5,43 điểm trên cùng tập dòng đánh giá, và khoảng cách thời
+> gian thêm 4,15 điểm — gần bằng cả cải thiện mà mô hình đạt được so với baseline là 13,17 điểm.
+> Nói cách khác: **cách ta đánh giá quan trọng ngang với việc ta chọn mô hình**, và nói trung thực
+> về giới hạn — kể cả việc phải sửa lại chính kết luận của mình — là một phần của kết quả chứ
+> không phải điểm trừ."
 
 ---
 
@@ -313,14 +325,14 @@ py -m uvicorn app.main:app --reload
 ```bat
 py -m pytest tests\ -v
 ```
-> "317 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
+> "325 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
 > theo đường dẫn của web, rồi so **từng cột** với feature sinh ra lúc huấn luyện — bảo đảm không có
 > train-serving skew."
 
 ## Dự phòng — nếu mạng hoặc server chết giữa chừng
 
 1. Dừng demo web, chuyển sang chỉ slide 6, 7, 8 (vẫn đủ thông điệp chính).
-2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 317 test, em trình bày lại bằng slide."
+2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 325 test, em trình bày lại bằng slide."
 3. **Không** bịa số liệu thay thế.
 
 ## Danh sách câu hỏi GV hay hỏi (chuẩn bị sẵn)
@@ -329,9 +341,9 @@ Xem đầy đủ tại `docs/viva-questions.md`. Các câu **chắc chắn** rơ
 
 | Câu | Trả lời 1 câu |
 | --- | --- |
-| Vì sao chọn time split? | Đánh giá trên tương lai mới phản ánh năng lực dự báo; random split cho mô hình nhìn thấy hàng xóm. |
+| Vì sao chọn time split? | Đánh giá trên tương lai mới phản ánh năng lực dự báo; random split lạc quan 5,43 ± 0,81 MAE khi so trên cùng một tập dòng đánh giá. |
 | 2018 có bị dùng để tune không? | Không. Mọi lựa chọn chốt trên 2012–2017, có `assert_no_final_test_rows()` chặn bằng mã nguồn. |
-| Vì sao không dùng lag feature? | Lag của `traffic_volume` là đường nghiệm dễ rơi vào rò rễ thời gian; đề tài tập trung vào phương pháp đánh giá. |
+| Vì sao không dùng lag feature? | Lag của `traffic_volume` là đường nghiệm dễ rơi vào rò rỉ thời gian; đề tài tập trung vào phương pháp đánh giá. |
 | Baseline có công bằng không? | Có — cùng tập huấn luyện 2012–2016, cùng tập test 2018. |
 | MAE ngày lễ cao vì sao? | Dữ liệu chỉ có 53 giờ ngày lễ, mẫu 2018 chỉ 167 giờ; hành vi ngày lễ khác hẳn. |
 | Web có train lại không? | Không. Chỉ `predict` trên `ridge_pipeline.joblib`; test kiểm tra `scaler.mean_` không đổi sau nhiều lần gọi. |

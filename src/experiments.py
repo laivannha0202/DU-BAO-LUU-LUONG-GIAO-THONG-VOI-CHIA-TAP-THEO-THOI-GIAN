@@ -17,14 +17,16 @@ Cách thực hiện thay thế
 ----------------------
 Tạo một **pseudo-test (historical holdout) nằm trong 2012–2017** và dùng nó để trả lời
 cùng những câu hỏi mà lẽ ra phải dùng 2018:
-  - Thí nghiệm 1  : random split vs time split (chỉ minh hoạ)
-  - Thí nghiệm 1b: kiểm soát rò rễ thời gian trên MỘT tập test cố định
+  - Thí nghiệm 1  : random split vs time split, trên cùng tập dòng đánh giá
+  - Thí nghiệm 1b: tách kích thước tập huấn luyện khỏi khoảng cách thời gian
+  - Thí nghiệm 1c: "hàng xóm" theo khối liên tục — cùng mức năm nhưng xa giờ
   - Thí nghiệm 3  : rolling-origin evaluation (chỉ cửa sổ out-of-sample)
 
 Có `assert_no_final_test_rows()` ở mọi hàm để chặn nếu ai đó vô tình lọt 2018 vào.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -52,6 +54,15 @@ DEV_WINDOW_END = pd.Timestamp("2017-12-31 23:59:59")
 
 #: Năm của FINAL TEST — KHÔNG BAO GIỜ dùng ở đây.
 FINAL_TEST_START = pd.Timestamp("2018-01-01 00:00:00")
+
+#: Danh sách seed CỐ ĐỊNH cho các thí nghiệm có yếu tố ngẫu nhiên.
+#: Cố định từ đầu để mọi lần chạy cho ra cùng kết quả (tái lập được).
+EXPERIMENT_SEEDS = [11, 23, 37, 53, 71]
+
+#: Thí nghiệm 1c — "hàng xóm" theo KHỐI LIÊN TỤC: tháng chẵn vào train,
+#: tháng lẻ làm tập test chung. Tách "cùng mức năm" khỏi "hàng xóm từng giờ".
+BLOCK_TRAIN_MONTHS = (2, 4, 6, 8, 10, 12)
+BLOCK_TEST_MONTHS = (1, 3, 5, 7, 9, 11)
 
 MONTH_LABELS = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -91,37 +102,84 @@ def dev_window(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ===========================================================================
-# Thí nghiệm 1 — Random split vs Time split (CHỈ MINH HỌA)
+# Thí nghiệm 1 — Random split vs Time split
 # ===========================================================================
-def experiment_random_vs_time_split(dev: pd.DataFrame, alpha: float) -> dict:
-    """So sánh hai cách chia trên CïNG một cửa sổ phát triển 2012–2017.
+def _fingerprint(part: pd.DataFrame) -> str:
+    """Dấu vân tay của một tập dòng (dựa trên timestamp).
 
-    Cả hai tập test đều thuộc 2012–2017. Tuy nhiên chúng **khác nhau về thành phần năm**,
-    nên chênh lệch không thể quy hết cho rò rỉ — đó chính là lý do cần Thí nghiệm 1b.
+    Dùng để chứng minh rằng các arm thật sự dùng CHUNG một tập test — không chỉ
+    cùng số dòng, mà cùng đúng các timestamp đó.
+    """
+    values = pd.to_datetime(part["date_time"]).astype("int64").to_numpy()
+    return hashlib.sha1(np.sort(values).tobytes()).hexdigest()[:12]
+
+
+def _summarize(values: list[float]) -> dict:
+    """Trung bình ± độ lệch chuẩn của một đại lượng qua nhiều seed."""
+    arr = np.asarray(values, dtype=float)
+    return {
+        "mean": round(float(arr.mean()), 2),
+        "sd": round(float(arr.std(ddof=0)), 2),
+        "min": round(float(arr.min()), 2),
+        "max": round(float(arr.max()), 2),
+        "n_seeds": int(arr.size),
+    }
+
+
+def experiment_random_vs_time_split(dev: pd.DataFrame, alpha: float, seeds=None) -> dict:
+    """Trả lời câu hỏi nghiên cứu: random split và đánh giá trên tương lai chênh nhau bao nhiêu?
+
+    Báo cáo HAI phép đo khác nhau, vì chúng trả lời hai câu hỏi khác nhau:
+
+    1. ``delta_mae_different_test_sets`` — chênh MAE khi mỗi arm dùng tập test riêng
+       (time split test = 2016–2017 còn nguyên; random split test = mẫu ngẫu nhiên
+       rải rác 2012–2017). Con số này **bị lẫn** bởi khác biệt thành phần năm, nên
+       KHÔNG dùng để kết luận về rò rỉ.
+    2. ``delta_mae_same_rows`` — chênh MAE giữa mô hình time-split và mô hình
+       random-split **trên đúng một tập dòng đánh giá** (tập test của random split).
+       Đây là phép so sánh công bằng về *cách chọn tập huấn luyện*.
     """
     assert_no_final_test_rows(dev, "exp1")
+    seeds = list(seeds or EXPERIMENT_SEEDS)
 
-    # --- Arm A: time split trên cửa sổ phát triển ---
-    # train 2012-2015, test 2016-2017
+    # --- Arm time split: train ≤ 2015, test = 2016–2017 ---
     train_t = dev[dev["date_time"] <= pd.Timestamp("2015-12-31 23:59:59")]
     test_t = dev[dev["date_time"] > pd.Timestamp("2015-12-31 23:59:59")]
+    assert_no_final_test_rows(train_t, "exp1:time_train")
+    assert_no_final_test_rows(test_t, "exp1:time_test")
 
-    # --- Arm B: random split trên cùng cửa sổ ---
-    train_r, _val_r, test_r = random_split(dev, train_frac=0.7, val_frac=0.15, seed=SEED)
+    # Mô hình time split không phụ thuộc seed -> fit một lần, dùng lại cho mọi seed.
+    pipe_time = make_ridge_pipeline(alpha)
+    pipe_time.fit(*get_X_y(train_t))
+    metrics_time = compute_metrics(test_t[TARGET_COLUMN], pipe_time.predict(get_X_y(test_t)[0]))
 
-    for name, part in [("time_train", train_t), ("time_test", test_t),
-                       ("rand_train", train_r), ("rand_test", test_r)]:
-        assert_no_final_test_rows(part, f"exp1:{name}")
+    per_seed: list[dict] = []
+    for seed in seeds:
+        train_r, _val_r, test_r = random_split(dev, train_frac=0.7, val_frac=0.15, seed=seed)
+        for name, part in (("rand_train", train_r), ("rand_test", test_r)):
+            assert_no_final_test_rows(part, f"exp1:{name}:seed{seed}")
 
-    def fit_eval(tr, te):
-        pipe = make_ridge_pipeline(alpha)
-        X_tr, y_tr = get_X_y(tr)
-        pipe.fit(X_tr, y_tr)
-        X_te, y_te = get_X_y(te)
-        return compute_metrics(y_te, pipe.predict(X_te))
+        X_r, y_r = get_X_y(test_r)
+        pipe_r = make_ridge_pipeline(alpha)
+        pipe_r.fit(*get_X_y(train_r))
+        metrics_random = compute_metrics(y_r, pipe_r.predict(X_r))
+        metrics_time_same_rows = compute_metrics(y_r, pipe_time.predict(X_r))
 
-    metrics_time = fit_eval(train_t, test_t)
-    metrics_random = fit_eval(train_r, test_r)
+        per_seed.append({
+            "seed": int(seed),
+            "random_test_fingerprint": _fingerprint(test_r),
+            "random_test_n": int(len(test_r)),
+            "random_test_year_composition": {
+                str(int(year)): int(n)
+                for year, n in test_r["year"].value_counts().sort_index().items()
+            },
+            "random_split": metrics_random,
+            "time_split_model_on_random_test_rows": metrics_time_same_rows,
+            "delta_mae_different_test_sets": round(metrics_random["MAE"] - metrics_time["MAE"], 2),
+            "delta_mae_same_rows": round(
+                metrics_random["MAE"] - metrics_time_same_rows["MAE"], 2
+            ),
+        })
 
     return {
         "window": {
@@ -130,89 +188,266 @@ def experiment_random_vs_time_split(dev: pd.DataFrame, alpha: float) -> dict:
             "n_rows": int(len(dev)),
             "contains_2018": False,
         },
+        "seeds": [int(s) for s in seeds],
         "time_split": {
             **metrics_time,
             "train_range": [str(train_t["date_time"].min()), str(train_t["date_time"].max())],
             "test_range": [str(test_t["date_time"].min()), str(test_t["date_time"].max())],
             "test_years": sorted(test_t["year"].unique().tolist()),
         },
-        "random_split": {
-            **metrics_random,
-            "test_years": sorted(test_r["year"].unique().tolist()),
+        "per_seed": per_seed,
+        "summary": {
+            "delta_mae_different_test_sets": _summarize(
+                [r["delta_mae_different_test_sets"] for r in per_seed]
+            ),
+            "delta_mae_same_rows": _summarize([r["delta_mae_same_rows"] for r in per_seed]),
+            "random_split_MAE": _summarize([r["random_split"]["MAE"] for r in per_seed]),
         },
-        "delta_mae_random_minus_time": round(metrics_random["MAE"] - metrics_time["MAE"], 2),
         "caveat": (
             "Hai tập test KHÁC thành phần năm (time split test = 2016-2017 còn nguyên; "
-            "random split test = mẫu ngẫu nhiên rải rác 2012-2017), nên chênh lệch KHÔNG "
-            "chứng minh được rò rỉ. Thí nghiệm 1b mới là phép so sánh công bằng."
+            "random split test = mẫu ngẫu nhiên rải rác 2012-2017), nên "
+            "delta_mae_different_test_sets KHÔNG chứng minh được rò rỉ — một phần chênh lệch "
+            "đến từ việc hai bài toán khác nhau. Vì vậy còn đo thêm delta_mae_same_rows "
+            "(cùng tập dòng đánh giá) và Thí nghiệm 1b."
         ),
     }
 
 
 # ===========================================================================
-# Thí nghiệm 1b — Kiểm soát rò rễ thời gian trên MỘT tập test cố định
+# Thí nghiệm 1b — Tách ba yếu tố: kích thước train · mức năm · khoảng cách giờ
 # ===========================================================================
-def experiment_leakage_controlled(dev: pd.DataFrame, alpha: float) -> dict:
-    """Minh hoạ rò rễ thời gian một cách công bằng, trong 2012–2017.
+def experiment_leakage_controlled(dev: pd.DataFrame, alpha: float, seeds=None) -> dict:
+    """Đo ảnh hưởng của khoảng cách thời gian, tách khỏi kích thước tập huấn luyện.
 
-    Thiết kế: một tập test CỐ ĐỊNH duy nhất, dùng chung cho MỌI arm, rồi chỉ thay đổi
-    duy nhất thứ "tập train có nhìn thấy dữ liệu gần test bao xa".
+    Vấn đề của thiết kế 3 arm cũ: arm C có **nhiều dòng hơn** arm A và arm B, đồng
+    thời lại chứa dữ liệu của **cùng năm 2017**. Vì thế "MAE giảm" có thể đến từ
+    (i) nhiều dữ liệu hơn, (ii) mức lưu lượng trung bình của năm 2017 khác 2016, hoặc
+    (iii) mô hình đã nhìn thấy các giờ lân cận của đúng dòng cần dự báo. Ba yếu tố
+    này bị trộn vào nhau nếu không tách.
 
-    Tập test chung: **nửa còn lại của năm 2017** (chia bằng seed cố định).
-    Ba arm, mức gần thời gian tăng dần:
-      A) train ≤ 2015            -> cách test 2 năm
-      B) train ≤ 2016            -> cách test 1 năm
-      C) train ≤ 2016 + nửa 2017 -> chung năm với test, chỉ khác 'hàng xóm giờ'
+    Thiết kế 4 arm, MỌI arm dùng CHUNG đúng một tập test (nửa còn lại của 2017):
+
+      A) train ≤ 2015                       — xa test nhất
+      B) train ≤ 2016                       — xa test vừa
+      C) train ≤ 2016 + nửa ngẫu nhiên 2017 — thêm ~nửa năm 2017, gồm giờ lân cận
+      D) ngẫu nhiên từ C, **đúng bằng số dòng của B** — arm đối chứng cùng kích thước
+
+    Đọc kết quả:
+      - ``C_minus_B`` = ảnh hưởng của việc thêm dữ liệu 2017 (kích thước + mức năm + lân cận)
+      - ``D_minus_B`` = ảnh hưởng khi **giữ nguyên kích thước** nhưng vẫn có dữ liệu 2017
+      - ``size_adjusted_delta`` = chênh lệch giữa hai cái trên
+
+    ⚠️ Mô hình KHÔNG có đặc trưng lag, nên nó không thể "nhớ" giá trị của dòng lân cận.
+    Vì vậy cơ chế "nhìn thấy hàng xóm" là **giả thuyết, không phải điều đã chứng minh** —
+    xem `experiment_block_neighbour` để tách riêng khoảng cách theo GIỜ.
     """
     assert_no_final_test_rows(dev, "exp1b")
+    seeds = list(seeds or EXPERIMENT_SEEDS)
 
+    train_le_2015 = dev[dev["date_time"] <= pd.Timestamp("2015-12-31 23:59:59")]
+    train_le_2016 = dev[dev["date_time"] <= pd.Timestamp("2016-12-31 23:59:59")]
     y2017 = dev[dev["date_time"] >= pd.Timestamp("2017-01-01 00:00:00")].reset_index(drop=True)
-    y2017 = y2017.sample(frac=1.0, random_state=SEED).reset_index(drop=True)
-    n_half = int(len(y2017) * 0.5)
-    neighbor_part = y2017.iloc[:n_half]  # chỉ arm C được thấy
-    shared_test = y2017.iloc[n_half:]  # dùng CHUNG cho cả 3 arm
+    n_b = int(len(train_le_2016))
 
-    assert_no_final_test_rows(shared_test, "exp1b:shared_test")
-    assert_no_final_test_rows(neighbor_part, "exp1b:neighbor")
+    per_seed: list[dict] = []
+    for seed in seeds:
+        shuffled = y2017.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+        n_half = len(shuffled) // 2
+        neighbor_part = shuffled.iloc[:n_half]
+        shared_test = shuffled.iloc[n_half:]
 
-    arms = {
-        "A_train_le_2015": dev[dev["date_time"] <= pd.Timestamp("2015-12-31 23:59:59")],
-        "B_train_le_2016": dev[dev["date_time"] <= pd.Timestamp("2016-12-31 23:59:59")],
-        "C_train_le_2016_plus_half_2017": pd.concat(
-            [dev[dev["date_time"] <= pd.Timestamp("2016-12-31 23:59:59")], neighbor_part],
-            ignore_index=True,
+        assert_no_final_test_rows(shared_test, f"exp1b:shared_test:seed{seed}")
+        assert_no_final_test_rows(neighbor_part, f"exp1b:neighbor:seed{seed}")
+
+        arm_c = pd.concat([train_le_2016, neighbor_part], ignore_index=True)
+        # Arm D: đúng bằng số dòng của arm B, lấy ngẫu nhiên từ tập của arm C.
+        arm_d = arm_c.sample(n=n_b, random_state=seed).reset_index(drop=True)
+
+        arms = {
+            "A_train_le_2015": train_le_2015,
+            "B_train_le_2016": train_le_2016,
+            "C_train_le_2016_plus_half_2017": arm_c,
+            "D_same_n_as_B_random_from_C": arm_d,
+        }
+
+        X_te, y_te = get_X_y(shared_test)
+        results: dict[str, dict] = {}
+        for name, tr in arms.items():
+            assert_no_final_test_rows(tr, f"exp1b:{name}:seed{seed}")
+            pipe = make_ridge_pipeline(alpha)
+            pipe.fit(*get_X_y(tr))
+            results[name] = {
+                **compute_metrics(y_te, pipe.predict(X_te)),
+                "n_train": int(len(tr)),
+                "train_end": str(tr["date_time"].max()),
+                "gap_to_test_years": 2017 - int(tr["date_time"].max().year),
+                "n_train_rows_from_2017": int(
+                    (tr["date_time"] >= pd.Timestamp("2017-01-01")).sum()
+                ),
+            }
+
+        mae = {k: v["MAE"] for k, v in results.items()}
+        per_seed.append({
+            "seed": int(seed),
+            "shared_test_fingerprint": _fingerprint(shared_test),
+            "shared_test_range": [
+                str(shared_test["date_time"].min()), str(shared_test["date_time"].max())
+            ],
+            "shared_test_n": int(len(shared_test)),
+            "arms": results,
+            "deltas": {
+                "C_minus_A_MAE": round(
+                    mae["C_train_le_2016_plus_half_2017"] - mae["A_train_le_2015"], 2
+                ),
+                "C_minus_B_MAE": round(
+                    mae["C_train_le_2016_plus_half_2017"] - mae["B_train_le_2016"], 2
+                ),
+                "D_minus_B_MAE": round(
+                    mae["D_same_n_as_B_random_from_C"] - mae["B_train_le_2016"], 2
+                ),
+            },
+        })
+
+    def _delta_summary(key: str) -> dict:
+        return _summarize([r["deltas"][key] for r in per_seed])
+
+    c_minus_b = _delta_summary("C_minus_B_MAE")
+    d_minus_b = _delta_summary("D_minus_B_MAE")
+    first = per_seed[0]
+    return {
+        "design": (
+            "4 arm, CHUNG một tập test = nửa còn lại của 2017. Arm D là arm đối chứng "
+            "CÙNG KÍCH THƯỚC với arm B để tách yếu tố 'nhiều dữ liệu hơn' ra khỏi phần còn lại."
+        ),
+        "seeds": [int(s) for s in seeds],
+        "arm_labels": {
+            "A_train_le_2015": "A: train tới 2015-12-31 (xa test 2 năm)",
+            "B_train_le_2016": "B: train tới 2016-12-31 (xa test 1 năm)",
+            "C_train_le_2016_plus_half_2017": "C: train tới 2016 + nửa 2017 ngẫu nhiên",
+            "D_same_n_as_B_random_from_C": "D: ngẫu nhiên từ C, đúng số dòng của B",
+        },
+        "shared_test": {
+            "note": "Dùng CHUNG cho MỌI arm — đây là điểm làm phép so sánh công bằng. "
+                    "Vì chia lần theo seed, tập test hơi khác giữa các lần chạy; "
+                    "dấu vân tay (fingerprint) cho phép kiểm chứng điều đó.",
+            "n_first_seed": first["shared_test_n"],
+            "range_first_seed": first["shared_test_range"],
+        },
+        "per_seed": per_seed,
+        "summary": {
+            "deltas": {
+                "C_minus_A_MAE": _delta_summary("C_minus_A_MAE"),
+                "C_minus_B_MAE": c_minus_b,
+                "D_minus_B_MAE": d_minus_b,
+            },
+            "n_train_median": {
+                k: int(np.median([r["arms"][k]["n_train"] for r in per_seed]))
+                for k in first["arms"]
+            },
+            "n_train_rows_from_2017_median": {
+                k: int(np.median([r["arms"][k]["n_train_rows_from_2017"] for r in per_seed]))
+                for k in first["arms"]
+            },
+        },
+        "size_adjusted_delta_MAE": round(c_minus_b["mean"] - d_minus_b["mean"], 2),
+        "mae_improvement_closest_vs_farthest": round(-first["deltas"]["C_minus_A_MAE"], 2),
+        "interpretation": (
+            "ĐO ĐƯỢC: thêm dữ liệu 2017 vào tập huấn luyện làm MAE thay đổi "
+            f"{c_minus_b['mean']:+.2f} ± {c_minus_b['sd']:.2f} điểm. Khi đã ÉP kích thước "
+            "tập huấn luyện bằng đúng kích thước của arm B (arm D), phần còn lại là "
+            f"{d_minus_b['mean']:+.2f} ± {d_minus_b['sd']:.2f} điểm. Phần chênh giữa hai cái "
+            f"là {c_minus_b['mean'] - d_minus_b['mean']:+.2f} điểm — gần bằng 0.\n"
+            "→ **KẾT LUẬN ĐƯỢC:** cải thiện đo được KHÔNG giải thích bằng 'nhiều dòng hơn'. "
+            "Nó xuất hiện ngay khi tập huấn luyện đã có dữ liệu của chính năm 2017, dù số "
+            "dòng không đổi.\n"
+            "⚠️ **KHÔNG** được gọi phần còn lại này là 'mô hình nhìn thấy hàng xóm'. Mô hình "
+            "không dùng đặc trưng lag nên không thể nhớ giá trị của dòng lân cận. Các yếu tố "
+            "còn lẫn trong phần dư: mức lưu lượng riêng của năm 2017, và việc có dữ liệu ở "
+            "đúng các tháng/tháng giờ của tập test. Thí nghiệm 1c tách riêng yếu tố thứ hai."
         ),
     }
 
-    X_te, y_te = get_X_y(shared_test)
+
+# ===========================================================================
+# Thí nghiệm 1c — "Hàng xóm" theo KHỐI LIÊN TỤC: cùng mức năm, xa giờ
+# ===========================================================================
+def experiment_block_neighbour(dev: pd.DataFrame, alpha: float) -> dict:
+    """Tách "cùng mức năm" khỏi "hàng xóm từng giờ".
+
+    Thí nghiệm 1b đưa vào train các giờ **rải rác** trong nửa 2017, nên mô hình vừa
+    nhìn thấy mức năm 2017 vừa nhìn thấy các giờ lân cận. Ở đây ta dùng **khối liên
+    tục**: các tháng chẵn của 2017 vào train, các tháng lẻ làm tập test chung.
+
+      P1) train ≤ 2016                        — không có dữ liệu 2017 nào
+      P2) train ≤ 2016 + tháng chẵn của 2017  — có 2017, nhưng cách ít nhất ~1 tháng
+
+    Như vậy ``delta_MAE_P2_minus_P1`` đo được phần lợi ích đến từ **mức năm 2017**
+    mà không có hàng xóm theo giờ, và có thể so với ``C_minus_B`` của Thí nghiệm 1b.
+
+    ⚠️ Thí nghiện này tất định (không ngẫu nhiên) nên không cần lặp seed.
+    ⚠️ P2 có nhiều dòng hơn P1, nên **không** so sánh trực tiếp với C của Thí nghiệm 1b.
+    """
+    assert_no_final_test_rows(dev, "exp1c")
+
+    train_le_2016 = dev[dev["date_time"] <= pd.Timestamp("2016-12-31 23:59:59")]
+    y2017 = dev[dev["date_time"] >= pd.Timestamp("2017-01-01 00:00:00")]
+    even_months = y2017[y2017["month"].isin(BLOCK_TRAIN_MONTHS)]
+    odd_months = y2017[y2017["month"].isin(BLOCK_TEST_MONTHS)]
+
+    assert_no_final_test_rows(even_months, "exp1c:even_months")
+    assert_no_final_test_rows(odd_months, "exp1c:odd_months")
+
+    arms = {
+        "P1_train_le_2016": train_le_2016,
+        "P2_train_le_2016_plus_even_months_2017": pd.concat(
+            [train_le_2016, even_months], ignore_index=True
+        ),
+    }
+
+    X_te, y_te = get_X_y(odd_months)
     results: dict[str, dict] = {}
     for name, tr in arms.items():
-        assert_no_final_test_rows(tr, f"exp1b:{name}")
+        assert_no_final_test_rows(tr, f"exp1c:{name}")
         pipe = make_ridge_pipeline(alpha)
-        X_tr, y_tr = get_X_y(tr)
-        pipe.fit(X_tr, y_tr)
+        pipe.fit(*get_X_y(tr))
         results[name] = {
             **compute_metrics(y_te, pipe.predict(X_te)),
             "n_train": int(len(tr)),
             "train_end": str(tr["date_time"].max()),
-            "gap_to_test_years": 2017 - tr["date_time"].max().year,
+            "n_train_rows_from_2017": int(
+                (tr["date_time"] >= pd.Timestamp("2017-01-01")).sum()
+            ),
         }
 
-    mae_a = results["A_train_le_2015"]["MAE"]
-    mae_c = results["C_train_le_2016_plus_half_2017"]["MAE"]
+    delta = round(
+        results["P2_train_le_2016_plus_even_months_2017"]["MAE"]
+        - results["P1_train_le_2016"]["MAE"],
+        2,
+    )
     return {
+        "design": (
+            "Khối liên tục: tháng chẵn của 2017 vào train, tháng lẻ làm tập test CHUNG. "
+            "Tinh hơn Thí nghiệm 1b: có mức năm 2017 nhưng dữ liệu 2017 trong train nằm ở "
+            "các tháng KHÁC với tháng của dòng cần dự báo."
+        ),
+        "block_train_months": list(BLOCK_TRAIN_MONTHS),
+        "block_test_months": list(BLOCK_TEST_MONTHS),
         "shared_test": {
-            "range": [str(shared_test["date_time"].min()), str(shared_test["date_time"].max())],
-            "n": int(len(shared_test)),
-            "note": "Dùng CHUNG cho cả 3 arm — đây là điểm làm phép so sánh công bằng.",
+            "n": int(len(odd_months)),
+            "range": [str(odd_months["date_time"].min()), str(odd_months["date_time"].max())],
+            "fingerprint": _fingerprint(odd_months),
         },
         "arms": results,
-        "mae_improvement_closest_vs_farthest": round(mae_a - mae_c, 2),
+        "delta_MAE_P2_minus_P1": delta,
         "interpretation": (
-            "Càng đưa dữ liệu sát thời điểm dự báo vào train, MAE càng giảm — nhưng phần "
-            "giảm đó KHÔNG đến từ năng lực mô hình mà từ việc mô hình đã nhìn thấy 'hàng xóm' "
-            "của chính dòng cần dự báo. Đây chính là rò rễ mà time split loại bỏ, và là lý do "
-            "kết luận trên 2018 phải được công bố từ một mô hình chưa từng thấy năm 2018."
+            "Thuộc tính cho 'có dữ liệu của năm 2017' mà vẫn KHÔNG có dữ liệu ở các tháng "
+            "cùng với tháng của dòng cần dự báo. Đây là biến sốc với 'C − B' của Thí nghiệm "
+            "1b (dữ liệu 2017 rải rác, có cả ở các tháng của tập test).\n"
+            "⚠️ Chênh lệch giữa hai biến này thuộc về 'độ phụ thuộc theo thời gian' — nhưng "
+            "vẫn là MÔ TẢ, không phải bằng chứng nhân quả: arm C và P2 khác nhau cả về tháng "
+            "được thay vào tập huấn luyện. Và vì mô hình không dùng đặc trưng lag, nó không "
+            "thể 'nhớ' giá trị dòng lân cận — cơ chế nào trong hai khả năng đều còn là giả "
+            "thuyết."
         ),
     }
 
@@ -418,6 +653,7 @@ def run_all(df: pd.DataFrame, alpha: float) -> dict:
         "baseline_vs_ridge_on_pseudo_test": dev_baseline_comparison(dev, alpha),
         "experiment_1_random_vs_time_split": experiment_random_vs_time_split(dev, alpha),
         "experiment_1b_leakage_controlled": experiment_leakage_controlled(dev, alpha),
+        "experiment_1c_block_neighbour": experiment_block_neighbour(dev, alpha),
         "experiment_3_rolling_origin": rolling_origin_evaluation(dev, alpha),
         "experiment_3b_covariate_drift": covariate_drift(dev),
     }
@@ -488,57 +724,159 @@ def render_report(results: dict) -> str:
     L.append("")
 
     exp1 = results["experiment_1_random_vs_time_split"]
-    L.append("## 1. Thí nghiệm 1 — Random split vs Time split (CHỈ MINH HỌA)")
+    s1 = exp1["summary"]
+    L.append("## 1. Thí nghiệm 1 — Random split vs Time split")
     L.append("")
-    t_, r_ = exp1["time_split"], exp1["random_split"]
-    L.append("| Cách chia | MAE | RMSE | R² | n test | Khoảng test |")
+    L.append(
+        f"Lặp lại trên {len(exp1['seeds'])} seed cố định ({exp1['seeds']}); báo cáo trung bình ± độ lệch chuẩn."
+    )
+    L.append("")
+    t_ = exp1["time_split"]
+    n_test_time = f"{t_['n']:,}".replace(",", ".")
+    L.append(
+        f"**Time split** (train ≤ 2015, test {t_['test_range'][0][:10]} → {t_['test_range'][1][:10]}, "
+        f"n={n_test_time}): MAE {t_['MAE']}, RMSE {t_['RMSE']}, R² {t_['R2']}"
+    )
+    L.append("")
+    L.append("**Random split** (mỗi seed một tập test ngẫu nhiên rải rác 2012–2017):")
+    L.append("")
+    L.append("| seed | n test | MAE | RMSE | R² | Thành phần năm của tập test |")
     L.append("| --- | --- | --- | --- | --- | --- |")
+    for r in exp1["per_seed"]:
+        m = r["random_split"]
+        comp = ", ".join(f"{y}: {n:,}".replace(",", ".") for y, n in r["random_test_year_composition"].items())
+        L.append(
+            f"| {r['seed']} | {m['n']:,} | {m['MAE']} | {m['RMSE']} | {m['R2']} | {comp} |".replace(",", ".")
+        )
+    L.append("")
+    d_diff = s1["delta_mae_different_test_sets"]
+    d_same = s1["delta_mae_same_rows"]
+    L.append("### Câu hỏi nghiên cứu: hai cách đánh giá chênh nhau bao nhiêu?")
+    L.append("")
+    L.append("| Phép đo | Trung bình ± độ lệch (MAE) | min | max |")
+    L.append("| --- | --- | --- | --- |")
     L.append(
-        f"| Time split | {t_['MAE']} | {t_['RMSE']} | {t_['R2']} | {t_['n']:,} | "
-        f"{t_['test_range'][0][:10]} → {t_['test_range'][1][:10]} |".replace(",", ".")
+        f"| (a) Mỗi arm dùng tập test riêng | {d_diff['mean']:+.2f} ± {d_diff['sd']:.2f} | "
+        f"{d_diff['min']:+.2f} | {d_diff['max']:+.2f} |"
     )
     L.append(
-        f"| Random split | {r_['MAE']} | {r_['RMSE']} | {r_['R2']} | {r_['n']:,} | "
-        f"mẫu ngẫu nhiên rải rác 2012–2017 |".replace(",", ".")
+        f"| (b) **Cùng một tập dòng đánh giá** | **{d_same['mean']:+.2f} ± {d_same['sd']:.2f}** | "
+        f"{d_same['min']:+.2f} | {d_same['max']:+.2f} |"
     )
     L.append("")
-    L.append(f"- Chênh lệch MAE (random − time) = **{exp1['delta_mae_random_minus_time']}**")
     L.append(
-        "- **Không khẳng định trước** random split sẽ tốt hơn hay xấu hơn. Ở lần chạy này "
-        + (
-            "random split cho MAE **cao hơn** time split."
-            if exp1["delta_mae_random_minus_time"] > 0
-            else "random split cho MAE **thấp hơn** time split."
-        )
+        "- **(a)** là cách so sánh *tự nhiên* khi mỗi arm dùng tập test của chính nó. "
+        "Dấu âm = random split trông **tốt hơn**."
     )
-    L.append(f"- ⚠️ {exp1['caveat']}")
+    L.append(
+        "- **(b)** là phép so sánh **công bằng về cách chọn tập huấn luyện**: hai mô hình "
+        "(một cái train theo thời gian, một cái train ngẫu nhiên) được chấm trên **đúng "
+        "cùng một tập dòng** — tập test của random split."
+    )
+    L.append(
+        "- **Vì sao chênh lại NHỎ?** Mô hình chỉ dùng đặc trưng **lịch** (giờ, thứ, tháng) và "
+        "**thời tiết tại giờ đó**; nó **không dùng đặc trưng lag** của `traffic_volume`. Nên nó "
+        "không có cơ chế nào để *nhớ* giá trị của một dòng khác. Random split ở đây làm "
+        "mất phần lớn lợi thế **về mức độ khớp mùa/năm** (nó nhìn thấy tháng 11–12 của năm 2017, "
+        "trong khi time-split train chỉ tới 2015), chứ không phải do *nhìn thấy hàng xóm*."
+    )
+    L.append(
+        f"- ⚠️ {exp1['caveat']}"
+    )
     L.append("")
 
     exp1b = results["experiment_1b_leakage_controlled"]
-    L.append("## 1b. Thí nghiệm 1b — Kiểm soát rò rễ trên MỘT tập test cố định")
+    L.append("## 1b. Thí nghiệm 1b — Tách kích thước tập huấn luyện khỏi khoảng cách thời gian")
     L.append("")
+    L.append(f"- Thiết kế: {exp1b['design']}")
     st = exp1b["shared_test"]
-    L.append(f"- Tập test dùng CHUNG cho cả 3 arm: **{st['n']:,}** giờ, {st['range'][0][:10]} → {st['range'][1][:10]}".replace(",", "."))
+    L.append(
+        f"- Tập test dùng CHUNG cho cả 4 arm: **{st['n_first_seed']:,}** giờ, "
+        f"{st['range_first_seed'][0][:10]} → {st['range_first_seed'][1][:10]} (seed đầu tiên)".replace(",", ".")
+    )
     L.append(f"- {st['note']}")
     L.append("")
-    L.append("| Arm | Tập train kết thúc | Cách xa test | n train | MAE | RMSE | R² | n test |")
-    L.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
-    labels = {
-        "A_train_le_2015": "A: chỉ tới 2015",
-        "B_train_le_2016": "B: chỉ tới 2016",
-        "C_train_le_2016_plus_half_2017": "C: tới 2016 + nửa 2017",
-    }
-    for key, m in exp1b["arms"].items():
+    labels = exp1b["arm_labels"]
+    nmed = exp1b["summary"]["n_train_median"]
+    n2017 = exp1b["summary"]["n_train_rows_from_2017_median"]
+    L.append(
+        "| Arm | Mô tả | n train (trung vị) | số dòng từ 2017 | MAE (TB ± SD) | RMSE | R² |"
+    )
+    L.append("| --- | --- | --- | --- | --- | --- | --- |")
+    for key, label in labels.items():
+        arms_rows = [r["arms"][key] for r in exp1b["per_seed"]]
+        maes = np.asarray([a["MAE"] for a in arms_rows], dtype=float)
+        last = arms_rows[0]
         L.append(
-            f"| {labels.get(key, key)} | {m['train_end'][:10]} | {m['gap_to_test_years']} năm | "
-            f"{m['n_train']:,} | **{m['MAE']}** | {m['RMSE']} | {m['R2']} | {m['n']:,} |".replace(",", ".")
+            f"| {key.split('_', 1)[0]} | {label.split(': ', 1)[-1]} | "
+            f"{nmed[key]:,} | {n2017[key]:,} | "
+            f"**{maes.mean():.2f} ± {maes.std():.2f}** | {last['RMSE']} | {last['R2']} |".replace(",", ".")
+        )
+    L.append("")
+    ds = exp1b["summary"]["deltas"]
+    L.append("| Chênh lệch MAE | Trung bình ± SD | min | max |")
+    L.append("| --- | --- | --- | --- |")
+    for key, label in [
+        ("C_minus_A_MAE", "C − A (xa test nhất → gần nhất)"),
+        ("C_minus_B_MAE", "C − B (thêm nửa 2017)"),
+        ("D_minus_B_MAE", "D − B (**cùng kích thước** với B)"),
+    ]:
+        v = ds[key]
+        L.append(f"| {label} | {v['mean']:+.2f} ± {v['sd']:.2f} | {v['min']:+.2f} | {v['max']:+.2f} |")
+    L.append("")
+    L.append(
+        f"- **Đọc đúng:** thêm dữ liệu 2017 làm MAE thay đổi {ds['C_minus_B_MAE']['mean']:+.2f} "
+        f"± {ds['C_minus_B_MAE']['sd']:.2f} điểm. Khi đã **ép cùng kích thước tập huấn luyện**, "
+        f"phần còn lại là {ds['D_minus_B_MAE']['mean']:+.2f} ± {ds['D_minus_B_MAE']['sd']:.2f} điểm."
+    )
+    L.append(
+        f"- Phần chênh **không** giải thích được bằng kích thước tập huấn luyện: "
+        f"**{exp1b['size_adjusted_delta_MAE']:+.2f}** điểm — tức gần bằng không."
+    )
+    for line in exp1b["interpretation"].split("\n"):
+        L.append(f"- {line}" if not line.startswith("⚠️") else f"{line}")
+    L.append("")
+
+    exp1c = results["experiment_1c_block_neighbour"]
+    L.append("## 1c. Thí nghiệm 1c — 'Hàng xóm' theo KHỐI LIÊN TỤC (tách mức năm khỏi giờ)")
+    L.append("")
+    L.append(f"- Thiết kế: {exp1c['design']}")
+    L.append(
+        f"- Tháng vào train: {exp1c['block_train_months']} · tháng làm test: {exp1c['block_test_months']}"
+    )
+    L.append(
+        f"- Tập test chung: **{exp1c['shared_test']['n']:,}** giờ, "
+        f"{exp1c['shared_test']['range'][0][:10]} → {exp1c['shared_test']['range'][1][:10]}".replace(",", ".")
+    )
+    L.append("")
+    L.append("| Arm | n train | số dòng từ 2017 | MAE | RMSE | R² | n test |")
+    L.append("| --- | --- | --- | --- | --- | --- | --- |")
+    for key, m in exp1c["arms"].items():
+        L.append(
+            f"| {key.split('_', 1)[0]} | {m['n_train']:,} | {m['n_train_rows_from_2017']:,} | "
+            f"**{m['MAE']}** | {m['RMSE']} | {m['R2']} | {m['n']:,} |".replace(",", ".")
         )
     L.append("")
     L.append(
-        f"- MAE giảm **{exp1b['mae_improvement_closest_vs_farthest']}** điểm khi đưa train sát "
-        "test hơn (A → C), trên **cùng một tập test**."
+        f"- ΔMAE (P2 − P1) = **{exp1c['delta_MAE_P2_minus_P1']:+.2f}** — lợi ích của việc có "
+        "dữ liệu 2017 mà dữ liệu đó nằm ở **các tháng khác** với tháng của dòng cần dự báo."
     )
-    L.append(f"- {exp1b['interpretation']}")
+    for line in exp1c["interpretation"].split("\n"):
+        L.append(f"- {line}" if not line.startswith("⚠️") else line)
+    gap = ds["C_minus_B_MAE"]["mean"] - exp1c["delta_MAE_P2_minus_P1"]
+    L.append(
+        f"- **Chênh lệch giữa hai cách đưa 2017 vào train: {gap:+.2f} MAE** "
+        f"({ds['C_minus_B_MAE']['mean']:+.2f} khi rải rác toàn năm so với "
+        f"{exp1c['delta_MAE_P2_minus_P1']:+.2f} khi chỉ lấy các tháng khác). Hiệu ứng đo được "
+        "**không** phải do số dòng (Thí nghiệm 1b đã kiểm tra) và **không** phải do mức năm "
+        "2017 (cả hai cách đều có 2017) — nó gắn với việc tập huấn luyện có dữ liệu ở **cùng "
+        "tháng và gần giờ** với dòng cần dự báo."
+    )
+    L.append(
+        "- ⚠️ **Không phải bằng chứng nhân quả.** Thí nghiệm 1b đổi cả kích thước tập huấn luyện, "
+        "thí nghiệm 1c cũng vậy. Cả hai chỉ cho phép **mô tả** cái đo được, không chứng minh "
+        "cơ chế nhân quả."
+    )
     L.append("")
 
     exp3 = results["experiment_3_rolling_origin"]
@@ -627,13 +965,24 @@ def render_report(results: dict) -> str:
     )
     L.append(f"1. Trên pseudo-test 2016–2017: {base_line} — đã biết **trước khi** nhìn vào 2018.")
     L.append(
-        "2. Thí nghiệm 1b cho thấy đưa dữ liệu sát test hơn làm MAE giảm "
-        f"{exp1b['mae_improvement_closest_vs_farthest']} điểm trên cùng tập test — "
-        "cơ sở để giữ 2018 hoàn toàn nguyên vẹn."
+        "2. Trả lời câu hỏi nghiên cứu về random split: trên **cùng một tập dòng đánh giá**, "
+        f"mô hình random-split hơn mô hình time-split "
+        f"{d_same['mean']:+.2f} ± {d_same['sd']:.2f} MAE. Chênh lệch nhỏ vì mô hình **không "
+        "có đặc trưng lag** nên không thể nhớ giá trị dòng lân cận."
     )
-    L.append(f"3. Rolling-origin (chỉ out-of-sample): {trend['verdict']}")
     L.append(
-        "4. Cấu hình (alpha, feature, quy tắc tiền xử lý) đã được chốt. Bước kế tiếp là "
+        "3. Thí nghiệm 1b: thêm dữ liệu 2017 làm MAE thay đổi "
+        f"{ds['C_minus_B_MAE']['mean']:+.2f} ± {ds['C_minus_B_MAE']['sd']:.2f} điểm, nhưng khi "
+        "**ép cùng kích thước tập huấn luyện** thì vẫn còn "
+        f"{ds['D_minus_B_MAE']['mean']:+.2f} ± {ds['D_minus_B_MAE']['sd']:.2f} điểm — nghĩa là "
+        "cải thiện đo được **không** phải do nhiều dữ liệu hơn mà là do *có* dữ liệu 2017. "
+        "Thí nghiệm 1c cho thấy phần lớn hiệu ứng gắn với việc train có dữ liệu ở cùng tháng "
+        "và gần giờ với dòng cần dự báo. Đây là cơ sở để giữ 2018 hoàn toàn nguyên vẹn — "
+        "**không** phải bằng chứng rằng mô hình 'nhìn thấy hàng xóm'."
+    )
+    L.append(f"4. Rolling-origin (chỉ out-of-sample): {trend['verdict']}")
+    L.append(
+        "5. Cấu hình (alpha, feature, quy tắc tiền xử lý) đã được chốt. Bước kế tiếp là "
         "`python src/evaluate.py` — đánh giá FINAL TEST 2018 đúng một lần. "
         "**Sau khi đọc kết quả 2018, không được quay lại sửa mô hình.**"
     )

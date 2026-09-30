@@ -47,7 +47,7 @@ và giữ đủ bằng multi-hot."
 
 ---
 
-## Slide 3 — Ba quy tắc chống rò rễ đã chốt TRƯỚC khi động vào dữ liệu
+## Slide 3 — Ba quy tắc chống rò rỉ đã chốt TRƯỚC khi động vào dữ liệu
 
 **Nội dung**
 1. Mọi biến đổi trước khi tách tập là **quy tắc tất định** (giờ, thứ, `is_holiday` từ lịch),
@@ -118,26 +118,34 @@ trúc `hour_dow` rồi **cộng thêm** thời tiết và tháng."
 
 ---
 
-## Slide 7 — Thí nghiệm 1b: bằng chứng rò rỉ (điểm hay nhất của bài)
+## Slide 7 — Thí nghiệm 1b/1c: đo cái đo được, không đoán cơ chế
 
 **Nội dung**
 
-Ba arm dùng **CHUNG một tập test** (2017, n = 4.357), chỉ khác khoảng thời gian huấn luyện:
+Bốn arm dùng **CHUNG một tập test** (nửa 2017, n = 4.357), lặp trên 5 seed cố định:
 
-| Arm | Train đến | Cách xa test | MAE |
+| Arm | Train đến | n train | MAE (TB ± SD) |
 | --- | --- | --- | --- |
-| A | 2015-12-31 | 2 năm | 270,32 |
-| B | 2016-12-31 | 1 năm | 269,32 |
-| C | 2017-12-31 22:00 | 0 năm | **262,77** |
+| A | 2015-12-31 | 17.491 | 270,30 ± 2,32 |
+| B | 2016-12-31 | 25.329 | 269,74 ± 2,53 |
+| C | 2016 + nửa 2017 | 29.685 | 263,19 ± 2,19 |
+| **D** | **ngẫu nhiên từ C, đúng số dòng của B** | **25.329** | **262,98 ± 2,21** |
 
-→ Càng đưa dữ liệu sát thời điểm dự báo vào train, MAE càng giảm — nhưng **không** phải vì mô hình
-khôn hơn, mà vì mô hình đã **nhìn thấy hàng xóm của chính dòng cần dự báo**.
+- ΔMAE (C − B) = **−6,55 ± 0,37** · ΔMAE (D − B) = **−6,76 ± 0,39** → chênh **+0,21**
+- Thí nghiệm 1c (tháng chẵn → train, tháng lẻ → test): ΔMAE = **−2,40**
+  → chênh giữa "2017 rải rác toàn năm" và "2017 chỉ ở tháng khác" là **4,15 MAE**
 
-**Nói:** "Nếu nhóm em chấp nhận con số 262,77 và tuyên bố đó là hiệu năng mô hình, nhóm em đang quảng
-cá sai. 7,55 điểm cải thiện đó là **rò rỉ**. Vì vậy kết luận trên 2018 phải đến từ arm B — mô hình
-chưa từng thấy năm 2018."
+**Nói:** "Nhóm em **không** nói 6,55 điểm này là do mô hình nhìn thấy hàng xóm. Mô hình của em
+không có đặc trưng lag, nên nó không thể *nhớ* giá trị của dòng lân cận. Điều đo được là: dữ liệu
+2017 nằm ở **cùng tháng** với dòng cần dự báo thì giúp ích nhiều hơn 4,15 MAE so với nằm ở tháng
+khác — và điều đó **không** phải do nhiều dòng hơn, vì arm D cùng kích thước với arm B mà vẫn
+giữ nguyên hiệu ứng. Đây là mô tả, không phải bằng chứng nhân quả."
 
-**Hình:** ba cột MAE (vẽ từ bảng). Không cần ảnh chụp.
+**Hình:** bốn cột MAE (vẽ từ bảng) + hai cột ΔMAE. Không cần ảnh chụp.
+
+**Câu hỏi dự kiến:** "Vậy random split lạc quan bao nhiêu?" → **5,43 ± 0,81 MAE** khi so trên
+*cùng một tập dòng đánh giá* (§Slide 7 / §11.1 báo cáo). Nhỏ hơn nhiều so với bài toán chuỗi thời
+gian có lag, vì mô hình không có lag.
 
 ---
 
@@ -217,11 +225,15 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 ## Slide 11 — Kết luận
 
 **Nội dung**
-1. **Mô hình vượt baseline** trên cùng tập test: MAE 259,73 so với 272,90 (−4,8 %)
-2. **Cách chia tập quan trọng ngang chọn mô hình** — chỉ riêng việc chia tập đã làm MAE chênh
-   7,55 điểm (§Slide 7), gần bằng cả cải thiện của mô hình (13,17)
+1. **Mô hình nhỉnh hơn baseline** trên cùng tập test: MAE 259,73 so với 272,90 (−4,8 %) —
+   và đây là **vượt nhẹ trên 2018**, xem §14.5 cùng `reports/figures/uncertainty_audit.md`
+   về khoảng tin cậy 95 %
+2. **Cách đánh giá cũng làm lệch kết luận**: random split lạc quan **5,43 ± 0,81 MAE** trên cùng
+   tập dòng đánh giá (§Slide 7); khoảng cách thời gian thêm **4,15 MAE**
 3. **Biết mô hình hỏng ở đâu** cũng là kết quả: ngày lễ, tuyết, sương mù, giờ đêm
-4. **Minh bạch**: 317 test pass, 0 fail; web/API chạy thật, chỉ nạp artifact
+4. **Nói trung thực, kể cả khi bất tiện**: không gán cơ chế cho một con số khi chưa tách được
+   các yếu tố — bản đầu của báo cáo đã từng kết luận sai, và nhóm đã sửa
+5. **Minh bạch**: 323 test pass, 0 fail; web/API chạy thật, chỉ nạp artifact
 
 **Câu kết:**
 > "Trong bài toán chuỗi thời gian, **cách ta chia tập quan trọng ngang với việc ta chọn mô hình** —
@@ -240,5 +252,5 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 317 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 325 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |

@@ -234,39 +234,78 @@
     /* --- 9. EXPERIMENTS --- */
     var ex9 = d.experiments || {};
     var e1 = ex9.experiment_1_random_vs_time_split || {};
-    if (e1.time_split && e1.random_split) {
+    if (e1.time_split && (e1.per_seed || []).length) {
+      var s1 = e1.summary || {};
+      var same = s1.delta_mae_same_rows || {};
+      var diff = s1.delta_mae_different_test_sets || {};
       table($("exp1-table"),
-        "So sánh hai cách chia tập — CHÚ Ý: hai tập test có thành phần năm khác nhau",
-        ["Cách chia", "MAE", "RMSE", "R²", "n", "Năm trong tập test"],
+        "Random split vs time split — lặp " + (e1.per_seed.length) +
+        " seed cố định, báo cáo trung bình ± độ lệch chuẩn",
+        ["Phép đo", "MAE trung bình ± SD", "min", "max"],
         [
-          ["Time split (đúng)", n(e1.time_split.MAE), n(e1.time_split.RMSE), n(e1.time_split.R2, 4),
-            i(e1.time_split.n), (e1.time_split.test_years || []).join(", ")],
-          ["Random split (minh hoạ)", n(e1.random_split.MAE), n(e1.random_split.RMSE),
-            n(e1.random_split.R2, 4), i(e1.random_split.n), (e1.random_split.test_years || []).join(", ")]
+          ["(a) Mỗi arm dùng tập test riêng — " +
+            n(diff.mean) + " ± " + n(diff.sd),
+            n(diff.mean), n(diff.sd), n(diff.min) + " … " + n(diff.max)],
+          ["(b) CÙNG một tập dòng đánh giá — " +
+            n(same.mean) + " ± " + n(same.sd),
+            n(same.mean), n(same.sd), n(same.min) + " … " + n(same.max)]
         ]);
-      $("exp1-note").textContent = (e1.caveat || "") +
-        " Chênh lệch MAE = " + n(e1.delta_mae_random_minus_time) + ".";
+      var worst = e1.per_seed.reduce(function (acc, r) {
+        return r.random_split.MAE < acc ? r.random_split.MAE : acc;
+      }, Infinity);
+      var best = e1.per_seed.reduce(function (acc, r) {
+        return r.random_split.MAE > acc ? r.random_split.MAE : acc;
+      }, 0);
+      $("exp1-note").textContent =
+        "Time split (test " + (e1.time_split.test_range || []).map(function (d) {
+          return d.slice(0, 10);
+        }).join(" → ") + ", n = " + i(e1.time_split.n) + "): MAE " + n(e1.time_split.MAE) +
+        ". MAE random split dao động " + n(worst) + " … " + n(best) +
+        " theo seed. " + (e1.caveat || "");
     }
 
     var e1b = ex9.experiment_1b_leakage_controlled || {};
-    var arms = e1b.arms || {};
-    if (Object.keys(arms).length) {
-      var shared = e1b.shared_test || {};
+    var runs1b = e1b.per_seed || [];
+    if (runs1b.length) {
+      var labels = e1b.arm_labels || {};
+      var keys = Object.keys(labels);
+      var firstRun = runs1b[0];
+      var sd = function (key) {
+        var vals = runs1b.map(function (r) { return r.arms[key].MAE; });
+        var mean = vals.reduce(function (a, b) { return a + b; }, 0) / vals.length;
+        var varr = vals.reduce(function (a, b) { return a + (b - mean) * (b - mean); }, 0) / vals.length;
+        return { mean: mean, sd: Math.sqrt(varr) };
+      };
+      var nmed = (e1b.summary || {}).n_train_median || {};
+      var n2017 = (e1b.summary || {}).n_train_rows_from_2017_median || {};
       table($("exp1b-table"),
-        "Ba arm dùng CHUNG một tập test (" + (shared.range || []).join(" → ") +
-        ", n = " + i(shared.n) + ") nên phép so sánh mới công bằng",
-        ["Arm", "Khoảng train", "Số dòng train", "Cách xa test (năm)", "MAE", "RMSE", "R²"],
-        Object.keys(arms).map(function (k) {
-          var a = arms[k];
-          var range = a.train_range
-            ? a.train_range.join(" → ")
-            : "đến " + (a.train_end || "—");
-          return [k, range, i(a.n_train), i(a.gap_to_test_years),
+        "4 arm dùng CHUNG một tập test (n = " + i(firstRun.shared_test_n) +
+        " giờ, seed đầu " + firstRun.seed + ") — arm D là arm đối chứng CÙNG KÍCH THƯỚC với B",
+        ["Arm", "Mô tả", "n train", "Dòng từ 2017", "MAE (TB ± SD)", "RMSE", "R²"],
+        keys.map(function (k) {
+          var a = firstRun.arms[k];
+          var st = sd(k);
+          return [k.split("_")[0], (labels[k] || "").split(": ").slice(1).join(": "),
+            i(nmed[k] != null ? nmed[k] : a.n_train), i(n2017[k] != null ? n2017[k] : 0),
+            n(st.mean) + " ± " + n(st.sd), n(a.RMSE), n(a.R2, 4)];
+        }));
+      $("exp1b-note").textContent = (e1b.interpretation || "");
+    }
+
+    var e1c = ex9.experiment_1c_block_neighbour || {};
+    if (e1c.arms) {
+      var cKeys = Object.keys(e1c.arms);
+      table($("exp1c-table"),
+        "Thí nghiệm 1c — khối liên tục: tháng chẵn của 2017 vào train, tháng lẻ làm test chung" +
+        " (n = " + i((e1c.shared_test || {}).n) + ")",
+        ["Arm", "n train", "Dòng từ 2017", "MAE", "RMSE", "R²"],
+        cKeys.map(function (k) {
+          var a = e1c.arms[k];
+          return [k.split("_")[0], i(a.n_train), i(a.n_train_rows_from_2017),
             n(a.MAE), n(a.RMSE), n(a.R2, 4)];
         }));
-      $("exp1b-note").textContent = (e1b.interpretation || "") +
-        " Cải thiện MAE giữa arm xa nhất và gần nhất: " +
-        n(e1b.mae_improvement_closest_vs_farthest) + " xe/giờ.";
+      $("exp1c-note").textContent =
+        "ΔMAE (P2 − P1) = " + n(e1c.delta_MAE_P2_minus_P1) + ". " + (e1c.interpretation || "");
     }
 
     var e3 = ex9.experiment_3_rolling_origin || {};

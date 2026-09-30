@@ -147,10 +147,12 @@ def test_experiments_run_never_touches_2018():
 
     e1 = exp.experiment_random_vs_time_split(dev, alpha)
     e1b = exp.experiment_leakage_controlled(dev, alpha)
+    e1c = exp.experiment_block_neighbour(dev, alpha)
     e3 = exp.rolling_origin_evaluation(dev, alpha)
     e3b = exp.covariate_drift(dev)
 
-    for name, blob in [("exp1", e1), ("exp1b", e1b), ("exp3", e3), ("exp3b", e3b)]:
+    for name, blob in [("exp1", e1), ("exp1b", e1b), ("exp1c", e1c),
+                       ("exp3", e3), ("exp3b", e3b)]:
         text = json.dumps(blob, default=str)
         assert "2018-" not in text, f"{name} có dữ liệo 2018: {text[:400]}"
 
@@ -160,19 +162,147 @@ def test_experiments_run_never_touches_2018():
 
 
 @needs_data
-def test_leakage_experiment_shows_monotonic_improvement():
-    """Leakage demo phải thật sự cho thấy càng gần test càng tốt — nếu không, thí nghiệm vô nghĩa."""
+def test_leakage_effect_is_stable_across_seeds():
+    """Hiệu ứng đo được phải ổn định qua các seed, và phần 'do kích thước' phải nhỏ.
+
+    Không assert dấu của hiệu ứng như một 'kết luận đúng' — chỉ assert nó **ổn định**
+    (độ lệch nhỏ hơn trung bình), tức là kết luận không phụ thuộc seed cụ thể.
+    """
     from src.features import build_features, load_clean
 
     dev = dev_window(build_features(load_clean()))
     e1b = exp.experiment_leakage_controlled(dev, 0.001)
-    arms = e1b["arms"]
-    assert "A_train_le_2015" in arms and "C_train_le_2016_plus_half_2017" in arms
-    # cùng một tập test cho mọi arm -> phép so sánh mới công bằng
-    assert len({a["n"] for a in arms.values()}) == 1
-    assert e1b["mae_improvement_closest_vs_farthest"] > 0, (
-        "Arm gần test hơn phải có MAE thấp hơn; nếu không thì thiết kế thí nghiệm hỏng"
+    deltas = e1b["summary"]["deltas"]
+
+    for key, stat in deltas.items():
+        assert stat["sd"] < abs(stat["mean"]), (
+            f"{key} không ổn định qua các seed: {stat}"
+        )
+
+    # Arm đối chứng cùng kích thước phải cho kết quả gần arm C — tức phần giảm
+    # không giải thích được bằng 'nhiều dòng hơn'.
+    size_effect = e1b["size_adjusted_delta_MAE"]
+    assert abs(size_effect) < 2.0, (
+        f"Phần chênh do kích thước tập huấn luyện lớn bất thường: {size_effect}"
     )
+
+
+@needs_data
+def test_leakage_experiment_arms_share_one_test_set_and_are_seed_reproducible():
+    """Mọi arm phải dùng CHUNG đúng một tập test, và kết quả phải tái lập theo seed.
+
+    Đây là bảo vệ cho thiết kế "phép so sánh công bằng": nếu các arm lệch tập test thì
+    chênh lệch MAE có thể do khác biệt bài toán chứ không phải do cách chia.
+    """
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e1b = exp.experiment_leakage_controlled(dev, 0.001, seeds=[11, 23])
+
+    assert len(e1b["per_seed"]) == 2
+    for run in e1b["per_seed"]:
+        for key, arm in run["arms"].items():
+            assert arm["n"] == run["shared_test_n"], (
+                f"{key} dùng {arm['n']} dòng test, tập chung là {run['shared_test_n']} — "
+                "phép so sánh không còn công bằng"
+            )
+
+    # Chạy lại cùng seed => kết quả y hệt
+    again = exp.experiment_leakage_controlled(dev, 0.001, seeds=[11, 23])
+    assert again["per_seed"] == e1b["per_seed"], "Thí nghiệm 1b không tái lập được theo seed"
+
+
+@needs_data
+def test_leakage_arm_D_is_size_matched_to_arm_B():
+    """Arm D là arm đối chứng CÙNG KÍCH THƯỚC — điều làm cho phép so sánh có ý nghĩa."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e1b = exp.experiment_leakage_controlled(dev, 0.001, seeds=[11, 23, 37])
+    for run in e1b["per_seed"]:
+        arms = run["arms"]
+        assert arms["D_same_n_as_B_random_from_C"]["n_train"] == arms["B_train_le_2016"]["n_train"]
+        # Arm C thì NHIỀU hơn B — đó chính là yếu tố gây nhiễu ở thiết kế 3 arm cũ
+        assert arms["C_train_le_2016_plus_half_2017"]["n_train"] > arms["B_train_le_2016"]["n_train"]
+
+
+@needs_data
+def test_new_experiment_arms_contain_no_2018_rows():
+    """Các arm và tập test mới không được chứa bất kỳ dòng 2018 nào."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+
+    # Dựng lại đúng các tập dữ liệu mà Thí nghiệm 1c dùng, rồi kiểm tra trực tiếp
+    # trên dữ liệu thật (kết quả trả về chỉ có số liệu, không có DataFrame).
+    train_le_2016 = dev[dev["date_time"] <= pd.Timestamp("2016-12-31 23:59:59")]
+    y2017 = dev[dev["date_time"] >= pd.Timestamp("2017-01-01 00:00:00")]
+    even = y2017[y2017["month"].isin(exp.BLOCK_TRAIN_MONTHS)]
+    odd = y2017[y2017["month"].isin(exp.BLOCK_TEST_MONTHS)]
+
+    assert_no_final_test_rows(train_le_2016, "exp1c:P1")
+    assert_no_final_test_rows(even, "exp1c:even_months")
+    assert_no_final_test_rows(odd, "exp1c:odd_months")
+    assert_no_final_test_rows(
+        pd.concat([train_le_2016, even], ignore_index=True), "exp1c:P2"
+    )
+
+    e1c = exp.experiment_block_neighbour(dev, 0.001)
+    # Thí nghiệm 1c chỉ dùng dữ liệu năm 2017
+    assert e1c["shared_test"]["range"][0][:4] == "2017"
+    assert e1c["shared_test"]["range"][1][:4] == "2017"
+    assert set(e1c["block_train_months"]) | set(e1c["block_test_months"]) == set(range(1, 13))
+    assert not set(e1c["block_train_months"]) & set(e1c["block_test_months"]), (
+        "Tháng train và tháng test của Thí nghiệm 1c không được chồng nhau"
+    )
+    # n_train phải khớp với số dòng thật
+    assert e1c["arms"]["P1_train_le_2016"]["n_train"] == len(train_le_2016)
+    assert e1c["arms"]["P2_train_le_2016_plus_even_months_2017"]["n_train"] == (
+        len(train_le_2016) + len(even)
+    )
+
+
+@needs_data
+def test_block_neighbour_is_deterministic():
+    """Thí nghiệm 1c tất định: chạy lại phải cho ra cùng kết quả."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    assert exp.experiment_block_neighbour(dev, 0.001) == exp.experiment_block_neighbour(dev, 0.001)
+
+
+@needs_data
+def test_experiment_1_reports_both_deltas_with_dispersion():
+    """Thí nghiệm 1 phải trả lời câu hỏi nghiên cứu bằng CẢ HAI phép đo, kèm độ lệch."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e1 = exp.experiment_random_vs_time_split(dev, 0.001)
+
+    for key in ("delta_mae_different_test_sets", "delta_mae_same_rows"):
+        stat = e1["summary"][key]
+        assert stat["n_seeds"] == len(e1["seeds"])
+        assert {"mean", "sd", "min", "max"} <= set(stat)
+        assert stat["min"] <= stat["mean"] <= stat["max"]
+
+    # Tái lập được theo seed
+    assert exp.experiment_random_vs_time_split(dev, 0.001)["per_seed"] == e1["per_seed"]
+
+
+@needs_data
+def test_experiments_report_does_not_claim_proven_neighbour_leakage():
+    """Báo cáo thí nghiệm không được khẳng định cơ chế chưa được chứng minh."""
+    path = ROOT / "reports" / "figures" / "experiments_report.md"
+    if not path.exists():
+        pytest.skip("Chưa chạy src/experiments.py")
+    text = path.read_text(encoding="utf-8")
+    for bad in [
+        "không đến từ năng lực mô hình mà từ việc mô hình đã",
+        'mô hình đã **nhìn thấy "hàng xóm"',
+    ]:
+        assert bad not in text, f"Báo cáo khẳng định nhân quả chưa được chứng minh: {bad!r}"
+    # Phải nói rõ đây là mô tả, không phải bằng chứng nhân quả
+    assert "Không phải bằng chứng nhân quả" in text
 
 
 @needs_data

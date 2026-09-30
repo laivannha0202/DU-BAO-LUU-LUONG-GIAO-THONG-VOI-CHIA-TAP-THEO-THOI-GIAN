@@ -34,6 +34,13 @@
       "n_rows": 34042,
       "contains_2018": false
     },
+    "seeds": [
+      11,
+      23,
+      37,
+      53,
+      71
+    ],
     "time_split": {
       "MAE": 306.48,
       "RMSE": 472.61,
@@ -52,63 +59,562 @@
         2017
       ]
     },
-    "random_split": {
-      "MAE": 298.61,
-      "RMSE": 481.99,
-      "R2": 0.9415,
-      "n": 5107,
-      "test_years": [
-        2012,
-        2013,
-        2014,
-        2015,
-        2016,
-        2017
-      ]
-    },
-    "delta_mae_random_minus_time": -7.87,
-    "caveat": "Hai tập test KHÁC thành phần năm (time split test = 2016-2017 còn nguyên; random split test = mẫu ngẫu nhiên rải rác 2012-2017), nên chênh lệch KHÔNG chứng minh được rò rỉ. Thí nghiệm 1b mới là phép so sánh công bằng."
-  },
-  "experiment_1b_leakage_controlled": {
-    "shared_test": {
-      "range": [
-        "2017-01-01 01:00:00",
-        "2017-12-31 23:00:00"
-      ],
-      "n": 4357,
-      "note": "Dùng CHUNG cho cả 3 arm — đây là điểm làm phép so sánh công bằng."
-    },
-    "arms": {
-      "A_train_le_2015": {
-        "MAE": 270.32,
-        "RMSE": 421.3,
-        "R2": 0.955,
-        "n": 4357,
-        "n_train": 17491,
-        "train_end": "2015-12-31 23:00:00",
-        "gap_to_test_years": 2
+    "per_seed": [
+      {
+        "seed": 11,
+        "random_test_fingerprint": "de34af6ada1f",
+        "random_test_n": 5107,
+        "random_test_year_composition": {
+          "2012": 288,
+          "2013": 1148,
+          "2014": 679,
+          "2015": 515,
+          "2016": 1192,
+          "2017": 1285
+        },
+        "random_split": {
+          "MAE": 296.75,
+          "RMSE": 479.64,
+          "R2": 0.9415,
+          "n": 5107
+        },
+        "time_split_model_on_random_test_rows": {
+          "MAE": 301.53,
+          "RMSE": 481.74,
+          "R2": 0.941,
+          "n": 5107
+        },
+        "delta_mae_different_test_sets": -9.73,
+        "delta_mae_same_rows": -4.78
       },
-      "B_train_le_2016": {
-        "MAE": 269.32,
-        "RMSE": 420.73,
-        "R2": 0.9551,
-        "n": 4357,
-        "n_train": 25329,
-        "train_end": "2016-12-31 23:00:00",
-        "gap_to_test_years": 1
+      {
+        "seed": 23,
+        "random_test_fingerprint": "b450ed570f95",
+        "random_test_n": 5107,
+        "random_test_year_composition": {
+          "2012": 306,
+          "2013": 1099,
+          "2014": 708,
+          "2015": 559,
+          "2016": 1164,
+          "2017": 1271
+        },
+        "random_split": {
+          "MAE": 292.09,
+          "RMSE": 475.82,
+          "R2": 0.943,
+          "n": 5107
+        },
+        "time_split_model_on_random_test_rows": {
+          "MAE": 296.74,
+          "RMSE": 477.83,
+          "R2": 0.9425,
+          "n": 5107
+        },
+        "delta_mae_different_test_sets": -14.39,
+        "delta_mae_same_rows": -4.65
       },
-      "C_train_le_2016_plus_half_2017": {
-        "MAE": 262.77,
-        "RMSE": 414.02,
-        "R2": 0.9565,
-        "n": 4357,
-        "n_train": 29685,
-        "train_end": "2017-12-31 22:00:00",
-        "gap_to_test_years": 0
+      {
+        "seed": 37,
+        "random_test_fingerprint": "fd19a067bcac",
+        "random_test_n": 5107,
+        "random_test_year_composition": {
+          "2012": 333,
+          "2013": 1105,
+          "2014": 643,
+          "2015": 535,
+          "2016": 1202,
+          "2017": 1289
+        },
+        "random_split": {
+          "MAE": 291.58,
+          "RMSE": 476.43,
+          "R2": 0.942,
+          "n": 5107
+        },
+        "time_split_model_on_random_test_rows": {
+          "MAE": 297.62,
+          "RMSE": 479.34,
+          "R2": 0.9413,
+          "n": 5107
+        },
+        "delta_mae_different_test_sets": -14.9,
+        "delta_mae_same_rows": -6.04
+      },
+      {
+        "seed": 53,
+        "random_test_fingerprint": "625c25de3a9e",
+        "random_test_n": 5107,
+        "random_test_year_composition": {
+          "2012": 316,
+          "2013": 1062,
+          "2014": 678,
+          "2015": 545,
+          "2016": 1233,
+          "2017": 1273
+        },
+        "random_split": {
+          "MAE": 284.94,
+          "RMSE": 456.88,
+          "R2": 0.9476,
+          "n": 5107
+        },
+        "time_split_model_on_random_test_rows": {
+          "MAE": 291.66,
+          "RMSE": 462.23,
+          "R2": 0.9463,
+          "n": 5107
+        },
+        "delta_mae_different_test_sets": -21.54,
+        "delta_mae_same_rows": -6.72
+      },
+      {
+        "seed": 71,
+        "random_test_fingerprint": "72f5b7c32917",
+        "random_test_n": 5107,
+        "random_test_year_composition": {
+          "2012": 305,
+          "2013": 1070,
+          "2014": 701,
+          "2015": 565,
+          "2016": 1193,
+          "2017": 1273
+        },
+        "random_split": {
+          "MAE": 293.11,
+          "RMSE": 469.48,
+          "R2": 0.9432,
+          "n": 5107
+        },
+        "time_split_model_on_random_test_rows": {
+          "MAE": 298.07,
+          "RMSE": 474.43,
+          "R2": 0.942,
+          "n": 5107
+        },
+        "delta_mae_different_test_sets": -13.37,
+        "delta_mae_same_rows": -4.96
+      }
+    ],
+    "summary": {
+      "delta_mae_different_test_sets": {
+        "mean": -14.79,
+        "sd": 3.83,
+        "min": -21.54,
+        "max": -9.73,
+        "n_seeds": 5
+      },
+      "delta_mae_same_rows": {
+        "mean": -5.43,
+        "sd": 0.81,
+        "min": -6.72,
+        "max": -4.65,
+        "n_seeds": 5
+      },
+      "random_split_MAE": {
+        "mean": 291.69,
+        "sd": 3.83,
+        "min": 284.94,
+        "max": 296.75,
+        "n_seeds": 5
       }
     },
-    "mae_improvement_closest_vs_farthest": 7.55,
-    "interpretation": "Càng đưa dữ liệu sát thời điểm dự báo vào train, MAE càng giảm — nhưng phần giảm đó KHÔNG đến từ năng lực mô hình mà từ việc mô hình đã nhìn thấy 'hàng xóm' của chính dòng cần dự báo. Đây chính là rò rễ mà time split loại bỏ, và là lý do kết luận trên 2018 phải được công bố từ một mô hình chưa từng thấy năm 2018."
+    "caveat": "Hai tập test KHÁC thành phần năm (time split test = 2016-2017 còn nguyên; random split test = mẫu ngẫu nhiên rải rác 2012-2017), nên delta_mae_different_test_sets KHÔNG chứng minh được rò rỉ — một phần chênh lệch đến từ việc hai bài toán khác nhau. Vì vậy còn đo thêm delta_mae_same_rows (cùng tập dòng đánh giá) và Thí nghiệm 1b."
+  },
+  "experiment_1b_leakage_controlled": {
+    "design": "4 arm, CHUNG một tập test = nửa còn lại của 2017. Arm D là arm đối chứng CÙNG KÍCH THƯỚC với arm B để tách yếu tố 'nhiều dữ liệu hơn' ra khỏi phần còn lại.",
+    "seeds": [
+      11,
+      23,
+      37,
+      53,
+      71
+    ],
+    "arm_labels": {
+      "A_train_le_2015": "A: train tới 2015-12-31 (xa test 2 năm)",
+      "B_train_le_2016": "B: train tới 2016-12-31 (xa test 1 năm)",
+      "C_train_le_2016_plus_half_2017": "C: train tới 2016 + nửa 2017 ngẫu nhiên",
+      "D_same_n_as_B_random_from_C": "D: ngẫu nhiên từ C, đúng số dòng của B"
+    },
+    "shared_test": {
+      "note": "Dùng CHUNG cho MỌI arm — đây là điểm làm phép so sánh công bằng. Vì chia lần theo seed, tập test hơi khác giữa các lần chạy; dấu vân tay (fingerprint) cho phép kiểm chứng điều đó.",
+      "n_first_seed": 4357,
+      "range_first_seed": [
+        "2017-01-01 00:00:00",
+        "2017-12-31 21:00:00"
+      ]
+    },
+    "per_seed": [
+      {
+        "seed": 11,
+        "shared_test_fingerprint": "cd7a394413d1",
+        "shared_test_range": [
+          "2017-01-01 00:00:00",
+          "2017-12-31 21:00:00"
+        ],
+        "shared_test_n": 4357,
+        "arms": {
+          "A_train_le_2015": {
+            "MAE": 266.15,
+            "RMSE": 405.66,
+            "R2": 0.9586,
+            "n": 4357,
+            "n_train": 17491,
+            "train_end": "2015-12-31 23:00:00",
+            "gap_to_test_years": 2,
+            "n_train_rows_from_2017": 0
+          },
+          "B_train_le_2016": {
+            "MAE": 265.46,
+            "RMSE": 405.77,
+            "R2": 0.9586,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2016-12-31 23:00:00",
+            "gap_to_test_years": 1,
+            "n_train_rows_from_2017": 0
+          },
+          "C_train_le_2016_plus_half_2017": {
+            "MAE": 259.35,
+            "RMSE": 398.74,
+            "R2": 0.96,
+            "n": 4357,
+            "n_train": 29685,
+            "train_end": "2017-12-31 23:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 4356
+          },
+          "D_same_n_as_B_random_from_C": {
+            "MAE": 259.27,
+            "RMSE": 398.85,
+            "R2": 0.96,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2017-12-31 23:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 3726
+          }
+        },
+        "deltas": {
+          "C_minus_A_MAE": -6.8,
+          "C_minus_B_MAE": -6.11,
+          "D_minus_B_MAE": -6.19
+        }
+      },
+      {
+        "seed": 23,
+        "shared_test_fingerprint": "c5abf08b0f32",
+        "shared_test_range": [
+          "2017-01-01 00:00:00",
+          "2017-12-31 23:00:00"
+        ],
+        "shared_test_n": 4357,
+        "arms": {
+          "A_train_le_2015": {
+            "MAE": 271.26,
+            "RMSE": 410.08,
+            "R2": 0.9565,
+            "n": 4357,
+            "n_train": 17491,
+            "train_end": "2015-12-31 23:00:00",
+            "gap_to_test_years": 2,
+            "n_train_rows_from_2017": 0
+          },
+          "B_train_le_2016": {
+            "MAE": 271.2,
+            "RMSE": 410.95,
+            "R2": 0.9563,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2016-12-31 23:00:00",
+            "gap_to_test_years": 1,
+            "n_train_rows_from_2017": 0
+          },
+          "C_train_le_2016_plus_half_2017": {
+            "MAE": 264.46,
+            "RMSE": 404.06,
+            "R2": 0.9578,
+            "n": 4357,
+            "n_train": 29685,
+            "train_end": "2017-12-31 17:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 4356
+          },
+          "D_same_n_as_B_random_from_C": {
+            "MAE": 264.14,
+            "RMSE": 403.72,
+            "R2": 0.9579,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2017-12-31 17:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 3747
+          }
+        },
+        "deltas": {
+          "C_minus_A_MAE": -6.8,
+          "C_minus_B_MAE": -6.74,
+          "D_minus_B_MAE": -7.06
+        }
+      },
+      {
+        "seed": 37,
+        "shared_test_fingerprint": "6acdc9fc61f2",
+        "shared_test_range": [
+          "2017-01-01 00:00:00",
+          "2017-12-31 21:00:00"
+        ],
+        "shared_test_n": 4357,
+        "arms": {
+          "A_train_le_2015": {
+            "MAE": 271.42,
+            "RMSE": 424.99,
+            "R2": 0.9546,
+            "n": 4357,
+            "n_train": 17491,
+            "train_end": "2015-12-31 23:00:00",
+            "gap_to_test_years": 2,
+            "n_train_rows_from_2017": 0
+          },
+          "B_train_le_2016": {
+            "MAE": 271.66,
+            "RMSE": 425.38,
+            "R2": 0.9545,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2016-12-31 23:00:00",
+            "gap_to_test_years": 1,
+            "n_train_rows_from_2017": 0
+          },
+          "C_train_le_2016_plus_half_2017": {
+            "MAE": 264.77,
+            "RMSE": 418.68,
+            "R2": 0.9559,
+            "n": 4357,
+            "n_train": 29685,
+            "train_end": "2017-12-31 23:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 4356
+          },
+          "D_same_n_as_B_random_from_C": {
+            "MAE": 264.35,
+            "RMSE": 418.38,
+            "R2": 0.956,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2017-12-31 23:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 3709
+          }
+        },
+        "deltas": {
+          "C_minus_A_MAE": -6.65,
+          "C_minus_B_MAE": -6.89,
+          "D_minus_B_MAE": -7.31
+        }
+      },
+      {
+        "seed": 53,
+        "shared_test_fingerprint": "5cb7d51f5a36",
+        "shared_test_range": [
+          "2017-01-01 00:00:00",
+          "2017-12-31 23:00:00"
+        ],
+        "shared_test_n": 4357,
+        "arms": {
+          "A_train_le_2015": {
+            "MAE": 269.69,
+            "RMSE": 410.72,
+            "R2": 0.957,
+            "n": 4357,
+            "n_train": 17491,
+            "train_end": "2015-12-31 23:00:00",
+            "gap_to_test_years": 2,
+            "n_train_rows_from_2017": 0
+          },
+          "B_train_le_2016": {
+            "MAE": 268.25,
+            "RMSE": 410.08,
+            "R2": 0.9571,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2016-12-31 23:00:00",
+            "gap_to_test_years": 1,
+            "n_train_rows_from_2017": 0
+          },
+          "C_train_le_2016_plus_half_2017": {
+            "MAE": 262.15,
+            "RMSE": 403.12,
+            "R2": 0.9585,
+            "n": 4357,
+            "n_train": 29685,
+            "train_end": "2017-12-31 22:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 4356
+          },
+          "D_same_n_as_B_random_from_C": {
+            "MAE": 261.74,
+            "RMSE": 402.81,
+            "R2": 0.9586,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2017-12-31 22:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 3724
+          }
+        },
+        "deltas": {
+          "C_minus_A_MAE": -7.54,
+          "C_minus_B_MAE": -6.1,
+          "D_minus_B_MAE": -6.51
+        }
+      },
+      {
+        "seed": 71,
+        "shared_test_fingerprint": "b255e3148df9",
+        "shared_test_range": [
+          "2017-01-01 00:00:00",
+          "2017-12-31 23:00:00"
+        ],
+        "shared_test_n": 4357,
+        "arms": {
+          "A_train_le_2015": {
+            "MAE": 272.96,
+            "RMSE": 421.63,
+            "R2": 0.955,
+            "n": 4357,
+            "n_train": 17491,
+            "train_end": "2015-12-31 23:00:00",
+            "gap_to_test_years": 2,
+            "n_train_rows_from_2017": 0
+          },
+          "B_train_le_2016": {
+            "MAE": 272.14,
+            "RMSE": 421.28,
+            "R2": 0.9551,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2016-12-31 23:00:00",
+            "gap_to_test_years": 1,
+            "n_train_rows_from_2017": 0
+          },
+          "C_train_le_2016_plus_half_2017": {
+            "MAE": 265.22,
+            "RMSE": 414.58,
+            "R2": 0.9565,
+            "n": 4357,
+            "n_train": 29685,
+            "train_end": "2017-12-31 22:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 4356
+          },
+          "D_same_n_as_B_random_from_C": {
+            "MAE": 265.39,
+            "RMSE": 414.77,
+            "R2": 0.9565,
+            "n": 4357,
+            "n_train": 25329,
+            "train_end": "2017-12-31 22:00:00",
+            "gap_to_test_years": 0,
+            "n_train_rows_from_2017": 3760
+          }
+        },
+        "deltas": {
+          "C_minus_A_MAE": -7.74,
+          "C_minus_B_MAE": -6.92,
+          "D_minus_B_MAE": -6.75
+        }
+      }
+    ],
+    "summary": {
+      "deltas": {
+        "C_minus_A_MAE": {
+          "mean": -7.11,
+          "sd": 0.44,
+          "min": -7.74,
+          "max": -6.65,
+          "n_seeds": 5
+        },
+        "C_minus_B_MAE": {
+          "mean": -6.55,
+          "sd": 0.37,
+          "min": -6.92,
+          "max": -6.1,
+          "n_seeds": 5
+        },
+        "D_minus_B_MAE": {
+          "mean": -6.76,
+          "sd": 0.39,
+          "min": -7.31,
+          "max": -6.19,
+          "n_seeds": 5
+        }
+      },
+      "n_train_median": {
+        "A_train_le_2015": 17491,
+        "B_train_le_2016": 25329,
+        "C_train_le_2016_plus_half_2017": 29685,
+        "D_same_n_as_B_random_from_C": 25329
+      },
+      "n_train_rows_from_2017_median": {
+        "A_train_le_2015": 0,
+        "B_train_le_2016": 0,
+        "C_train_le_2016_plus_half_2017": 4356,
+        "D_same_n_as_B_random_from_C": 3726
+      }
+    },
+    "size_adjusted_delta_MAE": 0.21,
+    "mae_improvement_closest_vs_farthest": 6.8,
+    "interpretation": "ĐO ĐƯỢC: thêm dữ liệu 2017 vào tập huấn luyện làm MAE thay đổi -6.55 ± 0.37 điểm. Khi đã ÉP kích thước tập huấn luyện bằng đúng kích thước của arm B (arm D), phần còn lại là -6.76 ± 0.39 điểm. Phần chênh giữa hai cái là +0.21 điểm — gần bằng 0.\n→ **KẾT LUẬN ĐƯỢC:** cải thiện đo được KHÔNG giải thích bằng 'nhiều dòng hơn'. Nó xuất hiện ngay khi tập huấn luyện đã có dữ liệu của chính năm 2017, dù số dòng không đổi.\n⚠️ **KHÔNG** được gọi phần còn lại này là 'mô hình nhìn thấy hàng xóm'. Mô hình không dùng đặc trưng lag nên không thể nhớ giá trị của dòng lân cận. Các yếu tố còn lẫn trong phần dư: mức lưu lượng riêng của năm 2017, và việc có dữ liệu ở đúng các tháng/tháng giờ của tập test. Thí nghiệm 1c tách riêng yếu tố thứ hai."
+  },
+  "experiment_1c_block_neighbour": {
+    "design": "Khối liên tục: tháng chẵn của 2017 vào train, tháng lẻ làm tập test CHUNG. Tinh hơn Thí nghiệm 1b: có mức năm 2017 nhưng dữ liệu 2017 trong train nằm ở các tháng KHÁC với tháng của dòng cần dự báo.",
+    "block_train_months": [
+      2,
+      4,
+      6,
+      8,
+      10,
+      12
+    ],
+    "block_test_months": [
+      1,
+      3,
+      5,
+      7,
+      9,
+      11
+    ],
+    "shared_test": {
+      "n": 4398,
+      "range": [
+        "2017-01-01 00:00:00",
+        "2017-11-30 23:00:00"
+      ],
+      "fingerprint": "c6e70405f888"
+    },
+    "arms": {
+      "P1_train_le_2016": {
+        "MAE": 281.06,
+        "RMSE": 443.79,
+        "R2": 0.95,
+        "n": 4398,
+        "n_train": 25329,
+        "train_end": "2016-12-31 23:00:00",
+        "n_train_rows_from_2017": 0
+      },
+      "P2_train_le_2016_plus_even_months_2017": {
+        "MAE": 278.66,
+        "RMSE": 442.36,
+        "R2": 0.9503,
+        "n": 4398,
+        "n_train": 29644,
+        "train_end": "2017-12-31 23:00:00",
+        "n_train_rows_from_2017": 4315
+      }
+    },
+    "delta_MAE_P2_minus_P1": -2.4,
+    "interpretation": "Thuộc tính cho 'có dữ liệu của năm 2017' mà vẫn KHÔNG có dữ liệu ở các tháng cùng với tháng của dòng cần dự báo. Đây là biến sốc với 'C − B' của Thí nghiệm 1b (dữ liệu 2017 rải rác, có cả ở các tháng của tập test).\n⚠️ Chênh lệch giữa hai biến này thuộc về 'độ phụ thuộc theo thời gian' — nhưng vẫn là MÔ TẢ, không phải bằng chứng nhân quả: arm C và P2 khác nhau cả về tháng được thay vào tập huấn luyện. Và vì mô hình không dùng đặc trưng lag, nó không thể 'nhớ' giá trị dòng lân cận — cơ chế nào trong hai khả năng đều còn là giả thuyết."
   },
   "experiment_3_rolling_origin": {
     "design": "expanding-window rolling origin; mọi fold đều out-of-sample",

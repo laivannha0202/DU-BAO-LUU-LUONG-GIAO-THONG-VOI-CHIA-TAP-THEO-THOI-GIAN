@@ -20,6 +20,7 @@ Dữ liệu: Metro Interstate Traffic Volume (UCI, CC BY 4.0). Xem `data/README.
 - [x] Baseline mean theo `hour × day_of_week`, fit train only
 - [x] Ridge + `ColumnTransformer` + `Pipeline` với `SimpleImputer → StandardScaler`; imputer/scaler/encoder **fit train only**; alpha **tune trên validation**
 - [x] **Bảo vệ FINAL TEST 2018** (`src/experiments.py`): mọi thí nghiệm phát triển chạy trong 2012–2017, có `assert_no_final_test_rows()` chặn ở mọi hàm
+- [x] **Đo cải thiện 4,15 MAE do khoảng cách thời gian** — Thí nghiệm 1b/1c tách riêng *kích thước tập huấn luyện*, *mức năm* và *khoảng cách thời gian*; có arm đối chứng cùng kích thước, lặp 5 seed, báo trung bình ± độ lệch
 - [x] **Drift công bằng**: rolling-origin chỉ trên cửa sổ out-of-sample; tách "performance by split" khỏi "drift"; thêm PSI cho drift phân bố
 - [x] Final evaluation bundle duy nhất trên 2018 (`src/evaluate.py`): baseline vs model, MAE/RMSE/R², error analysis hour/day/holiday/weather
 - [x] **FastAPI + 3 màn hình web** (`app/`) — chỉ load artifact, không train, không tune
@@ -333,7 +334,7 @@ release/
 ```
 
 **Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
-Con số tổng **317 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+Con số tổng **325 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
 và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
 
 ---

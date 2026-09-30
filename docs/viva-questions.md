@@ -68,7 +68,7 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 8
 **Giá trị `temp ≤ 0 K` và `rain_1h = 9831,3` được xử lý thế nào? Vì sao không dùng ngưỡng thống kê?**
-**Đáp án:** 10 dòng `temp ≤ 0` → NaN theo **quy tắc vật lý** (0 K là nhiệt độ tuyệt đối); 1 dòng mưa → NaN theo **khớp chính xác** giá trị sentinel đã audit. Không dùng ngưỡng hậu nghiệm (ví dụ "trên 99,9 phân vị") vì ngưỡng đó rút từ phân bố **toàn bộ** tập, tức đã học thống kê trên cả validation và test — đó là rò rễ.
+**Đáp án:** 10 dòng `temp ≤ 0` → NaN theo **quy tắc vật lý** (0 K là nhiệt độ tuyệt đối); 1 dòng mưa → NaN theo **khớp chính xác** giá trị sentinel đã audit. Không dùng ngưỡng hậu nghiệm (ví dụ "trên 99,9 phân vị") vì ngưỡng đó rút từ phân bố **toàn bộ** tập, tức đã học thống kê trên cả validation và test — đó là rò rỉ.
 
 ### Câu 9
 **Ai điền giá trị thiếu cho `temp`, `rain_1h`, `snow_1h`?**
@@ -92,11 +92,11 @@ py -m uvicorn app.main:app --reload
 
 ---
 
-# C. Rò rễ dữ liệu & chia tập (14–21)
+# C. rò rỉ dữ liệu & chia tập (14–21)
 
 ### Câu 14
 **Vì sao chọn time split thay vì random split?**
-**Đáp án:** Vì mục tiêu là **dự báo tương lai**. Random split đưa các giờ của năm 2018 vào tập huấn luyện, nên khi dự báo một giờ của 2018, mô hình đã thấy các giờ lân cận cùng năm — đó là rò rễ thông tin theo thời gian, và làm kết quả **lạc quan giả**.
+**Đáp án:** Vì mục tiêu là **dự báo tương lai**. Random split trộn các năm vào tập huấn luyện, nên khi dự báo một giờ, mô hình đã được huấn luyện trên dữ liệu **cùng năm và gần thời điểm đó** — làm kết quả **lạc quan giả**. Lượng lạc quan đo được: **5,43 ± 0,81 MAE** khi so hai mô hình trên **cùng một tập dòng đánh giá** (Câu 17).
 
 ### Câu 15
 **Ba tập được chia như thế nào, có bảo đảm gì không?**
@@ -104,29 +104,51 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 16
 **2018 có được dùng để chọn `alpha` hay chọn mô hình không?**
-**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 15 test bảo vệ điều đó.
+**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 21 test bảo vệ điều đó.
 *Gợi ý mở rộng:* phát biểu trung thực — "2018 không tham gia tuning. Pipeline được đánh giá lại sau các sửa lỗi phương pháp, và kết quả 2018 không được dùng để tiếp tục tối ưu."
 
 ### Câu 17
-**Thí nghiệm 1 cho kết quả gì?**
-**Đáp án:** Time split MAE **306,48**, random split MAE **298,61** (chênh 7,87) trên cửa sổ 2012–2017. **Nhưng** hai tập test có thành phần năm khác nhau, nên nhóm **không** kết luận chênh lệch này là rò rễ — vì vậy mới thiết kế thí nghiệm 1b.
+**Thí nghiệm 1 cho kết quả gì — random split và đánh giá trên tương lai chênh nhau bao nhiêu?**
+**Đáp án:** Lặp trên **5 seed cố định**, báo trung bình ± độ lệch chuẩn. Time split (train ≤ 2015, test 2016–2017) MAE **306,48**; random split MAE dao động 284,94–296,75 theo seed.
+
+- So kiểu thông thường (mỗi arm tập test riêng): **−14,79 ± 3,83** — nhưng **không dùng được**, vì hai tập test khác thành phần năm.
+- So **trên cùng một tập dòng đánh giá** (đây là con số trả lời câu hỏi): **−5,43 ± 0,81**.
+
+**Vì sao nhỏ?** Mô hình chỉ dùng đặc trưng lịch và thời tiết, **không có lag** nên không thể *nhớ* giá trị dòng lân cận. Phần lạc quan còn lại đến từ việc random split nhìn thấy được cả tháng 11–12/2017, trong khi time-split train chỉ tới 2015.
 
 ### Câu 18
 **Thí nghiệm 1b là gì và kết quả ra sao?**
-**Đáp án:** Ba arm dùng **CHUNG một tập test** (2017, n = 4.357), chỉ khác khoảng huấn luyện: tới 2015 → MAE 270,32; tới 2016 → 269,32; tới giữa 2017 → **262,77**. Càng sát thời điểm dự báo, MAE càng giảm — nhưng **không phải** vì mô hình khôn hơn, mà vì mô hình đã nhìn thấy "hàng xóm" của chính dòng cần dự báo.
+**Đáp án:** Bốn arm dùng **CHUNG một tập test** (nửa 2017, n = 4.357), lặp 5 seed:
+
+| Arm | Train | n train | MAE (TB ± SD) |
+| --- | --- | --- | --- |
+| A | ≤ 2015 | 17.491 | 270,30 ± 2,32 |
+| B | ≤ 2016 | 25.329 | 269,74 ± 2,53 |
+| C | ≤ 2016 + nửa 2017 | 29.685 | 263,19 ± 2,19 |
+| **D** | **ngẫu nhiên từ C, đúng số dòng của B** | **25.329** | **262,98 ± 2,21** |
+
+ΔMAE (C − B) = **−6,55 ± 0,37**; ΔMAE (D − B) = **−6,76 ± 0,39** → chênh **+0,21**.
+
+**Điểm mấu chốt:** arm D **cùng kích thước** với arm B, nên hiệu ứng **không** phải do "nhiều dòng hơn" mà là do *có* dữ liệu 2017 trong tập huấn luyện.
 
 ### Câu 19
-**Ý nghĩa quan trọng nhất của thí nghiệm 1b là gì?**
-**Đáp án:** Nó chứng minh **cách chia tập ảnh hưởng tới kết luận**. Nếu nhóm lấy 262,77 làm "hiệu năng mô hình" thì đã quảng cáo sai 7,55 điểm. Vì vậy kết luận trên 2018 **bắt buộc** phải đến từ một mô hình chưa từng thấy năm 2018 — tức arm B (alpha đã đóng băng).
+**Ý nghĩa quan trọng nhất của thí nghiệm 1b/1c là gì — và có phải "mô hình nhìn thấy hàng xóm" không?**
+**Đáp án (trả lời thẳng):** **Không**, nhóm không khẳng định điều đó, vì mô hình **không có đặc trưng lag** nên không thể nhớ *giá trị* của dòng lân cận.
+
+Điều đo được là **khoảng cách thời gian** ảnh hưởng tới con số: Thí nghiệm 1c dùng **khối liên tục** (tháng chẵn 2017 → train, tháng lẻ → test) cho ΔMAE chỉ **−2,40**, so với **−6,55** khi rải rác toàn năm → chênh **4,15 MAE**. Hiệu ứng này gắn với việc tập huấn luyện có dữ liệu ở **cùng tháng và gần giờ** với dòng cần dự báo.
+
+Đây là **mô tả hiệu ứng, không phải bằng chứng nhân quả** (arm C và P2 khác nhau cả về tháng được thay vào train). Bài học phương pháp: **đừng gán một cơ chế cho một con số khi chưa tách được các yếu tố.** Bản đầu của báo cáo đã từng kết luận sai theo hướng này và nhóm đã sửa.
+
+*Nếu GV hỏi "vậy thí nghiệm này còn giá trị gì":* nó vẫn chứng minh điều cần thiết để bảo vệ FINAL TEST — **khoảng cách thời gian làm thay đổi đáng kể con số đánh giá**, nên kết luận trên 2018 bắt buộc phải đến từ mô hình chưa từng thấy năm 2018 (tức arm B).
 
 ### Câu 20
 **Làm sao biết `is_holiday` ở thời điểm dự báo mà không bị rò rỉ?**
-**Đáp án:** Nhóm viết **lịch ngày lễ tất định** trong `src/holidays.py`, tính thuần từ ngày tháng: 10 ngày lễ liên bang theo quy tắc lịch + bảng ngày khai mạc Minnesota State Fair do bang công bố. Lịch khớp **53/53** ngày lễ dataset, **bỏ sót 0**, sai tên 0. Lịch là **thông tin công cộng biết trước** — ai cũng biết 4/7 là lễ trước khi nó tới — nên dùng làm feature là hợp lệ, không phải rò rễ.
-*Gợi ý mở rộng:* nói cách **không** làm: quét các dòng khác trong cùng ngày để biết cột `holiday` khác "None" — vừa cần toàn bộ bảng dữ liệu (lúc dự báo chỉ có một dòng), vừa là rò rễ thông tin của chính ngày đó.
+**Đáp án:** Nhóm viết **lịch ngày lễ tất định** trong `src/holidays.py`, tính thuần từ ngày tháng: 10 ngày lễ liên bang theo quy tắc lịch + bảng ngày khai mạc Minnesota State Fair do bang công bố. Lịch khớp **53/53** ngày lễ dataset, **bỏ sót 0**, sai tên 0. Lịch là **thông tin công cộng biết trước** — ai cũng biết 4/7 là lễ trước khi nó tới — nên dùng làm feature là hợp lệ, không phải rò rỉ.
+*Gợi ý mở rộng:* nói cách **không** làm: quét các dòng khác trong cùng ngày để biết cột `holiday` khác "None" — vừa cần toàn bộ bảng dữ liệu (lúc dự báo chỉ có một dòng), vừa là rò rỉ thông tin của chính ngày đó.
 
 ### Câu 21
-**Vì sao không dùng lag feature của `traffic_volume`?**
-**Đáp án:** Lag của chính biến mục tiêu là **đường nghiệm dễ rơi vào rò rễ thời gian** nhất — mô hình học "tương lai gần nhất giống hiện tại" từ dữ liệu liền kề. Làm đúng thì phải `shift` trước rồi mới drop missing, và phải backtest nhiều kỳ. Đề tài này tập trung vào **phương pháp đánh giá**, nên nhóm chọn giữ nguyên bộ feature không dùng lag để phân biệt rõ hiệu ứng của phương pháp.
+**Vì sao không dùng lag feature của `traffic_volume` trong mô hình chính?**
+**Đáp án:** Lag của chính biến mục tiêu là **đường nghiệm dễ rơi vào rò rỉ thời gian** nhất — mô hình học "tương lai gần nhất giống hiện tại" từ dữ liệu liền kề. Làm đúng thì phải tính lag theo **thời điểm** (`date_time − k giờ`, không `shift` theo dòng vì dữ liệu thiếu giờ) rồi mới drop NaN, và phải backtest nhiều kỳ. Đề tài này tập trung vào **phương pháp đánh giá**, nên nhóm giữ nguyên bộ feature không dùng lag ở mô hình chính; phần mở rộng lag được chạy riêng như một thí nghiệm độc lập, **không** đưa vào phục vụ.
 
 ---
 
@@ -209,8 +231,8 @@ Trả lời theo thứ tự 4 bước:
 | Vì sao dùng Ridge mà không dùng mô hình cây? | Đề tài thiên về minh hoạ **phương pháp đánh giá**. Ridge dễ giải thích, chịu đa cộng tuyến, và cho phép so sánh ý nghĩa từng nhóm feature. Gradient boosting sẽ có MAE thấp hơn nhưng làm lệch trọng tâm bài toán. |
 | Vì sao dùng `solver="lsqr"`? | Ma trận sau one-hot rộng (217 cột) nhưng mẫu chỉ 25.329; `lsqr` ổn định, nhanh, tránh lập phân rã ma trận. |
 | Có thể dùng mô hình này để điều khiển tín hiệu giao thông không? | **Không** — tuyệt đối không dùng cho mục đích safety-critical. Sai số ở ngày lễ gấp 4,3 lần, mẫu chỉ 7 ngày lễ; chỉ có một trạm; dữ liệu là lịch sử 2012–2018. |
-| Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rễ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
+| Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rỉ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
 | Hạn chế lớn nhất của nghiên cứu này? | Chỉ có một trạm đo, một hướng đi, dữ liệu lịch sử 2012–2018, và test 2018 chỉ 9 tháng. Kết luận **không** suy rộng được ra toàn thành phố. |
-| 317 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
+| 325 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
 | Nếu được làm lại, nhóm sẽ đổi gì? | (1) Thêm lag feature nhưng **backtest nghiêm** trên nhiều kỳ; (2) thử mô hình phi tuyến nhưng giữ nguyên time split; (3) mô hình riêng cho ngày lễ — dù có nguy cơ overfit vì chỉ 7 ngày lễ trong 2018; (4) dự báo xác suất (quantile) để có khoảng tin cậy cho lập kế hoạch. |
 | Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: **năm 2018 không tham gia hyperparameter tuning hoặc model selection; pipeline và serving policy được đóng băng từ dữ liệu 2012–2017; kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.** Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |

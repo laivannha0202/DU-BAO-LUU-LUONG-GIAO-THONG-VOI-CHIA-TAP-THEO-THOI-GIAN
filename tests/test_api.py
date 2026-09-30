@@ -461,11 +461,24 @@ def test_dashboard_includes_experiment_1_and_1b(client):
     exp = client.get("/api/dashboard-metrics").json()["experiments"]
     assert "experiment_1_random_vs_time_split" in exp
     assert "experiment_1b_leakage_controlled" in exp
-    assert set(exp["experiment_1b_leakage_controlled"]["arms"]) == {
-        "A_train_le_2015", "B_train_le_2016", "C_train_le_2016_plus_half_2017"
+    assert "experiment_1c_block_neighbour" in exp
+
+    e1b = exp["experiment_1b_leakage_controlled"]
+    assert set(e1b["arm_labels"]) == {
+        "A_train_le_2015", "B_train_le_2016",
+        "C_train_le_2016_plus_half_2017", "D_same_n_as_B_random_from_C",
     }
-    shared = {a["n"] for a in exp["experiment_1b_leakage_controlled"]["arms"].values()}
-    assert len(shared) == 1, "cả ba arm phải dùng CHUNG một tập test"
+    for run in e1b["per_seed"]:
+        shared = {a["n"] for a in run["arms"].values()}
+        assert len(shared) == 1, "mọi arm phải dùng CHUNG một tập test"
+        assert shared == {run["shared_test_n"]}
+    # arm D là arm đối chứng cùng kích thước với arm B
+    for run in e1b["per_seed"]:
+        arms = run["arms"]
+        assert (
+            arms["D_same_n_as_B_random_from_C"]["n_train"]
+            == arms["B_train_le_2016"]["n_train"]
+        )
 
 
 @requires_artifacts

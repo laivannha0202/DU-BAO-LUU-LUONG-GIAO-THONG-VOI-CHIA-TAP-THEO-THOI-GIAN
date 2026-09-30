@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 317 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 325 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -67,9 +67,14 @@ Ba kết luận quan trọng nhất:
 2. **Sai số tập trung ở ngày lễ và thời tiết cực đoan.** MAE ngày lễ là 1.031,44 (n = 167) so với
    239,49 ở ngày thường; MAE khi có tuyết là 524,50 so với 235,96 khi không có. Đây là giới hạn
    thật, không phải lỗi mã nguồn.
-3. **Việc chia tập quyết định kết luận.** Thí nghiệm 1b với ba arm dùng chung một tập test cho thấy
-   MAE giảm 7,55 chỉ vì đưa dữ liệu sát thời điểm dự báo hơn vào tập huấn luyện — phần giảm đó
-   *không* đến từ năng lực mô hình. Đây là lý do mọi kết luận trong báo cáo này đều dựa trên time split.
+3. **Khoảng cách thời gian làm thay đổi con số đánh giá, nhưng cơ chế không phải "nhìn thấy hàng
+   xóm".** Thí nghiệm 1b/1c (4 arm, chung một tập test, 5 seed cố định) cho thấy: đưa dữ liệu
+   2017 vào tập huấn luyện làm MAE giảm **6,55 ± 0,37** điểm, và phần giảm đó **không** do
+   nhiều dòng hơn (ép cùng kích thước vẫn còn 6,76 ± 0,39) mà gắn với việc dữ liệu 2017 nằm ở
+   **cùng tháng** với dòng cần dự báo (chênh 4,15 điểm so với khi chỉ lấy các tháng khác). Mô
+   hình **không có đặc trưng lag** nên không thể *nhớ* giá trị dòng lân cận — đây là mô tả hiệu
+   ứng, **không phải** bằng chứng nhân quả. Đây là lý do mọi kết luận trong báo cáo này đều dựa
+   trên time split.
 
 Ứng dụng web chạy tại `http://localhost:8000` với 3 màn hình và 4 endpoint; ứng dụng **chỉ nạp
 artifact đã đóng băng**, không huấn luyện lại, không tinh chỉnh tham số, không fit lại bộ tiền xử lý.
@@ -211,7 +216,7 @@ Mọi thống kê học được nằm trong một `sklearn.pipeline.Pipeline` d
 2012–2016 và `transform` trên validation/test/serving. `src/train.py` chỉ gọi `fit` đúng một lần,
 trên `X_train`.
 
-## 4.2 Bảy quy tắc chống rò rễ của nhóm
+## 4.2 Bảy quy tắc chống rò rỉ của nhóm
 
 1. Mọi biến đổi trước khi tách tập là **quy tắc tất định**, không học thống kê.
 2. Imputer/scaler/encoder chỉ fit trên TRAIN.
@@ -223,7 +228,7 @@ trên `X_train`.
 
 Quy tắc 4 được **cưỡng chế bằng mã nguồn**, không chỉ bằng lời hứa: `src/experiments.py` gọi
 `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng năm 2018 nào lọt vào
-(`tests/test_experiments.py` — 15 test bảo vệ điều này).
+(`tests/test_experiments.py` — 21 test bảo vệ điều này).
 
 ---
 
@@ -244,7 +249,7 @@ Ba assert được kiểm tra mỗi lần chạy và ghi vào artifact:
 **[QUYẾT ĐỊNH]** Dùng **expanding-window time split** thay vì `train_test_split` ngẫu nhiên. Ngẫu
 nhiên hoá sẽ đưa các giờ của năm 2018 vào tập huấn luyện, khiến mô hình "nhìn thấy" hàng xóm của
 chính dòng cần dự báo — đây chính là dạng rò rỉ mà đề tài muốn chỉ ra. Mục 11.1 đo lại mức độ
-lạc quan do random split.
+lạc quan do random split, có tách riêng kích thước tập huấn luyện và khoảng cách thời gian.
 
 **[HẠN CHẾ]** FINAL TEST chỉ kéo dài tới **30/09/2018** — không có dữ liệu tháng 10–12/2018. Ba
 tháng cuối năm (mùa cao điểm thu lượng) không được đánh giá. Mọi kết luận về 2018 áp dụng cho
@@ -435,7 +440,7 @@ MAE và RMSE trên FINAL TEST **thấp hơn** validation, R² cao hơn. Nghĩa l
 giảm** khi dữ liệu dài thêm một năm — dấu hiệu mô hình không bị overfit theo thời gian.
 
 Cần thận trọng khi diễn giải: có thể năm 2017 đơn giản hơn 2018, nên chưa thể kết luận "mô hình đang
-tiến bộ". Đây cũng là kết luận mà thí nghiệm rolling-origin (§11.3) nêu thẳng.
+tiến bộ". Đây cũng là kết luận mà thí nghiệm rolling-origin (§11.4) nêu thẳng.
 
 ## 9.4 Tính trung thực khi nói về FINAL TEST 2018
 
@@ -600,42 +605,125 @@ chỉ số tổng.
 
 ## 11.1 Thí nghiệm 1 — random split so với time split
 
-| Cách chia | MAE | RMSE | R² | n | Năm trong tập test |
+Câu hỏi nghiên cứu của đề: **hai cách đánh giá này chênh nhau bao nhiêu?** Vì mỗi cách gọi
+`random_split` với một seed khác nhau sẽ ra một tập test khác nhau, nhóm lặp thí nghiệm trên
+**5 seed cố định** và báo cáo trung bình ± độ lệch chuẩn.
+
+**Time split** (train ≤ 2015, test 2016-01-01 → 2017-12-31, n = 16.551): MAE **306,48**,
+RMSE 472,61, R² 0,9422.
+
+**Random split** (mỗi seed một tập test ngẫu nhiên rải rác 2012–2017, n = 5.107):
+
+| seed | MAE | RMSE | R² | Thành phần năm của tập test |
+| --- | --- | --- | --- | --- |
+| 11 | 296,75 | 479,64 | 0,9415 | 2012: 288 · 2013: 1.148 · 2014: 679 · 2015: 515 · 2016: 1.192 · 2017: 1.285 |
+| 23 | 292,09 | 475,82 | 0,9430 | 2012: 306 · 2013: 1.099 · 2014: 708 · 2015: 559 · 2016: 1.164 · 2017: 1.271 |
+| 37 | 291,58 | 476,43 | 0,9420 | 2012: 333 · 2013: 1.105 · 2014: 643 · 2015: 535 · 2016: 1.202 · 2017: 1.289 |
+| 53 | 284,94 | 456,88 | 0,9476 | 2012: 316 · 2013: 1.062 · 2014: 678 · 2015: 545 · 2016: 1.233 · 2017: 1.273 |
+| 71 | 293,11 | 469,48 | 0,9432 | 2012: 305 · 2013: 1.070 · 2014: 701 · 2015: 565 · 2016: 1.193 · 2017: 1.273 |
+
+**Hai phép đo, hai ý nghĩa khác nhau:**
+
+| Phép đo | MAE (random − time) | min | max |
+| --- | --- | --- | --- |
+| (a) Mỗi arm dùng tập test riêng | **−14,79 ± 3,83** | −21,54 | −9,73 |
+| (b) **Cùng một tập dòng đánh giá** | **−5,43 ± 0,81** | −6,72 | −4,65 |
+
+- **(a)** là cách so sánh "tự nhiên": mỗi arm dùng tập test của chính nó. Nhưng **hai tập test
+  khác nhau về thành phần năm** (time split test = 2016–2017 còn nguyên; random split test =
+  mẫu ngẫu nhiên rải rác 2012–2017), nên một phần chênh lệch đến từ việc đây là **hai bài toán
+  khác nhau** — con số này không chứng minh được rò rỉ.
+- **(b)** là phép so sánh **công bằng về cách chọn tập huấn luyện**: hai mô hình (một cái train
+  theo thời gian, một cái train ngẫu nhiên) được chấm trên **đúng cùng một tập dòng** — tập test
+  của random split.
+
+**[QUYẾT ĐỊNH] Cách trả lời câu hỏi nghiên cứu:** trên cùng một tập dòng đánh giá, random split
+cho MAE thấp hơn **5,43 ± 0,81** điểm — tức đánh giá bằng random split **lạc quan quá mức** một
+cách đáng kể, và đáng kể ấy **vì** con số này chỉ bằng khoảng 41 % cải thiện 13,17 điểm mà mô
+hình đạt được so với baseline.
+
+**Vì sao chênh lại nhỏ hơn nhiều so với bài toán chuỗi thời gian thường gặp?** Mô hình ở đây
+chỉ dùng đặc trưng **lịch** (giờ, thứ, tháng) và **thời tiết quan sát tại đúng giờ đó**; nó
+**không dùng đặc trưng lag** của `traffic_volume`. Vì vậy nó không có cơ chế nào để *nhớ* giá
+trị của một dòng khác. Phần lạc quan còn lại gắn với việc random split **nhìn thấy được cả
+tháng 11–12 của năm 2017** trong khi tập train theo thời gian chỉ tới 2015 — tức lợi thế về
+**mức độ khớp mùa/năm**, chứ không phải do *nhìn thấy hàng xóm*.
+
+## 11.2 Thí nghiệm 1b — tách kích thước tập huấn luyện khỏi khoảng cách thời gian
+
+**[QUYẾT ĐỊNH]** Bốn arm dùng **CHUNG một tập test** (nửa còn lại của năm 2017, chia bằng seed
+cố định — 4.357 giờ ở seed đầu tiên). Vì có yếu tố ngẫu nhiên, nhóm lặp trên **5 seed cố định**
+và báo trung bình ± độ lệch chuẩn.
+
+| Arm | Tập train | n train (trung vị) | Dòng từ 2017 | MAE (TB ± SD) |
+| --- | --- | --- | --- | --- |
+| A | tới 2015-12-31 (xa test 2 năm) | 17.491 | 0 | 270,30 ± 2,32 |
+| B | tới 2016-12-31 (xa test 1 năm) | 25.329 | 0 | 269,74 ± 2,53 |
+| C | tới 2016 + nửa 2017 ngẫu nhiên | 29.685 | 4.356 | **263,19 ± 2,19** |
+| **D** | **ngẫu nhiên từ C, đúng số dòng của B** | **25.329** | 3.726 | **262,98 ± 2,21** |
+
+| Chênh lệch MAE | Trung bình ± SD | min | max |
+| --- | --- | --- | --- |
+| C − A (xa nhất → gần nhất) | −7,11 ± 0,44 | −7,74 | −6,65 |
+| C − B (thêm nửa 2017) | **−6,55 ± 0,37** | −6,92 | −6,10 |
+| D − B (**cùng kích thước** với B) | **−6,76 ± 0,39** | −7,31 | −6,19 |
+
+**Đây là kết quả quan trọng nhất của mục này, và nó không ủng hộ cách kết luận cũ:**
+
+> Thêm dữ liệu 2017 làm MAE giảm 6,55 điểm. Nhưng khi **ép cho tập huấn luyện có đúng bằng số
+> dòng của arm B** (arm D — cùng kích thước, chỉ khác ở chỗ dữ liệu 2017 lấy ngẫu nhiên), hiệu
+> ứng vẫn còn **6,76** điểm. Phần chênh giữa hai cái chỉ **+0,21** điểm — gần bằng không.
+
+**[QUYẾT ĐỊNH] Đọc đúng như sau — mô tả cái đo được, không khẳng định nhân quả:**
+
+1. Cải thiện đo được **không** giải thích được bằng "nhiều dòng hơn": nó xuất hiện ngay khi tập
+   huấn luyện đã có dữ liệu của chính năm 2017, dù số dòng không đổi.
+2. **Không** được gọi phần còn lại là "mô hình nhìn thấy hàng xóm". Mô hình không dùng đặc trưng
+   lag nên **không thể nhớ** giá trị của dòng lân cận. Các yếu tố còn lẫn trong phần dư gồm
+   mức lưu lượng riêng của năm 2017, và việc có dữ liệu ở đúng các tháng của tập test.
+
+## 11.3 Thí nghiệm 1c — "hàng xóm" theo khối liên tục
+
+Để tách yếu tố thứ hai, nhóm làm thí nghiệm với **khối liên tục** thay vì chia ngẫu nhiên: các
+**tháng chẵn** của 2017 vào tập huấn luyện, các **tháng lẻ** làm tập test chung (4.398 giờ).
+
+| Arm | n train | Dòng từ 2017 | MAE | RMSE | R² |
 | --- | --- | --- | --- | --- | --- |
-| **Time split (đúng)** | 306,48 | 472,61 | 0,9422 | 16.551 | 2016, 2017 |
-| Random split (minh hoạ) | 298,61 | 481,99 | 0,9415 | 5.107 | 2012…2017 |
+| P1 — tới 2016-12-31 | 25.329 | 0 | 281,06 | 443,79 | 0,9500 |
+| P2 — tới 2016 + tháng chẵn 2017 | 29.644 | 4.315 | **278,66** | 442,36 | 0,9503 |
 
-Chênh lệch MAE = **−7,87** (random split trông tốt hơn).
+ΔMAE (P2 − P1) = **−2,40** — lợi ích của việc có dữ liệu 2017 mà dữ liệu đó nằm ở **các tháng
+khác** với tháng của dòng cần dự báo.
 
-**[QUYẾT ĐỊNH] Diễn giải có thận trọng, không phóng đại.** Hai tập test này **khác nhau về thành
-phần**: time split test = 2016–2017 còn nguyên; random split test = mẫu ngẫu nhiên rải rác
-2012–2017. Vì vậy chênh lệch **không chứng minh được rò rỉ** — một phần chênh lệch đến từ việc
-hai bài toán khác nhau. Vì thế nhóm thiết kế **thí nghiệm 1b** để đo công bằng.
+**So sánh hai cách đưa 2017 vào tập huấn luyện:**
 
-## 11.2 Thí nghiệm 1b — kiểm soát rò rễ (phép so sánh công bằng)
+| Cách đưa 2017 vào train | ΔMAE |
+| --- | --- |
+| Rải rác toàn năm (arm C của Thí nghiệm 1b) | **−6,55 ± 0,37** |
+| Chỉ lấy các tháng *khác* tháng của dòng cần dự báo (arm P2) | **−2,40** |
+| **Chênh lệch** | **−4,15** |
 
-**[QUYẾT ĐỊNH]** Ba arm dùng **CHUNG một tập test** (2017-01-01 01:00 → 2017-12-31 23:00, n = 4.357).
-Chỉ khác nhau ở khoảng thời gian huấn luyện.
+**[QUYẾT ĐỊNH] Cách đọc:** hiệu ứng đo được **không** phải do số dòng (Thí nghiệm 1b đã kiểm
+tra) và **không** phải do mức năm 2017 (cả hai cách đều có 2017 trong tập huấn luyện). Nó gắn
+với việc tập huấn luyện có dữ liệu ở **cùng tháng và gần giờ** với dòng cần dự báo.
 
-| Arm | Khoảng train | n train | Cách xa test | MAE | RMSE | R² |
-| --- | --- | --- | --- | --- | --- | --- |
-| A | → 2015-12-31 | 17.491 | 2 năm | 270,32 | 421,30 | 0,9550 |
-| B | → 2016-12-31 | 25.329 | 1 năm | 269,32 | 420,73 | 0,9551 |
-| C | → 2017-12-31 22:00 | 29.685 | 0 năm | **262,77** | 414,02 | 0,9565 |
+⚠️ **Đây vẫn là mô tả, không phải bằng chứng nhân quả.** Arm C và P2 khác nhau cả về tháng được
+thay vào tập huấn luyện, và vì mô hình không dùng đặc trưng lag nên nó không thể "nhớ" giá trị
+dòng lân cận — cơ chế nào trong hai khả năng đều còn là **giả thuyết**.
 
-Cải thiện giữa arm xa nhất và gần nhất: **7,55 MAE**.
+**Kết luận thay đổi so với cách diễn giải trước đây.** Bản báo cáo cũ kết luận rằng "MAE giảm
+7,55 **chỉ vì** mô hình nhìn thấy hàng xóm". Thí nghiệm mới **không** ủng hộ phát biểu đó:
 
-**Diễn giải — đây là bằng chứng quan trọng nhất của toàn bài:**
+- con số cũ gộp lẫn ba yếu tố (kích thước tập huấn luyện, mức năm, khoảng cách thời gian);
+- sau khi tách, phần lớn hiệu ứng **không** phải do kích thước;
+- và cơ chế "nhìn thấy hàng xóm" **không khả thi với mô hình không có lag** — mô hình không
+  nhìn thấy *giá trị* của dòng lân cận, chỉ thấy *đặc trưng lịch và thời tiết* của nó.
 
-> Càng đưa dữ liệu sát thời điểm dự báo vào tập huấn luyện, MAE càng giảm — nhưng phần giảm đó
-> **không** đến từ năng lực mô hình, mà từ việc mô hình đã **nhìn thấy "hàng xóm" của chính dòng
-> cần dự báo**. Đây chính là rò rỉ mà time split loại bỏ.
+Điều Thí nghiệm 1b/1c **vẫn** chứng minh được là: **khoảng cách thời gian giữa tập huấn luyện và
+tập dự báo làm thay đổi đáng kể con số đánh giá** (4,15 MAE chỉ từ việc dữ liệu 2017 nằm ở
+cùng tháng hay tháng khác). Đó mới là lý do trung thực để giữ FINAL TEST 2018 nguyên vẹn.
 
-Nếu ta chấp nhận con số 262,77 và tuyên bố đó là hiệu năng mô hình, ta đang quảng cáo sai. Vì vậy
-**kết luận trên 2018 phải được công bố từ một mô hình chưa từng thấy năm 2018** — tức arm B chính là
-cấu hình được đóng băng.
-
-## 11.3 Thí nghiệm 3 — rolling origin (drift, chỉ out-of-sample)
+## 11.4 Thí nghiệm 3 — rolling origin (drift, chỉ out-of-sample)
 
 Thiết kế: cửa sổ mở rộng (expanding window), mọi fold đều ngoài mẫu.
 
@@ -654,9 +742,9 @@ Tổng hợp 20.144 giờ out-of-sample (2015–2017): **MAE = 309,61**.
 
 **[QUYẾT ĐỊNH]** Tách bạch hai khái niệm mà nhiều báo cáo hay trộn:
 - **Performance theo tập** — mô hình tốt hơn không (so sánh ngoài mẫu trên cùng điều kiện);
-- **Drift** — dữ liệu có đổi không (kiểm tra phân bố, xem §11.4).
+- **Drift** — dữ liệu có đổi không (kiểm tra phân bố, xem §11.5).
 
-## 11.4 Thí nghiệm 3b — kiểm tra dịch chuyển phân bố (PSI)
+## 11.5 Thí nghiệm 3b — kiểm tra dịch chuyển phân bố (PSI)
 
 PSI so với năm tham chiếu 2013 (ổn định < 0,1; trung bình 0,1–0,25; mạnh > 0,25):
 
@@ -672,7 +760,7 @@ PSI so với năm tham chiếu 2013 (ổn định < 0,1; trung bình 0,1–0,25;
   khí hậu, và do **tập 2012 chỉ có 3 tháng** (từ tháng 10) còn 2015 thiếu quý I–II. Đây là hạn chế
   của phép so sánh PSI khi tập không cùng độ dài.
 - PSI của biến đầu vào cao **không** tự động nghĩa mô hình hỏng; nó là tín hiệu cần theo dõi,
-  và ở đây kết hợp với §11.3 cho thấy hiệu năng vẫn ổn định.
+  và ở đây kết hợp với §11.4 cho thấy hiệu năng vẫn ổn định.
 
 ![Phân bố thời tiết trên TRAIN](reports/figures/eda_weather_distribution.png)
 
@@ -902,12 +990,12 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_data.py` | 39 | collapse trùng, bất biến trong nhóm trùng, quy tắc giá trị vô lý, `holiday` với `keep_default_na=False`, đối chiếu lịch với dataset |
 | `test_features.py` | 19 | Đặc trưng lịch, ngữ nghĩa ngày lễ, time split có assert, random split chỉ để minh hoạ |
 | `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
-| `test_experiments.py` | 15 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), rolling-origin chỉ out-of-sample |
+| `test_experiments.py` | 21 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, rolling-origin chỉ out-of-sample |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
 | `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
-| `test_report.py` | 64 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, không lộ đường dẫn cá nhân |
-| **Tổng** | **317** | |
+| `test_report.py` | 89 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, chính tả "rò rỉ", không lộ đường dẫn cá nhân |
+| **Tổng** | **325** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
 chạy `pytest --collect-only` trên chính bộ test rồi bắt README, báo cáo, slide, kịch bản demo
@@ -1064,7 +1152,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 317 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
+| Đo lường được bằng máy | 325 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1101,10 +1189,14 @@ Nhóm đã hoàn thành đề tài với kết quả:
    FINAL TEST được bảo vệ bằng mã nguồn chứ không chỉ bằng lời hứa.
 2. **Về kết quả:** Ridge (alpha = 0,001) đạt **MAE 259,73 / RMSE 416,78 / R² 0,9554** trên FINAL
    TEST 2018, **vượt baseline 13,17 MAE (4,8 %)** trên cùng một tập dữ liệu.
-3. **Về hiểu biết:** thí nghiệm 1b cho thấy phần cải thiện khi đưa dữ liệu sát thời điểm dự báo vào
-   tập huấn luyện là **rò rỉ**, không phải năng lực mô hình. Đây là bài học trung tâm của đề tài.
+3. **Về hiểu biết:** khoảng cách thời gian giữa tập huấn luyện và tập dự báo **làm thay đổi đáng
+   kể** con số đánh giá (Thí nghiệm 1b/1c: chênh 4,15 MAE chỉ từ việc dữ liệu 2017 nằm ở cùng
+   tháng hay tháng khác với dòng cần dự báo). Nhóm **không** khẳng định cơ chế là "mô hình nhìn
+   thấy hàng xóm": sau khi tách ba yếu tố, phần lớn hiệu ứng không do kích thước tập huấn luyện, và
+   mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
+   của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 317 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 325 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1119,10 +1211,18 @@ Nhóm đã hoàn thành đề tài với kết quả:
 
 ## 16.3 Bài học
 
-> Trên cùng một bộ dữ liệu, chỉ cách **chia tập** đã làm MAE chênh nhau gần 8 điểm (§11.1) và 7,55
-> điểm (§11.2) — lớn ngang với toàn bộ cải thiện mà mô hình đạt được so với baseline
-> (13,17 điểm). Trong bài toán chuỗi thời gian, **cách ta chia tập quan trọng ngang với việc chọn
-> mô hình**.
+> Trên cùng một bộ dữ liệu, **cách đánh giá** đã làm MAE chênh nhau đáng kể: random split lạc quan
+> 5,43 ± 0,81 điểm so với time split **trên cùng một tập dòng đánh giá** (§11.1), và khoảng cách
+> thời gian của tập huấn luyện làm thay đổi thêm 4,15 điểm (§11.3) — cả hai đều cùng nhỏ với
+> cải thiện 13,17 điểm mà mô hình đạt được so với baseline. Trong bài toán chuỗi thời gian,
+> **cách ta đánh giá cũng quan trọng ngang với việc ta chọn mô hình** — và vì vậy phải **tách từng
+> yếu tố** thay vì quy cho tổng thể một con số.
+>
+> Bài học về phương pháp quan trọng nhất: **đừng gán một cơ chế cho một con số khi chưa tách được các
+> yếu tố.** Bản báo cáo cũ quy 6,55 MAE cho "mô hình nhìn thấy hàng xóm"; sau khi thêm arm đối
+> chứng cùng kích thước, nhóm thấy phần lớn hiệu ứng **không** đến từ kích thước tập huấn luyện,
+> và cơ chế "nhớ hàng xóm" **không khả thi** với mô hình không có đặc trưng lag. Con số giữ
+> nguyên; **kết luận** phải sửa.
 
 ---
 
@@ -1141,7 +1241,7 @@ reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
             viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      317 test
+tests/      325 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1199,12 +1299,12 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 
 | Tuần | Việc | Kết quả |
 | --- | --- | --- |
-| 1 | Brief, data README, data dictionary, kế hoạch baseline | Xác định 7 quy tắc chống rò rễ trước khi động vào dữ liệu |
+| 1 | Brief, data README, data dictionary, kế hoạch baseline | Xác định 7 quy tắc chống rò rỉ trước khi động vào dữ liệu |
 | 2 | Tải và làm sạch, audit, EDA trên TRAIN, time split | Phát hiện 5.445 nhóm trùng, 10 dòng `temp` vô lý, 1 dòng `rain_1h` sentinel |
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
-| 4 | Thí nghiệm 1, 1b, 3, 3b (chỉ 2012–2017) | Đo được mức lạc quan do rò rễ: 7,55 MAE |
+| 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 317 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 6 | FastAPI + 3 màn hình + 325 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 
