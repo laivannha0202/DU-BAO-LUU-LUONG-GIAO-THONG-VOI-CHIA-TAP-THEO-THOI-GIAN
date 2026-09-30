@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 351 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 356 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -231,7 +231,7 @@ trên `X_train`.
 
 Quy tắc 4 được **cưỡng chế bằng mã nguồn**, không chỉ bằng lời hứa: `src/experiments.py` gọi
 `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng năm 2018 nào lọt vào
-(`tests/test_experiments.py` — 31 test bảo vệ điều này).
+(`tests/test_experiments.py` — 36 test bảo vệ điều này).
 
 ---
 
@@ -998,9 +998,65 @@ Tổng hợp 20.144 giờ out-of-sample (2015–2017): **MAE = 309,61**.
 
 **[QUYẾT ĐỊNH]** Tách bạch hai khái niệm mà nhiều báo cáo hay trộn:
 - **Performance theo tập** — mô hình tốt hơn không (so sánh ngoài mẫu trên cùng điều kiện);
-- **Drift** — dữ liệu có đổi không (kiểm tra phân bố, xem §11.5).
+- **Drift** — dữ liệu có đổi không (kiểm tra phân bố, xem §11.7).
 
-## 11.5 Thí nghiệm 3b — kiểm tra dịch chuyển phân bố (PSI)
+## 11.6 Thí nghiệm 8 — mở rộng lag (thí nghiệm độc lập, KHÔNG vào serving)
+
+*Sinh bởi `src/experiments.py` (mục 8). Chỉ dùng dữ liệu 2012–2017.*
+
+### Cách dựng lag — và vì sao đây là toàn bộ vấn đề
+
+Dữ liệu thiếu **22,79 %** số giờ. Nếu dùng `df[target].shift(k)` theo **dòng**, "lag 1 giờ" thực chất
+là "1 dòng trước" — có thể cách nhau 1 giờ, 2 giờ, hay cả một tuần. Vì vậy nhóm dựng lag **đúng
+cách**: ghép theo **thời điểm** (`date_time − k giờ`) trên chuỗi đã sắp xếp, để NaN khi giờ đó
+không có quan sát, và **không** nội suy.
+
+Lag dùng: **1 giờ, 24 giờ, 168 giờ**. Lọc bỏ **5.796 dòng (17,03 %)** vì thiếu giá trị lag (tức
+không có quan sát tại thời điểm đã qua) — **không** loại dòng nào vì dữ liệu thiếu sẵn.
+
+### Kết quả — và kết quả này **không ủng hộ** giả thuyết của nhóm
+
+Hai mô hình (train theo thời gian vs train ngẫu nhiên) được chấm trên **cùng một tập dòng đánh
+giá**, lặp 5 seed. Giá trị **âm** = random split trông tốt hơn = lạc quan.
+
+| Cách dựng lag | Độ lạc quan do random split (TB ± SD) | So với không lag |
+| --- | --- | --- |
+| Không lag | **−3,48 ± 1,57** | — |
+| **Lag ĐÚNG** (ghép theo thời điểm) | **−0,55 ± 0,35** | **+2,93** |
+| **Lag SAI** (`shift()` theo dòng) | **−7,17 ± 0,81** | **−3,69** |
+
+**Đọc đúng, theo đúng những gì đo được:**
+
+1. ❌ **Lag dựng đúng KHÔNG làm tăng lạc quan** — nó *giảm* độ lạc quan (từ −3,48 xuống −0,55).
+   Giả thuyết ban đầu của nhóm ("thêm lag thì random split sẽ lạc quan hơn nữa") **sai**. Lý do:
+   lag-1 tại thời điểm dự báo là một **quan sát quá khứ thật**, sẵn có ở cả hai cách chia. Nếu lag
+   được tính đúng và **trước** khi tách tập, nó không phải là thông tin tương lai.
+2. ✅ **Nhưng kết quả này làm nổi bật đúng rủi ro thật:** chỉ cần dựng lag **sai** (`shift()` theo
+   dòng) thì độ lạc quan **tăng gần gấp đôi** (−3,48 → −7,17). Cơ chế: với random split, dòng
+   ngay trước dòng test nằm trong tập huấn luyện, nên `traffic_volume` của nó vừa là **nhãn huấn
+   luyện** vừa là **đặc trưng** của dòng test.
+
+> **Kết luận phương pháp quan trọng:** thứ cần kiểm soát là **cách tính lag**, không phải bản
+> thân việc dùng lag. Đề tài vẫn giữ đúng quan điểm "lag là đường nghiệm dễ rơi vào rò rỉ
+> thời gian" — nhưng bằng lý do **đo được**, không phải bằng phỏng đoán.
+
+### Lag có giúp không? Có — rất nhiều (và nhóm vẫn không dùng)
+
+Trên **time split**, MAE giảm từ **298,74** (không lag) xuống **172,66** (lag đúng theo thời
+điểm) — giảm khoảng **42 %**. Đây là cải thiện rất lớn và có thật trên dữ liệu dev.
+
+**[QUYẾT ĐỊNH] Vì sao nhóm KHÔNG đưa lag vào mô hình chính:**
+
+1. FINAL TEST 2018 **đã được xem**. Biết rằng lag "có vẻ giúp nhiều" rồi thêm lag vào mô hình là
+   **test-informed model selection** — đúng thứ toàn bộ phương pháp của đồ án này cảnh báo.
+2. Thêm lag còn kéo theo bài toán **train-serving skew**: tầng phục vụ phải nhận lưu lượng của
+   `k` giờ trước, tức không còn là dự báo "chỉ từ lịch và thời tiết" như đề tài định nghĩa.
+3. 5.796 dòng bị loại (17,03 %) khi thiếu lag — cần xử lý ở tầng phục vụ.
+
+**Hướng đúng cho công sau:** đánh giá lại toàn bộ trên **một holdout mới**, có kiểm soát rõ cách
+dựng lag và kiểm thử train-serving skew cho đặc trưng lag.
+
+## 11.7 Thí nghiệm 3b — kiểm tra dịch chuyển phân bố (PSI)
 
 PSI so với năm tham chiếu 2013 (ổn định < 0,1; trung bình 0,1–0,25; mạnh > 0,25):
 
@@ -1246,7 +1302,7 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_data.py` | 39 | collapse trùng, bất biến trong nhóm trùng, quy tắc giá trị vô lý, `holiday` với `keep_default_na=False`, đối chiếu lịch với dataset |
 | `test_features.py` | 19 | Đặc trưng lịch, ngữ nghĩa ngày lễ, time split có assert, random split chỉ để minh hoạ |
 | `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
-| `test_experiments.py` | 31 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, độ nhạy alpha chỉ trên validation, rolling-origin chỉ out-of-sample |
+| `test_experiments.py` | 36 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, độ nhạy alpha chỉ trên validation, rolling-origin chỉ out-of-sample |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
 | `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
@@ -1431,7 +1487,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 351 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
+| Đo lường được bằng máy | 356 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1478,13 +1534,13 @@ Nhóm đã hoàn thành đề tài với kết quả:
    mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
    của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 351 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 356 test pass.
 
 ## 16.2 Hướng mở rộng
 
 | Hướng | Lý do | Cảnh báo về rò rỉ |
 | --- | --- | --- |
-| Thêm đặc trưng lag của `traffic_volume` | Lưu lượng có tính tự tương quan mạnh theo giờ | Phải `shift` trước rồi mới drop missing; dùng rolling có phát hiện gốc; tuyệt đối không dùng lag nằm trong tương lai |
+| Thêm đặc trưng lag của `traffic_volume` | Thí nghiệm 8 đo được: MAE time split giảm từ 298,74 xuống 172,66 (≈ −42 %) khi lag dựng **đúng theo thời điểm** | Bắt buộc ghép theo `date_time − k giờ`, **không** `shift()` theo dòng (Thí nghiệm 8 cho thấy cách sai làm tăng gấp đôi mức lạc quan); tuyệt đối không dùng lag nằm trong tương lai; cần backtest nhiều kỳ và kiểm thử train-serving skew. **Chưa đưa vào mô hình chính** vì FINAL TEST đã bị xem |
 | Mô hình phi tuyến (LightGBM, gradient boosting) | Nhiều khả năng giảm MAE ở giờ đêm và ngày lễ | Phải giữ nguyên time split và quy tắc fit TRAIN only; dễ rơi vào bẫy chọn mô hình theo test |
 | Dự báo theo mùa với mô hình tuần hoàn (Fourier) | Mô hình hiện tại không có thành phần mùa rõ ràng trong feature | Thành phần tuần hoàn phải là hằng số, không fit từ dữ liệu test |
 | Mô hình riêng cho ngày lễ | MAE ngày lễ cao gấp 4,3 lần | Với chỉ 7 ngày lễ trong 2018, rất dễ overfit — cần dữ liệu nhiều hơn |
@@ -1523,7 +1579,7 @@ reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
             viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      351 test
+tests/      356 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1586,7 +1642,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 351 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 6 | FastAPI + 3 màn hình + 356 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 

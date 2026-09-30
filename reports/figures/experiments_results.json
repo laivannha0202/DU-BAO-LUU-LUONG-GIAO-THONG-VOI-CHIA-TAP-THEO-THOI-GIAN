@@ -2006,5 +2006,313 @@
         }
       ]
     ]
+  },
+  "experiment_8_lag_features": {
+    "design": "Giống Thí nghiệm 1: hai mô hình (train theo thời gian vs train ngẫu nhiên) được chấm trên CÙNG một tập dòng đánh giá, lặp nhiều seed. Lặp lại cho ba cách dựng lag: (i) không dùng lag, (ii) lag ĐÚNG theo thời điểm, (iii) lag SAI theo dòng.",
+    "lags_hours": [
+      1,
+      24,
+      168
+    ],
+    "lag_construction": "Cách ĐÚNG: ghép theo thời điểm (date_time - k giờ) trên chuỗi đã sắp xếp, KHÔNG dùng shift() theo dòng; không nội suy, thiếu dữ liệu thì để NaN.",
+    "naive_construction": "Cách SAI (chỉ để đối chứng, không dùng làm mô hình): shift(k) THEO DÒNG. Với dữ liệu thiếu 22,79 % số giờ, 'dòng trước' không phải 'k giờ trước'; hơn nữa khi random split thì dòng ngay trước dòng test nằm trong tập huấn luyện, nên traffic_volume đó vừa là NHÃN huấn luyện vừa là ĐẶC TRƯNG của dòng test.",
+    "not_for_serving": "Đây là THÍ NGHIỆM ĐỘC LẬP. KHÔNG đưa vào serving, KHÔNG sửa FEATURE_COLUMNS_ALL, KHÔNG dùng để thay mô hình đã đóng băng.",
+    "rows": {
+      "n_before_drop": 34042,
+      "n_after_drop": 28246,
+      "n_dropped": 5796,
+      "share_dropped_pct": 17.03,
+      "note": "Các dòng bị loại chỉ vì THIẾU giá trị lag (không có quan sát tại thời điểm đã qua). KHÔNG loại dòng nào vì dữ liệu thiếu sẵn."
+    },
+    "seeds": [
+      11,
+      23,
+      37,
+      53,
+      71
+    ],
+    "per_seed": [
+      {
+        "seed": 11,
+        "eval_fingerprint": "d3f340be31b5",
+        "eval_n": 4238,
+        "with_lag": {
+          "time_split_model": {
+            "MAE": 172.28,
+            "RMSE": 280.86,
+            "R2": 0.9797,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 172.12,
+            "RMSE": 281.2,
+            "R2": 0.9797,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -0.16
+        },
+        "without_lag": {
+          "time_split_model": {
+            "MAE": 296.34,
+            "RMSE": 465.77,
+            "R2": 0.9442,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 294.26,
+            "RMSE": 461.05,
+            "R2": 0.9453,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -2.08
+        },
+        "naive_row_shift_lag": {
+          "time_split_model": {
+            "MAE": 221.03,
+            "RMSE": 361.92,
+            "R2": 0.9669,
+            "n": 5082
+          },
+          "random_split_model": {
+            "MAE": 214.83,
+            "RMSE": 358.43,
+            "R2": 0.9675,
+            "n": 5082
+          },
+          "delta_mae_random_minus_time": -6.2
+        }
+      },
+      {
+        "seed": 23,
+        "eval_fingerprint": "ef7ab5d712ad",
+        "eval_n": 4238,
+        "with_lag": {
+          "time_split_model": {
+            "MAE": 167.1,
+            "RMSE": 261.72,
+            "R2": 0.9828,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 166.62,
+            "RMSE": 262.47,
+            "R2": 0.9827,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -0.48
+        },
+        "without_lag": {
+          "time_split_model": {
+            "MAE": 289.17,
+            "RMSE": 447.88,
+            "R2": 0.9495,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 285.46,
+            "RMSE": 440.31,
+            "R2": 0.9512,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -3.71
+        },
+        "naive_row_shift_lag": {
+          "time_split_model": {
+            "MAE": 214.68,
+            "RMSE": 343.32,
+            "R2": 0.9705,
+            "n": 5082
+          },
+          "random_split_model": {
+            "MAE": 207.39,
+            "RMSE": 337.81,
+            "R2": 0.9714,
+            "n": 5082
+          },
+          "delta_mae_random_minus_time": -7.29
+        }
+      },
+      {
+        "seed": 37,
+        "eval_fingerprint": "bce7d544d858",
+        "eval_n": 4238,
+        "with_lag": {
+          "time_split_model": {
+            "MAE": 174.56,
+            "RMSE": 284.07,
+            "R2": 0.9792,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 174.36,
+            "RMSE": 285.08,
+            "R2": 0.979,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -0.2
+        },
+        "without_lag": {
+          "time_split_model": {
+            "MAE": 292.55,
+            "RMSE": 456.71,
+            "R2": 0.9462,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 289.93,
+            "RMSE": 452.42,
+            "R2": 0.9472,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -2.62
+        },
+        "naive_row_shift_lag": {
+          "time_split_model": {
+            "MAE": 219.81,
+            "RMSE": 352.22,
+            "R2": 0.9687,
+            "n": 5082
+          },
+          "random_split_model": {
+            "MAE": 211.87,
+            "RMSE": 348.26,
+            "R2": 0.9694,
+            "n": 5082
+          },
+          "delta_mae_random_minus_time": -7.94
+        }
+      },
+      {
+        "seed": 53,
+        "eval_fingerprint": "c9e751f95dd0",
+        "eval_n": 4238,
+        "with_lag": {
+          "time_split_model": {
+            "MAE": 170.7,
+            "RMSE": 278.98,
+            "R2": 0.9801,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 169.67,
+            "RMSE": 280.36,
+            "R2": 0.9799,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -1.03
+        },
+        "without_lag": {
+          "time_split_model": {
+            "MAE": 299.93,
+            "RMSE": 474.83,
+            "R2": 0.9424,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 297.38,
+            "RMSE": 471.94,
+            "R2": 0.9431,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -2.55
+        },
+        "naive_row_shift_lag": {
+          "time_split_model": {
+            "MAE": 222.61,
+            "RMSE": 358.33,
+            "R2": 0.9679,
+            "n": 5082
+          },
+          "random_split_model": {
+            "MAE": 214.48,
+            "RMSE": 357.59,
+            "R2": 0.968,
+            "n": 5082
+          },
+          "delta_mae_random_minus_time": -8.13
+        }
+      },
+      {
+        "seed": 71,
+        "eval_fingerprint": "67acdc5e3ef1",
+        "eval_n": 4238,
+        "with_lag": {
+          "time_split_model": {
+            "MAE": 178.65,
+            "RMSE": 284.28,
+            "R2": 0.9793,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 177.76,
+            "RMSE": 284.85,
+            "R2": 0.9792,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -0.89
+        },
+        "without_lag": {
+          "time_split_model": {
+            "MAE": 315.72,
+            "RMSE": 497.0,
+            "R2": 0.9367,
+            "n": 4238
+          },
+          "random_split_model": {
+            "MAE": 309.3,
+            "RMSE": 488.41,
+            "R2": 0.9389,
+            "n": 4238
+          },
+          "delta_mae_random_minus_time": -6.42
+        },
+        "naive_row_shift_lag": {
+          "time_split_model": {
+            "MAE": 222.15,
+            "RMSE": 357.23,
+            "R2": 0.9675,
+            "n": 5082
+          },
+          "random_split_model": {
+            "MAE": 215.88,
+            "RMSE": 354.84,
+            "R2": 0.9679,
+            "n": 5082
+          },
+          "delta_mae_random_minus_time": -6.27
+        }
+      }
+    ],
+    "summary": {
+      "with_lag": {
+        "mean": -0.55,
+        "sd": 0.35,
+        "min": -1.03,
+        "max": -0.16,
+        "n_seeds": 5
+      },
+      "without_lag": {
+        "mean": -3.48,
+        "sd": 1.57,
+        "min": -6.42,
+        "max": -2.08,
+        "n_seeds": 5
+      },
+      "naive_row_shift_lag": {
+        "mean": -7.17,
+        "sd": 0.81,
+        "min": -8.13,
+        "max": -6.2,
+        "n_seeds": 5
+      },
+      "optimism_change_lag_correct": 2.93,
+      "optimism_change_lag_naive": -3.69
+    },
+    "lag_helps_on_time_split": {
+      "time_split_MAE_with_lag": 172.66,
+      "time_split_MAE_without_lag": 298.74,
+      "time_split_MAE_naive_lag": 220.06
+    },
+    "interpretation": "Giá trị ÂM của `delta_mae_random_minus_time` = random split trông TỐT HƠN, tức lạc quan.\n1) Lag dựng ĐÚNG theo thời điểm, tính TRƯỚC khi tách tập, KHÔNG làm tăng lạc quan — vì lag-1 tại thời điểm dự báo là một quan sát quá khứ **thật**, sẵn có ở cả hai cách chia. Đây là kết quả **không ủng hộ** giả thuyết 'lag tự động tạo rò rỉ'.\n2) Kết quả này **làm nổi bật** rủi ro thật: chỉ cần dựng lag SAI (shift theo dòng) là mức lạc quan tăng vọt, vì giá trị mục tiêu của dòng ngay trước dòng test trở thành vừa nhãn huấn luyện vừa đặc trưng của dòng test.\n→ Vậy điều cần kiểm soát là **cách tính lag**, không phải bản thân việc dùng lag. Tuy vậy nhóm vẫn **KHÔNG** đưa lag vào mô hình chính ở checkpoint này, vì FINAL TEST 2018 đã bị xem — dùng kết quả này để thêm feature lúc này là test-informed model selection."
   }
 }

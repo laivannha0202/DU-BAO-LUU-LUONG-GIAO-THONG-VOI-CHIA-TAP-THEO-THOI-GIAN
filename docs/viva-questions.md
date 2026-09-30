@@ -104,7 +104,7 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 16
 **2018 có được dùng để chọn `alpha` hay chọn mô hình không?**
-**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 31 test bảo vệ điều đó.
+**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 36 test bảo vệ điều đó.
 *Gợi ý mở rộng:* phát biểu trung thực — "2018 không tham gia tuning. Pipeline được đánh giá lại sau các sửa lỗi phương pháp, và kết quả 2018 không được dùng để tiếp tục tối ưu."
 
 ### Câu 17
@@ -148,7 +148,35 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 21
 **Vì sao không dùng lag feature của `traffic_volume` trong mô hình chính?**
-**Đáp án:** Lag của chính biến mục tiêu là **đường nghiệm dễ rơi vào rò rỉ thời gian** nhất — mô hình học "tương lai gần nhất giống hiện tại" từ dữ liệu liền kề. Làm đúng thì phải tính lag theo **thời điểm** (`date_time − k giờ`, không `shift` theo dòng vì dữ liệu thiếu giờ) rồi mới drop NaN, và phải backtest nhiều kỳ. Đề tài này tập trung vào **phương pháp đánh giá**, nên nhóm giữ nguyên bộ feature không dùng lag ở mô hình chính; phần mở rộng lag được chạy riêng như một thí nghiệm độc lập, **không** đưa vào phục vụ.
+**Đáp án:** Nhóm **đã thử thật** (Thí nghiệm 8) rồi mới quyết định — không nói lý thuyết suông.
+
+**Cách dựng lag đúng:** vì dữ liệu thiếu 22,79 % số giờ, phải ghép theo **thời điểm**
+(`date_time − k giờ`), **không** dùng `shift()` theo dòng — nếu dùng `shift` thì "1 giờ trước"
+hoá thành "1 dòng trước", có thể cách nhau cả tuần.
+
+**Kết quả (trên 2012–2017, độ lạc quan do random split; âm = random split trông tốt hơn):**
+
+| Cách dựng lag | Độ lạc quan (TB ± SD) |
+| --- | --- |
+| Không lag | **−3,48 ± 1,57** |
+| **Lag ĐÚNG** (theo thời điểm) | **−0,55 ± 0,35** |
+| **Lag SAI** (`shift()` theo dòng) | **−7,17 ± 0,81** |
+
+**Đây là câu trả lời trung thực, ngược với giả thuyết ban đầu của nhóm:**
+
+1. ❌ Lag dựng **đúng** **không** làm tăng lạc quan — nó *giảm*. Vì lag-1 tại thời điểm dự báo là
+   quan sát quá khứ **thật**, sẵn có ở cả hai cách chia. Giả thuyết "lag tự động tạo rò rỉ" **sai**.
+2. ✅ Nhưng dựng lag **sai** thì độ lạc quan **tăng gần gấp đôi**: với random split, dòng ngay
+   trước dòng test nằm trong tập huấn luyện, nên giá trị mục tiêu của nó vừa là *nhãn huấn luyện*
+   vừa là *đặc trưng* của dòng test.
+→ Vậy thứ cần kiểm soát là **cách tính lag**, không phải bản thân việc dùng lag.
+
+**Lag có giúp không?** Có, rất nhiều: MAE time split giảm từ **298,74** xuống **172,66** (≈ −42 %).
+
+**Vì sao vẫn không đưa vào mô hình chính?** (1) FINAL TEST 2018 đã bị xem → dùng kết quả này để
+thêm feature là test-informed model selection; (2) thêm lag kéo theo bài toán train-serving skew
+(tầng phục vụ phải nhận lưu lượng của `k` giờ trước); (3) 5.796 dòng (17,03 %) phải loại vì thiếu
+lag. Muốn dùng thì phải đánh giá lại trên **một holdout mới**.
 
 ---
 
@@ -322,6 +350,6 @@ tác. **Không** đưa vào mô hình chính ở checkpoint này.
 | Có thể dùng mô hình này để điều khiển tín hiệu giao thông không? | **Không** — tuyệt đối không dùng cho mục đích safety-critical. Sai số ở ngày lễ gấp 4,3 lần, mẫu chỉ 7 ngày lễ; chỉ có một trạm; dữ liệu là lịch sử 2012–2018. |
 | Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rỉ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
 | Hạn chế lớn nhất của nghiên cứu này? | Chỉ có một trạm đo, một hướng đi, dữ liệu lịch sử 2012–2018, và test 2018 chỉ 9 tháng. Kết luận **không** suy rộng được ra toàn thành phố. |
-| 351 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
+| 356 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
 | Nếu được làm lại, nhóm sẽ đổi gì? | (1) Thêm lag feature nhưng **backtest nghiêm** trên nhiều kỳ; (2) thử mô hình phi tuyến nhưng giữ nguyên time split; (3) mô hình riêng cho ngày lễ — dù có nguy cơ overfit vì chỉ 7 ngày lễ trong 2018; (4) dự báo xác suất (quantile) để có khoảng tin cậy cho lập kế hoạch. |
 | Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: **năm 2018 không tham gia hyperparameter tuning hoặc model selection; pipeline và serving policy được đóng băng từ dữ liệu 2012–2017; kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.** Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |

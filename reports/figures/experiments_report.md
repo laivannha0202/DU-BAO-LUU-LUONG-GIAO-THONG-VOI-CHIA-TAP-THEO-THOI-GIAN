@@ -243,6 +243,46 @@ Lặp lại trên 5 seed cố định ([11, 23, 37, 53, 71]); báo cáo trung b�
 
 - Ba tháng tệ nhất của 2017: **Dec** (395.14), **Nov** (344.52), **Jan** (301.71) — tức các tháng mà FINAL TEST 2018 **không hề có**.
 
+## 8. Thí nghiệm 8 — Mở rộng lag (THÍ NGHIỆM ĐỘC LẬP, KHÔNG vào serving)
+
+- Thiết kế: Giống Thí nghiệm 1: hai mô hình (train theo thời gian vs train ngẫu nhiên) được chấm trên CÙNG một tập dòng đánh giá, lặp nhiều seed. Lặp lại cho ba cách dựng lag: (i) không dùng lag, (ii) lag ĐÚNG theo thời điểm, (iii) lag SAI theo dòng.
+- **Cách dựng lag ĐÚNG:** Cách ĐÚNG: ghép theo thời điểm (date_time - k giờ) trên chuỗi đã sắp xếp, KHÔNG dùng shift() theo dòng; không nội suy, thiếu dữ liệu thì để NaN.
+- ⚠️ **Cách dựng lag SAI (chỉ để đối chứng):** Cách SAI (chỉ để đối chứng, không dùng làm mô hình): shift(k) THEO DÒNG. Với dữ liệu thiếu 22,79 % số giờ, 'dòng trước' không phải 'k giờ trước'; hơn nữa khi random split thì dòng ngay trước dòng test nằm trong tập huấn luyện, nên traffic_volume đó vừa là NHÃN huấn luyện vừa là ĐẶC TRƯNG của dòng test.
+- ⚠️ Đây là THÍ NGHIỆM ĐỘC LẬP. KHÔNG đưa vào serving, KHÔNG sửa FEATURE_COLUMNS_ALL, KHÔNG dùng để thay mô hình đã đóng băng.
+- Lag (giờ): [1, 24, 168] · seed: [11, 23, 37, 53, 71]
+
+- Dòng trước khi lọc: **34.042** → sau khi lọc: **28.246** (loại 5.796 dòng. 17.03 %). Các dòng bị loại chỉ vì THIẾU giá trị lag (không có quan sát tại thời điểm đã qua). KHÔNG loại dòng nào vì dữ liệu thiếu sẵn.
+
+| Cách dựng lag | Seed | MAE mô hình time split | MAE mô hình random split | Chênh (random − time) |
+| --- | --- | --- | --- | --- |
+| Không lag | 11 | 296.34 | 294.26 | **-2.08** |
+| Không lag | 23 | 289.17 | 285.46 | **-3.71** |
+| Không lag | 37 | 292.55 | 289.93 | **-2.62** |
+| Không lag | 53 | 299.93 | 297.38 | **-2.55** |
+| Không lag | 71 | 315.72 | 309.3 | **-6.42** |
+| **Lag ĐÚNG** (theo thời điểm) | 11 | 172.28 | 172.12 | **-0.16** |
+| **Lag ĐÚNG** (theo thời điểm) | 23 | 167.1 | 166.62 | **-0.48** |
+| **Lag ĐÚNG** (theo thời điểm) | 37 | 174.56 | 174.36 | **-0.2** |
+| **Lag ĐÚNG** (theo thời điểm) | 53 | 170.7 | 169.67 | **-1.03** |
+| **Lag ĐÚNG** (theo thời điểm) | 71 | 178.65 | 177.76 | **-0.89** |
+| **Lag SAI** (shift theo dòng) | 11 | 221.03 | 214.83 | **-6.2** |
+| **Lag SAI** (shift theo dòng) | 23 | 214.68 | 207.39 | **-7.29** |
+| **Lag SAI** (shift theo dòng) | 37 | 219.81 | 211.87 | **-7.94** |
+| **Lag SAI** (shift theo dòng) | 53 | 222.61 | 214.48 | **-8.13** |
+| **Lag SAI** (shift theo dòng) | 71 | 222.15 | 215.88 | **-6.27** |
+
+| Cách dựng lag | Độ lạc quan do random split (TB ± SD) | So với không lag |
+| --- | --- | --- |
+| Không lag | **-3.48 ± 1.57** | — |
+| Lag ĐÚNG (theo thời điểm) | -0.55 ± 0.35 | **+2.93** |
+| Lag SAI (shift theo dòng) | **-7.17 ± 0.81** | **-3.69** |
+
+- **Lag có giúp trên time split không?** MAE của mô hình time split giảm từ **298.74** (không lag) xuống **172.66** (lag đúng theo thời điểm) — cải thiện rất lớn.
+- Giá trị ÂM của `delta_mae_random_minus_time` = random split trông TỐT HƠN, tức lạc quan.
+- 1) Lag dựng ĐÚNG theo thời điểm, tính TRƯỚC khi tách tập, KHÔNG làm tăng lạc quan — vì lag-1 tại thời điểm dự báo là một quan sát quá khứ **thật**, sẵn có ở cả hai cách chia. Đây là kết quả **không ủng hộ** giả thuyết 'lag tự động tạo rò rỉ'.
+- 2) Kết quả này **làm nổi bật** rủi ro thật: chỉ cần dựng lag SAI (shift theo dòng) là mức lạc quan tăng vọt, vì giá trị mục tiêu của dòng ngay trước dòng test trở thành vừa nhãn huấn luyện vừa đặc trưng của dòng test.
+→ Vậy điều cần kiểm soát là **cách tính lag**, không phải bản thân việc dùng lag. Tuy vậy nhóm vẫn **KHÔNG** đưa lag vào mô hình chính ở checkpoint này, vì FINAL TEST 2018 đã bị xem — dùng kết quả này để thêm feature lúc này là test-informed model selection.
+
 ## Kết luận giai đoạn phát triển
 
 1. Trên pseudo-test 2016–2017: ⚠️ Ridge **kém baseline về MAE** (306.48 vs 294.95) nhưng **tốt hơn về RMSE** (472.61 vs 495.71) — đã biết **trước khi** nhìn vào 2018.

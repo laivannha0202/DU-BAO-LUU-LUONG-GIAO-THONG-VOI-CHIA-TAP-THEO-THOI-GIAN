@@ -17,6 +17,7 @@ import sys
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import pytest
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -494,6 +495,93 @@ def test_test_window_bias_uses_only_validation_rows():
     assert val_df["date_time"].max() < exp.FINAL_TEST_START
     e7 = exp.experiment_test_window_bias(train_df, val_df, 0.001)
     assert e7["validation_full_year"]["n"] == len(val_df)
+
+
+# ===========================================================================
+# 3f. Thí nghiệm 8 — lag (độc lập, KHÔNG vào serving)
+# ===========================================================================
+def test_lag_is_built_by_timestamp_not_by_row_shift():
+    """Lag phải ghép theo THỜI ĐIỂM. Đây là bảo vệ quan trọng nhất của Thí nghiệm 8."""
+    # Dữ liệu thiếu giờ -> shift theo dòng và ghép theo thời điểm phải cho KẾT QUẢ KHÁC NHAU
+    ts = pd.to_datetime([
+        "2017-01-01 00:00", "2017-01-01 01:00", "2017-01-01 05:00", "2017-01-01 06:00",
+    ])
+    df = pd.DataFrame({"date_time": ts, "traffic_volume": [100.0, 200.0, 300.0, 400.0]})
+
+    by_time = exp.add_lag_features(df, lags=(1,))
+    naive = exp.add_lag_features_row_shift(df, lags=(1,))
+
+    # Dòng cuối: "1 giờ trước" = 05:00 (giá trị 300). Dòng trước đó (05:00) cách 4 giờ,
+    # nên bản đúng theo thời điểm phải cho NaN.
+    assert by_time.loc[3, "traffic_lag_1h"] == 300.0
+    assert np.isnan(by_time.loc[2, "traffic_lag_1h"]), (
+        "Không có quan sát lúc 04:00 -> phải NaN, KHÔNG được lấy giá trị của dòng trước"
+    )
+    # shift theo dòng gán giá trị sai (và gán cả cho dòng không có dữ liệu trước đó)
+    assert naive.loc[3, "traffic_lag_1h"] == 300.0
+    assert naive.loc[2, "traffic_lag_1h"] == 200.0, (
+        "shift theo dòng lấy giá trị dòng trước dù cách nhau 4 giờ — đây chính là lỗi"
+    )
+
+
+def test_lag_features_never_interpolate_missing_hours():
+    df = pd.DataFrame({
+        "date_time": pd.to_datetime(["2017-01-01 00:00", "2017-01-01 03:00"]),
+        "traffic_volume": [10.0, 30.0],
+    })
+    out = exp.add_lag_features(df, lags=(1, 24))
+    assert out["traffic_lag_1h"].isna().all(), "Không được nội suy giờ thiếu"
+    assert out["traffic_lag_24h"].isna().all()
+
+
+@needs_data
+def test_lag_experiment_is_independent_and_never_used_for_serving():
+    """Thí nghiệm lag KHÔNG được chạm vào bộ feature của mô hình đã đóng băng."""
+    from src.features import FEATURE_COLUMNS_ALL
+
+    # Không cột lag nào được thêm vào bộ feature chính
+    assert not any("lag" in c.lower() for c in FEATURE_COLUMNS_ALL)
+    # Không chạm vào models/
+    source = (ROOT / "src" / "experiments.py").read_text(encoding="utf-8")
+    assert "RIDGE_PIPELINE_PATH" not in source
+    assert "joblib" not in source
+
+
+@needs_data
+def test_lag_experiment_only_uses_dev_rows_and_reports_all_three_arms():
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e8 = exp.experiment_lag_features(dev, 0.001, lags=(1, 24, 168))
+
+    assert "2018-" not in json.dumps(e8, default=str), "Thí nghiệm lag dùng 2018"
+    assert e8["lags_hours"] == [1, 24, 168]
+    for run in e8["per_seed"]:
+        assert {"with_lag", "without_lag", "naive_row_shift_lag"} <= set(run)
+    s = e8["summary"]
+    assert {"with_lag", "without_lag", "naive_row_shift_lag"} <= set(s)
+    for key in ("with_lag", "without_lag", "naive_row_shift_lag"):
+        assert s[key]["n_seeds"] == len(e8["seeds"])
+        assert s[key]["min"] <= s[key]["mean"] <= s[key]["max"]
+    # Số dòng bị lọc phải được báo minh bạch
+    rows = e8["rows"]
+    assert rows["n_dropped"] == rows["n_before_drop"] - rows["n_after_drop"]
+    assert rows["share_dropped_pct"] > 0
+    assert "KHÔNG đưa vào serving" in e8["not_for_serving"]
+
+
+@needs_data
+def test_lag_report_does_not_overclaim_leakage():
+    """Báo cáo phải trung thực: kết quả ĐO ĐƯỢC không ủng hộ giả thuyết thì phải nói thẳng."""
+    path = ROOT / "reports" / "figures" / "experiments_report.md"
+    if not path.exists():
+        pytest.skip("Chưa chạy src/experiments.py")
+    text = path.read_text(encoding="utf-8")
+    assert "không ủng hộ" in text, (
+        "Phải nói rõ kết quả không ủng hộ giả thuyết 'lag tự tạo rò rỉ'"
+    )
+    assert "Lag ĐÚNG" in text and "Lag SAI" in text
+    assert "KHÔNG" in text and "serving" in text
 
 
 

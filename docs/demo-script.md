@@ -335,14 +335,14 @@ py -m uvicorn app.main:app --reload
 ```bat
 py -m pytest tests\ -v
 ```
-> "351 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
+> "356 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
 > theo đường dẫn của web, rồi so **từng cột** với feature sinh ra lúc huấn luyện — bảo đảm không có
 > train-serving skew."
 
 ## Dự phòng — nếu mạng hoặc server chết giữa chừng
 
 1. Dừng demo web, chuyển sang chỉ slide 6, 7, 8 (vẫn đủ thông điệp chính).
-2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 351 test, em trình bày lại bằng slide."
+2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 356 test, em trình bày lại bằng slide."
 3. **Không** bịa số liệu thay thế.
 
 ## Danh sách câu hỏi GV hay hỏi (chuẩn bị sẵn)
@@ -353,7 +353,7 @@ Xem đầy đủ tại `docs/viva-questions.md`. Các câu **chắc chắn** rơ
 | --- | --- |
 | Vì sao chọn time split? | Đánh giá trên tương lai mới phản ánh năng lực dự báo; random split lạc quan 5,43 ± 0,81 MAE khi so trên cùng một tập dòng đánh giá. |
 | 2018 có bị dùng để tune không? | Không. Mọi lựa chọn chốt trên 2012–2017, có `assert_no_final_test_rows()` chặn bằng mã nguồn. |
-| Vì sao không dùng lag feature? | Lag của `traffic_volume` là đường nghiệm dễ rơi vào rò rỉ thời gian; đề tài tập trung vào phương pháp đánh giá. |
+| Vì sao không dùng lag feature? | Nhóm đã thử thật: MAE time split giảm 298,74 → 172,66 (≈ −42 %). Nhưng lag dựng **đúng theo thời điểm** lại **không** làm tăng lạc quan do random split (−0,55 so với −3,48); chỉ khi dựng **sai** (`shift()` theo dòng) thì lạc quan mới tăng gấp đôi (−7,17). Và vì 2018 đã bị xênên nhóm **không** đưa lag vào mô hình chính. |
 | Baseline có công bằng không? | Có — cùng tập huấn luyện 2012–2016, cùng tập test 2018. |
 | Mô hình có luôn hơn baseline không? | Không. Trên 2018 thì có (13,16 MAE, CI 95 % [+3,80; +22,00]), nhưng ở 3/4 cửa sổ dev 2012–2017 thì baseline lại thắng. |
 | MAE ngày lễ cao vì sao? | Dữ liệu chỉ có 53 giờ ngày lễ, mẫu 2018 chỉ 167 giờ; hành vi ngày lễ khác hẳn. |

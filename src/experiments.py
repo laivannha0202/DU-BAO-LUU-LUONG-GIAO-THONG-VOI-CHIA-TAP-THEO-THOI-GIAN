@@ -33,17 +33,30 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.linear_model import Ridge
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
 
 _ROOT = Path(__file__).resolve().parent.parent
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from src.features import (  # noqa: E402
+    FEATURE_COLUMNS_ALL,
+    FEATURE_COLUMNS_BINARY,
+    FEATURE_COLUMNS_CATEGORICAL,
+    FEATURE_COLUMNS_NUMERIC,
     TARGET_COLUMN,
     random_split,
     time_split,
 )
-from src.train import compute_metrics, get_X_y, make_ridge_pipeline  # noqa: E402
+from src.train import (  # noqa: E402
+    compute_metrics,
+    get_X_y,
+    make_numeric_pipeline,
+    make_ridge_pipeline,
+)
 
 # ---------------------------------------------------------------------------
 # Mốc thời gian
@@ -757,6 +770,252 @@ def experiment_alpha_sensitivity(train_df: pd.DataFrame, val_df: pd.DataFrame, a
 TEST_WINDOW_LAST_MONTH = 9
 
 
+# ===========================================================================
+# Thí nghiệm 8 — Mở rộng lag (THÍ NGHIỆM ĐỘC LẬP, KHÔNG đưa vào serving)
+# ===========================================================================
+LAG_HOURS = (1, 24, 168)
+
+#: Seed cố định cho Thí nghiệm 8 — cùng bộ seed với các thí nghiệm ngẫu nhiên khác.
+SEEDS_LAG = EXPERIMENT_SEEDS
+
+
+def add_lag_features(df: pd.DataFrame, lags=LAG_HOURS) -> pd.DataFrame:
+    """Thêm `traffic_volume` tại các mốc thời gian trước đó.
+
+    ⚠️ VÌ SAO KHÔNG DÙNG `df[TARGET].shift(k)`:
+    Dữ liệu thiếu 22,79 % số giờ. Nếu dùng `shift(k)` theo **dòng**, "lag 1 giờ" thực chất là
+    "1 dòng trước" — có thể cách nhau 1 giờ, 2 giờ, hay cả một tuần tuỳ chỗ thiếu dữ liệu.
+    Vì vậy lag **phải** được ghép theo **thời điểm**: lấy giá trị tại `date_time − k giờ`.
+    Nếu giờ đó không có quan sát thì để NaN — tuyệt đối không nội suy.
+
+    Thứ tự thực hiện (quan trọng):
+      1. sắp xếp theo `date_time`;
+      2. ghép lag theo thời điểm;
+      3. thống kê NaN **trước khi** drop, để báo cáo minh bạch.
+    """
+    out = df.sort_values("date_time").reset_index(drop=True).copy()
+    lookup = dict(zip(out["date_time"], out[TARGET_COLUMN]))
+    for k in lags:
+        shifted_ts = out["date_time"] - pd.Timedelta(hours=int(k))
+        out[f"traffic_lag_{int(k)}h"] = [
+            lookup.get(ts, float("nan")) for ts in shifted_ts
+        ]
+    return out
+
+
+def make_lag_ridge_pipeline(alpha: float, lag_cols: list[str]):
+    """Pipeline giống hệt `src.train.make_ridge_pipeline`, thêm cột lag vào nhóm numeric.
+
+    Cố tình **không** sửa `src/features.FEATURE_COLUMNS_ALL`: thí nghiệm lag là thí nghiệm
+    độc lập, không được đụng bộ feature của mô hình đã đóng băng hay của tầng phục vụ.
+    """
+    numeric = FEATURE_COLUMNS_NUMERIC + lag_cols
+    preprocess = ColumnTransformer(
+        transformers=[
+            ("cat", OneHotEncoder(handle_unknown="ignore", sparse_output=False),
+             FEATURE_COLUMNS_CATEGORICAL),
+            ("num", make_numeric_pipeline(), numeric),
+            ("bin", "passthrough", FEATURE_COLUMNS_BINARY),
+        ],
+        remainder="drop",
+    )
+    return Pipeline(
+        steps=[("preprocess", preprocess), ("model", Ridge(alpha=alpha, solver="lsqr"))]
+    )
+
+
+def _get_X_y_with_lags(df: pd.DataFrame, lag_cols: list[str]):
+    return df[FEATURE_COLUMNS_ALL + lag_cols], df[TARGET_COLUMN]
+
+
+def add_lag_features_row_shift(df: pd.DataFrame, lags=LAG_HOURS) -> pd.DataFrame:
+    """CÁCH LÀM SAI — dùng `shift(k)` THEO DÒNG. Chỉ để đối chứng, KHÔNG dùng làm mô hình.
+
+    Với dữ liệu thiếu 22,79 % số giờ, "dòng trước" **không** phải "1 giờ trước". Hệ quả:
+    - độ trễ thực tế thay đổi không xác định (1 giờ … 1 tuần);
+    - quan trọng hơn, khi random split thì các dòng **ngay trước dòng test** nằm trong tập
+      huấn luyện, nên giá trị `traffic_volume` đó vừa là *nhãn huấn luyện* vừa là *đặc trưng*
+      của dòng test — đây chính là dạng rò rỉ mà bài toán cảnh báo.
+
+    Hàm này tồn tại **chỉ để đo** mức rò rỉ mà cách làm sai này tạo ra.
+    """
+    out = df.sort_values("date_time").reset_index(drop=True).copy()
+    for k in lags:
+        out[f"traffic_lag_{int(k)}h"] = out[TARGET_COLUMN].shift(int(k))
+    return out
+
+
+def _pair(m_time: dict, m_rand: dict) -> dict:
+    """Gói hai metric của cùng một tập dòng đánh giá + chênh lệch random − time."""
+    return {
+        "time_split_model": m_time,
+        "random_split_model": m_rand,
+        "delta_mae_random_minus_time": round(m_rand["MAE"] - m_time["MAE"], 2),
+    }
+
+
+def experiment_lag_features(dev: pd.DataFrame, alpha: float, lags=LAG_HOURS) -> dict:
+    """So random split và time split trên CÙNG mô hình có lag — chỉ dùng 2012–2017.
+
+    Cấu trúc **giống hệt Thí nghiệm 1** để hai con số so sánh được:
+      - Mô hình time split: train ≤ 2015.
+      - Mô hình random split: train ngẫu nhiên trên toàn bộ cửa sổ.
+      - Cả hai được chấm trên **cùng một tập dòng đánh giá** (tập test của random split),
+        nên chênh lệch chỉ phản ánh *cách chọn tập huấn luyện*.
+
+    Cơ chế rò rỉ được kỳ vọng: với lag, tập huấn luyện ngẫu nhiên chứa các dòng **kề giờ**
+    với dòng cần dự báo, nên giá trị `traffic_volume` của chính dòng đó xuất hiện **dưới
+    dạng feature** của một dòng khác trong tập huấn luyện. Không có lag, cơ chế này không
+    tồn tại. Vì vậy ta đo độ lạc quan có lag so với không lag.
+
+    ⚠️ KHÔNG đưa vào serving, KHÔNG đổi `FEATURE_COLUMNS_ALL`, KHÔNG đụng FINAL TEST.
+    """
+    assert_no_final_test_rows(dev, "exp8:lag")
+
+    lag_cols = [f"traffic_lag_{int(k)}h" for k in lags]
+
+    def build_frame(builder) -> tuple[pd.DataFrame, int, int]:
+        frame = builder(dev, lags)
+        n0 = len(frame)
+        kept = frame.dropna(subset=lag_cols).reset_index(drop=True)
+        assert_no_final_test_rows(kept, "exp8:lag:complete")
+        return kept, n0, len(kept)
+
+    complete, n_before, n_after = build_frame(add_lag_features)
+    # Bản "làm sai" chỉ để đối chứng
+    naive, naive_before, naive_after = build_frame(add_lag_features_row_shift)
+
+    def fit_lag(train_df):
+        pipe = make_lag_ridge_pipeline(alpha, lag_cols)
+        X_tr, y_tr = _get_X_y_with_lags(train_df, lag_cols)
+        pipe.fit(X_tr, y_tr)
+        return pipe
+
+    def fit_base(train_df):
+        pipe = make_ridge_pipeline(alpha)
+        pipe.fit(*get_X_y(train_df))
+        return pipe
+
+    # --- Time split: train ≤ 2015 ---
+    CUT = "2015-12-31 23:59:59"
+    time_train = complete[complete["date_time"] <= pd.Timestamp(CUT)]
+    assert_no_final_test_rows(time_train, "exp8:lag:time_train")
+    pipe_lag_time = fit_lag(time_train)
+    pipe_naive_time = fit_lag(naive[naive["date_time"] <= pd.Timestamp(CUT)])
+    pipe_base_time = fit_base(dev[dev["date_time"] <= pd.Timestamp(CUT)])
+
+    per_seed = []
+    for seed in SEEDS_LAG:
+        rand_train, _val, rand_test = random_split(
+            complete, train_frac=0.7, val_frac=0.15, seed=seed
+        )
+        assert_no_final_test_rows(rand_train, f"exp8:lag:rand_train:{seed}")
+        assert_no_final_test_rows(rand_test, f"exp8:lag:rand_test:{seed}")
+
+        X_rt, y_rt = _get_X_y_with_lags(rand_test, lag_cols)
+        X_bt, y_bt = get_X_y(rand_test)
+
+        naive_rand_train, _, naive_rand_test = random_split(
+            naive, train_frac=0.7, val_frac=0.15, seed=seed
+        )
+        X_nt, y_nt = _get_X_y_with_lags(naive_rand_test, lag_cols)
+
+        per_seed.append({
+            "seed": int(seed),
+            "eval_fingerprint": _fingerprint(rand_test),
+            "eval_n": int(len(rand_test)),
+            "with_lag": _pair(compute_metrics(y_rt, pipe_lag_time.predict(X_rt)),
+                              compute_metrics(y_rt, fit_lag(rand_train).predict(X_rt))),
+            "without_lag": _pair(compute_metrics(y_bt, pipe_base_time.predict(X_bt)),
+                                 compute_metrics(y_bt, fit_base(rand_train).predict(X_bt))),
+            "naive_row_shift_lag": _pair(
+                compute_metrics(y_nt, pipe_naive_time.predict(X_nt)),
+                compute_metrics(y_nt, fit_lag(naive_rand_train).predict(X_nt)),
+            ),
+        })
+
+    def _delta_summary(model_key: str) -> dict:
+        return _summarize([
+            r[model_key]["delta_mae_random_minus_time"] for r in per_seed
+        ])
+
+    d_with = _delta_summary("with_lag")
+    d_without = _delta_summary("without_lag")
+    d_naive = _delta_summary("naive_row_shift_lag")
+    return {
+        "design": (
+            "Giống Thí nghiệm 1: hai mô hình (train theo thời gian vs train ngẫu nhiên) được "
+            "chấm trên CÙNG một tập dòng đánh giá, lặp nhiều seed. Lặp lại cho ba cách dựng "
+            "lag: (i) không dùng lag, (ii) lag ĐÚNG theo thời điểm, (iii) lag SAI theo dòng."
+        ),
+        "lags_hours": [int(k) for k in lags],
+        "lag_construction": (
+            "Cách ĐÚNG: ghép theo thời điểm (date_time - k giờ) trên chuỗi đã sắp xếp, "
+            "KHÔNG dùng shift() theo dòng; không nội suy, thiếu dữ liệu thì để NaN."
+        ),
+        "naive_construction": (
+            "Cách SAI (chỉ để đối chứng, không dùng làm mô hình): shift(k) THEO DÒNG. Với "
+            "dữ liệu thiếu 22,79 % số giờ, 'dòng trước' không phải 'k giờ trước'; hơn nữa khi "
+            "random split thì dòng ngay trước dòng test nằm trong tập huấn luyện, nên "
+            "traffic_volume đó vừa là NHÃN huấn luyện vừa là ĐẶC TRƯNG của dòng test."
+        ),
+        "not_for_serving": (
+            "Đây là THÍ NGHIỆM ĐỘC LẬP. KHÔNG đưa vào serving, KHÔNG sửa "
+            "FEATURE_COLUMNS_ALL, KHÔNG dùng để thay mô hình đã đóng băng."
+        ),
+        "rows": {
+            "n_before_drop": int(n_before),
+            "n_after_drop": int(n_after),
+            "n_dropped": int(n_before - n_after),
+            "share_dropped_pct": round(float((n_before - n_after) / n_before * 100), 2),
+            "note": (
+                "Các dòng bị loại chỉ vì THIẾU giá trị lag (không có quan sát tại thời điểm "
+                "đã qua). KHÔNG loại dòng nào vì dữ liệu thiếu sẵn."
+            ),
+        },
+        "seeds": [int(s) for s in SEEDS_LAG],
+        "per_seed": per_seed,
+        "summary": {
+            "with_lag": d_with,
+            "without_lag": d_without,
+            "naive_row_shift_lag": d_naive,
+            "optimism_change_lag_correct": round(d_with["mean"] - d_without["mean"], 2),
+            "optimism_change_lag_naive": round(d_naive["mean"] - d_without["mean"], 2),
+        },
+        "lag_helps_on_time_split": {
+            "time_split_MAE_with_lag": round(
+                float(np.mean([
+                    r["with_lag"]["time_split_model"]["MAE"] for r in per_seed
+                ])), 2,
+            ),
+            "time_split_MAE_without_lag": round(
+                float(np.mean([
+                    r["without_lag"]["time_split_model"]["MAE"] for r in per_seed
+                ])), 2,
+            ),
+            "time_split_MAE_naive_lag": round(
+                float(np.mean([
+                    r["naive_row_shift_lag"]["time_split_model"]["MAE"] for r in per_seed
+                ])), 2,
+            ),
+        },
+        "interpretation": (
+            "Giá trị ÂM của `delta_mae_random_minus_time` = random split trông TỐT HƠN, tức "
+            "lạc quan.\n"
+            "1) Lag dựng ĐÚNG theo thời điểm, tính TRƯỚC khi tách tập, KHÔNG làm tăng lạc "
+            "quan — vì lag-1 tại thời điểm dự báo là một quan sát quá khứ **thật**, sẵn có ở "
+            "cả hai cách chia. Đây là kết quả **không ủng hộ** giả thuyết 'lag tự động tạo rò rỉ'.\n"
+            "2) Kết quả này **làm nổi bật** rủi ro thật: chỉ cần dựng lag SAI (shift theo dòng) "
+            "là mức lạc quan tăng vọt, vì giá trị mục tiêu của dòng ngay trước dòng test trở "
+            "thành vừa nhãn huấn luyện vừa đặc trưng của dòng test.\n"
+            "→ Vậy điều cần kiểm soát là **cách tính lag**, không phải bản thân việc dùng lag. "
+            "Tuy vậy nhóm vẫn **KHÔNG** đưa lag vào mô hình chính ở checkpoint này, vì FINAL "
+            "TEST 2018 đã bị xem — dùng kết quả này để thêm feature lúc này là "
+            "test-informed model selection."
+        ),
+    }
+
+
 def experiment_test_window_bias(train_df: pd.DataFrame, val_df: pd.DataFrame, alpha: float) -> dict:
     """Định lượng hậu quả của việc FINAL TEST thiếu tháng 10–12.
 
@@ -1056,6 +1315,7 @@ def run_all(df: pd.DataFrame, alpha: float) -> dict:
         "experiment_7_test_window_bias": experiment_test_window_bias(
             *_train_val_split(df), alpha
         ),
+        "experiment_8_lag_features": experiment_lag_features(dev, alpha),
     }
     return results
 
@@ -1483,6 +1743,62 @@ def render_report(results: dict) -> str:
         + ", ".join(f"**{MONTH_LABELS[m - 1]}** ({v['MAE']})" for m, v in worst)
         + f" — tức các tháng mà FINAL TEST 2018 **không hề có**."
     )
+    L.append("")
+
+    L.append("## 8. Thí nghiệm 8 — Mở rộng lag (THÍ NGHIỆM ĐỘC LẬP, KHÔNG vào serving)")
+    L.append("")
+    exp8 = results["experiment_8_lag_features"]
+    L.append(f"- Thiết kế: {exp8['design']}")
+    L.append(f"- **Cách dựng lag ĐÚNG:** {exp8['lag_construction']}")
+    L.append(f"- ⚠️ **Cách dựng lag SAI (chỉ để đối chứng):** {exp8['naive_construction']}")
+    L.append(f"- ⚠️ {exp8['not_for_serving']}")
+    L.append(f"- Lag (giờ): {exp8['lags_hours']} · seed: {exp8['seeds']}")
+    L.append("")
+    r = exp8["rows"]
+    L.append(
+        f"- Dòng trước khi lọc: **{r['n_before_drop']:,}** → sau khi lọc: "
+        f"**{r['n_after_drop']:,}** (loại {r['n_dropped']:,} dòng, {r['share_dropped_pct']} %). "
+        f"{r['note']}".replace(",", ".")
+    )
+    L.append("")
+    L.append("| Cách dựng lag | Seed | MAE mô hình time split | MAE mô hình random split | Chênh (random − time) |")
+    L.append("| --- | --- | --- | --- | --- |")
+    for label, key in (
+        ("Không lag", "without_lag"),
+        ("**Lag ĐÚNG** (theo thời điểm)", "with_lag"),
+        ("**Lag SAI** (shift theo dòng)", "naive_row_shift_lag"),
+    ):
+        for run in exp8["per_seed"]:
+            blk = run[key]
+            L.append(
+                f"| {label} | {run['seed']} | {blk['time_split_model']['MAE']} | "
+                f"{blk['random_split_model']['MAE']} | "
+                f"**{blk['delta_mae_random_minus_time']:+}** |"
+            )
+    L.append("")
+    s8 = exp8["summary"]
+    L.append("| Cách dựng lag | Độ lạc quan do random split (TB ± SD) | So với không lag |")
+    L.append("| --- | --- | --- |")
+    L.append(
+        f"| Không lag | **{s8['without_lag']['mean']:+.2f} ± {s8['without_lag']['sd']:.2f}** | — |"
+    )
+    L.append(
+        f"| Lag ĐÚNG (theo thời điểm) | {s8['with_lag']['mean']:+.2f} ± {s8['with_lag']['sd']:.2f} | "
+        f"**{s8['optimism_change_lag_correct']:+.2f}** |"
+    )
+    L.append(
+        f"| Lag SAI (shift theo dòng) | **{s8['naive_row_shift_lag']['mean']:+.2f} ± "
+        f"{s8['naive_row_shift_lag']['sd']:.2f}** | **{s8['optimism_change_lag_naive']:+.2f}** |"
+    )
+    L.append("")
+    hp = exp8["lag_helps_on_time_split"]
+    L.append(
+        f"- **Lag có giúp trên time split không?** MAE của mô hình time split giảm từ "
+        f"**{hp['time_split_MAE_without_lag']}** (không lag) xuống "
+        f"**{hp['time_split_MAE_with_lag']}** (lag đúng theo thời điểm) — cải thiện rất lớn."
+    )
+    for line in exp8["interpretation"].split("\n"):
+        L.append(f"- {line}" if not line.startswith("→") else line)
     L.append("")
 
     L.append("## Kết luận giai đoạn phát triển")
