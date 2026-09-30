@@ -49,6 +49,7 @@ if str(_ROOT) not in sys.path:
 
 from src.experiments import (  # noqa: E402
     MONTH_LABELS,
+    NIGHT_HOURS,
     ROLLING_FOLDS,
     assert_no_final_test_rows,
     dev_window,
@@ -210,6 +211,68 @@ def _errors(pipe, baseline_table, fallback, part: pd.DataFrame) -> tuple[np.ndar
     return pred_b - y, pred_r - y
 
 
+def night_hour_analysis(part: pd.DataFrame, err_baseline: np.ndarray, err_ridge: np.ndarray) -> dict:
+    """MAE theo giờ trên FINAL TEST — MÔ TẢ, không dùng để quyết định gì.
+
+    Phần kiểm chứng trên dữ liệu dev nằm ở `src/experiments.py`
+    (`experiment_night_hour_failure`). Ở đây chỉ đo lại trên 2018 để báo cáo.
+    """
+    work = pd.DataFrame({
+        "hour": part["hour"].to_numpy(),
+        "abs_b": np.abs(err_baseline),
+        "abs_r": np.abs(err_ridge),
+        "y": part[TARGET_COLUMN].to_numpy(dtype=float),
+    })
+    by_hour = []
+    for hour, grp in work.groupby("hour"):
+        mae_r = float(grp["abs_r"].mean())
+        mae_b = float(grp["abs_b"].mean())
+        mean_actual = float(grp["y"].mean())
+        by_hour.append({
+            "hour": int(hour),
+            "n_samples": int(len(grp)),
+            "MAE_ridge": round(mae_r, 2),
+            "MAE_baseline": round(mae_b, 2),
+            "mean_actual": round(mean_actual, 2),
+            "rel_MAE_ridge": round(mae_r / mean_actual, 4) if mean_actual > 0 else None,
+            "rel_MAE_baseline": round(mae_b / mean_actual, 4) if mean_actual > 0 else None,
+            "ridge_worse": bool(mae_r > mae_b),
+        })
+    by_hour.sort(key=lambda r: r["hour"])
+    n_worse = sum(1 for r in by_hour if r["ridge_worse"])
+    night = work[work["hour"].isin(NIGHT_HOURS)]
+    day = work[~work["hour"].isin(NIGHT_HOURS)]
+    return {
+        "n_hours": len(by_hour),
+        "n_hours_ridge_worse": n_worse,
+        "n_hours_ridge_better": len(by_hour) - n_worse,
+        "night_hours": list(NIGHT_HOURS),
+        "night": {
+            "n_samples": int(len(night)),
+            "MAE_ridge": round(float(night["abs_r"].mean()), 2) if len(night) else None,
+            "MAE_baseline": round(float(night["abs_b"].mean()), 2) if len(night) else None,
+            "rel_MAE_ridge": (
+                round(float(night["abs_r"].mean() / night["y"].mean()), 4) if len(night) else None
+            ),
+            "rel_MAE_baseline": (
+                round(float(night["abs_b"].mean() / night["y"].mean()), 4) if len(night) else None
+            ),
+        },
+        "daytime": {
+            "n_samples": int(len(day)),
+            "MAE_ridge": round(float(day["abs_r"].mean()), 2) if len(day) else None,
+            "MAE_baseline": round(float(day["abs_b"].mean()), 2) if len(day) else None,
+            "rel_MAE_ridge": (
+                round(float(day["abs_r"].mean() / day["y"].mean()), 4) if len(day) else None
+            ),
+            "rel_MAE_baseline": (
+                round(float(day["abs_b"].mean() / day["y"].mean()), 4) if len(day) else None
+            ),
+        },
+        "by_hour": by_hour,
+    }
+
+
 def final_test_window(df: pd.DataFrame, frozen_pipe, baseline_table, fallback) -> dict:
     """FINAL TEST 2018 — dùng đúng artifact ĐÃ ĐÓNG BĂNG, không fit lại."""
     _train, _val, test_df = time_split(df)
@@ -228,6 +291,7 @@ def final_test_window(df: pd.DataFrame, frozen_pipe, baseline_table, fallback) -
         },
         "bootstrap": {k: v for k, v in boot.items() if not k.startswith("_")},
         "months": by_month_table(test_df, err_b, err_r),
+        "night_hour": night_hour_analysis(test_df, err_b, err_r),
         "_draws_mae": boot["_draws_mae"],
     }
     return out
@@ -454,7 +518,34 @@ def render_markdown(result: dict) -> str:
     )
     L.append("")
 
-    L.append("## 3. Có nhất quán qua các năm khác không? (chỉ dữ liệu dev 2012–2017)")
+    L.append("## 3. Mô hình kém ở giờ nào trên 2018? (mô tả, không quyết định)")
+    L.append("")
+    nh = f["night_hour"]
+    n, d = nh["night"], nh["daytime"]
+    L.append(f"- Ridge kém hơn baseline ở **{nh['n_hours_ridge_worse']}/{nh['n_hours']} giờ**.")
+    L.append(f"- Giờ ban đêm {nh['night_hours']}: MAE Ridge {n['MAE_ridge']} so với baseline "
+             f"{n['MAE_baseline']} (n = {n['n_samples']}).")
+    L.append(f"- **MAE tương đối** (MAE / lưu lượng thực TB) ban đêm: Ridge {n['rel_MAE_ridge']} "
+             f"so với baseline {n['rel_MAE_baseline']}; ban ngày: Ridge {d['rel_MAE_ridge']} "
+             f"so với baseline {d['rel_MAE_baseline']}.")
+    L.append("")
+    L.append("| Giờ | n | Lưu lượng thực TB | MAE Ridge | MAE baseline | MAE tương đối R / B |")
+    L.append("| --- | --- | --- | --- | --- | --- |")
+    for row in nh["by_hour"]:
+        L.append(
+            f"| {row['hour']:02d}:00 | {_fmt(row['n_samples'])} | {row['mean_actual']} | "
+            f"{row['MAE_ridge']} | {row['MAE_baseline']} | "
+            f"{row['rel_MAE_ridge']} / {row['rel_MAE_baseline']} |"
+        )
+    L.append("")
+    L.append(
+        "> Phần **kiểm chứng trên dữ liệu dev 2012–2017** (các fold rolling-origin) và phần "
+        "thử log-target nằm ở `experiments_report.md` mục 4 và 5 — vì 2018 không được dùng để "
+        "quyết định bất cứ điều gì."
+    )
+    L.append("")
+
+    L.append("## 4. Có nhất quán qua các năm khác không? (chỉ dữ liệu dev 2012–2017)")
     L.append("")
     L.append("| Cửa sổ | n | MAE baseline | MAE Ridge | Hiệu MAE | CI 95 % | % Ridge thắng | Tháng Ridge thắng |")
     L.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
@@ -468,7 +559,7 @@ def render_markdown(result: dict) -> str:
         )
     L.append("")
 
-    L.append("## 4. Kết luận — sinh từ số liệu trên")
+    L.append("## 5. Kết luận — sinh từ số liệu trên")
     L.append("")
     L.append(f"- **Trên 2018:** {v['verdict_2018']}")
     L.append(

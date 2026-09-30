@@ -104,7 +104,7 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 16
 **2018 có được dùng để chọn `alpha` hay chọn mô hình không?**
-**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 21 test bảo vệ điều đó.
+**Đáp án:** **Không.** Toàn bộ lựa chọn về tiền xử lý, đặc trưng, mô hình và `alpha` chốt trên **2012–2017**. Quy tắc này được **cưỡng chế bằng mã nguồn**: `src/experiments.py` gọi `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu dòng 2018 lọt vào; `tests/test_experiments.py` có 26 test bảo vệ điều đó.
 *Gợi ý mở rộng:* phát biểu trung thực — "2018 không tham gia tuning. Pipeline được đánh giá lại sau các sửa lỗi phương pháp, và kết quả 2018 không được dùng để tiếp tục tối ưu."
 
 ### Câu 17
@@ -175,7 +175,7 @@ py -m uvicorn app.main:app --reload
 
 ### Câu 26
 **Mô hình hỏng ở đâu? Nêu kèm số mẫu.**
-**Đáp án:** Ở **ngày lễ**: MAE **1.031,44** với n = **167** giờ, so với 239,49 ở ngày thường (n = 6.366) — gấp 4,3 lần, thiên lệch +58,68. Ở **thời tiết cực đoan**: có tuyết MAE 524,50 (n = 521), có sương mù 536,05 (n = 192), so với 235,96 khi không có (n = 5.749). Ngoài ra ở giờ đêm 0–4h baseline lại **thắng** Ridge.
+**Đáp án:** Ở **ngày lễ**: MAE **1.031,44** với n = **167** giờ, so với 239,49 ở ngày thường (n = 6.366) — gấp 4,3 lần, thiên lệch +58,68. Ở **thời tiết cực đoan**: có tuyết MAE 524,50 (n = 521), có sương mù 536,05 (n = 192), so với 235,96 khi không có (n = 5.749). Ngoài ra ở **giờ đêm** 00–04h baseline lại **thắng** Ridge — chi tiết ở Câu 34.
 *Gợi ý mở rộng:* phân khúc Squall có n = 0 — nhóm báo "không đánh giá được" chứ không báo số 0; phân khúc Smoke chỉ 2 mẫu, được gắn nhãn "mẫu nhỏ — thận trọng".
 
 ### Câu 27
@@ -249,6 +249,42 @@ Trả lời theo thứ tự 4 bước:
 
 ## Câu bổ sung hay gặp (không tính vào 33 câu chính)
 
+### Câu 34
+**Tại sao Ridge lại kém ở giờ đêm? Có phải chỉ do 2018 không?**
+**Đáp án:** **Không chỉ do 2018** — nhóm đã kiểm chứng lại trên 3 cửa sổ dev out-of-sample
+(fold rolling-origin 2015, 2016, 2017) và thấy Ridge kém ở **toàn bộ 5 giờ đêm trong cả 3/3
+cửa sổ**. Đây là **đặc tính của mô hình**.
+
+**Giả thuyết:** mô hình cộng tuyến tính nên hiệu ứng tháng/thời tiết được cộng thêm với một
+lượng **tuyệt đối** gần như không đổi ở mọi giờ. Nhưng thực tế tác động đó **tương đối**: 20 %
+của 3.500 xe/giờ là 700 xe, còn 20 % của 400 xe/giờ chỉ 80 xe. Ở giờ đêm lưu lượng thấp, cùng
+một hệ số tuyệt đối lại quá lớn.
+
+**Kiểm chứng:** MAE **tương đối** (MAE / lưu lượng thực TB) ban đêm là 0,2674 với Ridge so với
+0,1208 với baseline — gần gấp đôi; ban ngày hai bên gần nhau (0,0712 vs 0,0807). Nghĩa là vấn
+đề **không** chỉ là hiệu ứng quy mô.
+
+**Thử log-target (khám phá hậu nghiệm, KHÔNG thay mô hình chính):**
+
+| Cửa sổ dev | Biến đích | MAE tổng | MAE giờ đêm |
+| --- | --- | --- | --- |
+| VALIDATION 2017 | tuyến tính | **272,12** | 160,81 |
+| VALIDATION 2017 | log1p | 295,00 | **85,84** |
+| pseudo-test 2016–2017 | tuyến tính | **306,48** | 176,97 |
+| pseudo-test 2016–2017 | log1p | 320,09 | **93,52** |
+
+→ Giả thuyết **được ủng hộ một nửa**: MAE giờ đêm giảm gần một nửa, đúng như dự đoán. Nhưng MAE
+**tổng lại xấu hơn** vì `log1p` nén thang lưu lượng cao. Và nhóm **không** đổi mô hình chính vì
+hai lý do: (1) giả thuyết này nêu ra **sau khi đã nhìn 2018** → chọn log-target lúc này là
+test-informed model selection; (2) cần một quyết định dài hạn về ưu tiên vận hành mà dữ liệu
+hiện có không đủ để đưa ra. Muốn dùng thì phải đánh giá lại trên **holdout mới**.
+
+**Hướng phát triển:** tương tác `giờ × thời tiết` (hệ số thời tiết khác nhau theo khung giờ —
+sát giả thuyết hơn log-target và không phá thang cao), hoặc `HistGradientBoosting` tự học tương
+tác. **Không** đưa vào mô hình chính ở checkpoint này.
+
+## Câu bổ sung dạng bảng
+
 | Câu | Trả lời ngắn |
 | --- | --- |
 | Vì sao dùng Ridge mà không dùng mô hình cây? | Đề tài thiên về minh hoạ **phương pháp đánh giá**. Ridge dễ giải thích, chịu đa cộng tuyến, và cho phép so sánh ý nghĩa từng nhóm feature. Gradient boosting sẽ có MAE thấp hơn nhưng làm lệch trọng tâm bài toán. |
@@ -256,6 +292,6 @@ Trả lời theo thứ tự 4 bước:
 | Có thể dùng mô hình này để điều khiển tín hiệu giao thông không? | **Không** — tuyệt đối không dùng cho mục đích safety-critical. Sai số ở ngày lễ gấp 4,3 lần, mẫu chỉ 7 ngày lễ; chỉ có một trạm; dữ liệu là lịch sử 2012–2018. |
 | Tại sao không nội suy 22,79 % số giờ thiếu? | Nội suy là học thống kê từ hàng xóm, mà hàng xóm có thể nằm ở tập test → rò rỉ. Thiếu dữ liệu được báo cáo như hạn chế thay vì che bằng thống kê học từ tập lớn. |
 | Hạn chế lớn nhất của nghiên cứu này? | Chỉ có một trạm đo, một hướng đi, dữ liệu lịch sử 2012–2018, và test 2018 chỉ 9 tháng. Kết luận **không** suy rộng được ra toàn thành phố. |
-| 336 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
+| 343 test đảm bảo điều gì? | Đảm bảo hành vi, không đảm bảo độ đúng của mô hình. Đáng chú ý nhất là test chứng minh **không** train-serving skew và test chứng minh pipeline **không bị refit** lúc phục vụ. |
 | Nếu được làm lại, nhóm sẽ đổi gì? | (1) Thêm lag feature nhưng **backtest nghiêm** trên nhiều kỳ; (2) thử mô hình phi tuyến nhưng giữ nguyên time split; (3) mô hình riêng cho ngày lễ — dù có nguy cơ overfit vì chỉ 7 ngày lễ trong 2018; (4) dự báo xác suất (quantile) để có khoảng tin cậy cho lập kế hoạch. |
 | Nếu bị hỏi "có chắc 2018 chỉ chạy đúng 1 lần không"? | Nói thẳng: **không khẳng định điều đó**. Phát biểu đúng là: **năm 2018 không tham gia hyperparameter tuning hoặc model selection; pipeline và serving policy được đóng băng từ dữ liệu 2012–2017; kết quả 2018 không được dùng để tiếp tục tối ưu mô hình.** Điều cần chứng minh là **không có vòng lặp tối ưu nào đi qua 2018** — và điều đó có `assert_no_final_test_rows()` bảo chứng. |

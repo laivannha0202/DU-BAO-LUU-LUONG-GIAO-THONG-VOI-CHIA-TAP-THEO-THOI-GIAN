@@ -332,14 +332,14 @@ py -m uvicorn app.main:app --reload
 ```bat
 py -m pytest tests\ -v
 ```
-> "336 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
+> "343 test, tất cả pass. Trong đó có test quan trọng nhất: dựng feature từ một dòng dữ liệu thật
 > theo đường dẫn của web, rồi so **từng cột** với feature sinh ra lúc huấn luyện — bảo đảm không có
 > train-serving skew."
 
 ## Dự phòng — nếu mạng hoặc server chết giữa chừng
 
 1. Dừng demo web, chuyển sang chỉ slide 6, 7, 8 (vẫn đủ thông điệp chính).
-2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 336 test, em trình bày lại bằng slide."
+2. Nói rõ: "Phần web đã chạy và kiểm chứng bằng 343 test, em trình bày lại bằng slide."
 3. **Không** bịa số liệu thay thế.
 
 ## Danh sách câu hỏi GV hay hỏi (chuẩn bị sẵn)

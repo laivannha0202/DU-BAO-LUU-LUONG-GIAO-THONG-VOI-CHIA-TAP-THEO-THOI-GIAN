@@ -173,8 +173,15 @@ gian có lag, vì mô hình không có lag.
 
 **Hình:** `final_mae_by_weather.png` và `final_mae_by_hour_dow.png`
 
-**Nói:** "Ridge vượt baseline ở cả 7/7 ngày trong tuần và 17/24 giờ — nhưng ở giờ đêm 02–04 giờ thì
-**baseline lại thắng**. Chúng em báo cáo cả điều đó thay vì chỉ khoe chỗ thắng."
+**Nói:** "Ridge nhỉnh hơn baseline ở **cả 7/7 ngày trong tuần** và **17/24 giờ**. Nhưng ở giờ đêm
+00–04 thì **baseline lại thắng**, ví dụ 3 giờ: baseline 31,14 so với Ridge 142,14.
+
+Và quan trọng: nhóm em **đã kiểm chứng lại trên dữ liệu 2012–2017**, không chỉ nhìn 2018 —
+Ridge kém ở **toàn bộ 5 giờ đêm trong cả 3/3 cửa sổ**. Nên đây là **đặc tính của mô hình**, không
+phải đặc điểm của năm 2018. Giả thuyết: mô hình cộng tuyến tính nên hiệu ứng thời tiết cộng
+một lượng *tuyệt đối* giống nhau ở mọi giờ, trong khi thực tế nó *tương đối* theo lưu lượng.
+Nhóm thử log-target: MAE giờ đêm giảm gần một nửa, nhưng MAE tổng lại xấu hơn — và nhóm **không**
+thay mô hình, vì giả thuyết này nêu ra sau khi đã nhìn 2018."
 
 ---
 
@@ -258,5 +265,5 @@ nhìn kết quả 2018, nên nó không phải test-informed postprocessing."
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 336 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 343 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |

@@ -153,10 +153,39 @@ Lặp lại trên 5 seed cố định ([11, 23, 37, 53, 71]); báo cáo trung b�
 - ⚠️ **Cảnh báo về cách đọc PSI:** các năm có độ phủ thời gian khác nhau sẽ cho PSI cao mà **không phải do drift thật**. 2012 chỉ có từ 10/02, 2014 kết thúc 08/08, 2015 bắt đầu 11/06 — tức thiếu hẳn một số mùa so với năm tham chiếu 2013 (đủ 12 tháng). PSI cao ở `temp` (2012 và 2015) và `clouds_all` (2015) phần lớn phản ánh **khác biệt về thành phần mùa trong mẫu**, không phải hệ thống đã đổi hành vi.
 - Vì vậy chỉ nên so PSI giữa các năm có **độ phủ tương đương** (ví dụ 2013 vs 2017), hoặc chuẩn hoá theo tháng trước khi kết luận.
 
+## 4. Thí nghiệm 4 — Kiểm tra giả thuyết 'Ridge kém ở giờ đêm' (chỉ dữ liệu dev)
+
+- Thiết kế: So MAE Ridge vs baseline theo tung gio tren cac cua so dev out-of-sample, de kiem tra xieu 'Ridge kem o gio dem' co la dac tinh mo hinh hay chi la dac diem cua rieng nam 2018. Fold 3 trung voi VALIDATION 2017 nen khong tinh lai mot lan nua.
+- Giờ ban đêm: [0, 1, 2, 3, 4] · MAE / (lưu lượng thực trung bình của giờ đó)
+
+| Cửa sổ dev | n | Ridge kém ở mấy giờ | Trong đó giờ đêm | MAE đêm R / B | MAE tương đối đêm R / B | MAE ban ngày R / B | MAE tương đối ban ngày R / B |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| fold 1 — test year 2015 | 3.593 | 18/24 | 5/5 | 210.54 / 73.27 | 0.3679 / 0.128 | 357.26 / 339.64 | 0.0896 / 0.0852 |
+| fold 2 — test year 2016 | 7.838 | 20/24 | 5/5 | 182.3 / 103.07 | 0.3102 / 0.1754 | 388.02 / 376.0 | 0.0993 / 0.0962 |
+| fold 3 — test year 2017 (= VALIDATION 2017) | 8.713 | 7/24 | 5/5 | 160.81 / 82.24 | 0.2681 / 0.1371 | 301.37 / 330.27 | 0.0734 / 0.0804 |
+
+- **Hiện tượng có tái lập trên dev không?** **CÓ** — Ridge kém ở *toàn bộ* giờ đêm trong cả 3/3 cửa sổ dev. Vậy đây là **đặc tính của mô hình**, không phải đặc điểm riêng của năm 2018.
+- **Đọc cột MAE tương đối:** ở giờ đêm, sai số **tương đối** của Ridge cao gấp đôi baseline, trong khi ở giờ ban ngày hai bên gần nhau. Nghĩa là vấn đề giờ đêm **không** chỉ là hiệu ứng quy mô tuyệt đối.
+
+## 5. Thí nghiệm 5 — Log-target (KHÁM PHÁ HẬU NGHIỆM, không thay mô hình)
+
+- Thiết kế: fit tren log1p(traffic_volume) roi expm1 khi du bao. Chi do tren du lieu dev; khong dua vao serving va khong thay mo hinh da dong bang.
+- ⚠️ **KHÁM PHÁ HẬU NGHIỆM — không thay mô hình đã đóng băng**
+
+| Cửa sổ dev | Biến đích | MAE | RMSE | R² | MAE giờ đêm |
+| --- | --- | --- | --- | --- | --- |
+| VALIDATION 2017 (train <= 2016) | linear_target | **272.12** | 421.46 | 0.9548 | 160.81 |
+| VALIDATION 2017 (train <= 2016) | log1p_target | **295.0** | 445.73 | 0.9494 | 85.84 |
+| pseudo-test 2016-2017 (train <= 2015) | linear_target | **306.48** | 472.61 | 0.9422 | 176.97 |
+| pseudo-test 2016-2017 (train <= 2015) | log1p_target | **320.09** | 486.48 | 0.9388 | 93.52 |
+
+- **Vì sao không đưa vào mô hình chính:** Giả thuyết này được nêu ra SAU khi đã nhìn kết quả FINAL TEST 2018. Chọn log-target bây giờ sẽ là test-informed model selection — đúng thứ mà toàn bộ phương pháp của đồ án này cảnh báo. Muốn dùng thì phải đánh giá lại trên một holdout MỚI.
+
 ## Kết luận giai đoạn phát triển
 
 1. Trên pseudo-test 2016–2017: ⚠️ Ridge **kém baseline về MAE** (306.48 vs 294.95) nhưng **tốt hơn về RMSE** (472.61 vs 495.71) — đã biết **trước khi** nhìn vào 2018.
 2. Trả lời câu hỏi nghiên cứu về random split: trên **cùng một tập dòng đánh giá**, mô hình random-split hơn mô hình time-split -5.43 ± 0.81 MAE. Chênh lệch nhỏ vì mô hình **không có đặc trưng lag** nên không thể nhớ giá trị dòng lân cận.
 3. Thí nghiệm 1b: thêm dữ liệu 2017 làm MAE thay đổi -6.55 ± 0.37 điểm, nhưng khi **ép cùng kích thước tập huấn luyện** thì vẫn còn -6.76 ± 0.39 điểm — nghĩa là cải thiện đo được **không** phải do nhiều dữ liệu hơn mà là do *có* dữ liệu 2017. Thí nghiệm 1c cho thấy phần lớn hiệu ứng gắn với việc train có dữ liệu ở cùng tháng và gần giờ với dòng cần dự báo. Đây là cơ sở để giữ 2018 hoàn toàn nguyên vẹn — **không** phải bằng chứng rằng mô hình 'nhìn thấy hàng xóm'.
 4. Rolling-origin (chỉ out-of-sample): MAE giảm 53.9 (16.5%) — chất lượng được cải thiện, có thể do năm gần nhất (2017) dễ hơn, không nhất thiết là mô hình tiến bộ.
-5. Cấu hình (alpha, feature, quy tắc tiền xử lý) đã được chốt. Bước kế tiếp là `python src/evaluate.py` — đánh giá FINAL TEST 2018 đúng một lần. **Sau khi đọc kết quả 2018, không được quay lại sửa mô hình.**
+5. Kiểm tra giả thuyết 'Ridge kém ở giờ đêm' (Thí nghiệm 4): hiện tượng **tái lập trên toàn bộ dev** → đây là đặc tính của mô hình. Thử log-target (Thí nghiệm 5) **giảm mạnh** MAE giờ đêm nhưng **làm MAE tổng xấu hơn** → giả thuyết chỉ được ủng hộ một nửa, và không thể dùng đơn giản.
+6. Cấu hình (alpha, feature, quy tắc tiền xử lý) đã được chốt. Bước kế tiếp là `python src/evaluate.py` — đánh giá FINAL TEST 2018 đúng một lần. **Sau khi đọc kết quả 2018, không được quay lại sửa mô hình.**

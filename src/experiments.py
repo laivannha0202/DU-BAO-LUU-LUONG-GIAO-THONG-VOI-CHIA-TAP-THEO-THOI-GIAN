@@ -72,6 +72,9 @@ ROLLING_FOLDS = (
     {"fold": 3, "train_end": "2016-12-31 23:59:59", "test_year": 2017},
 )
 
+#: Khung giờ ban đêm — nơi nghi vấn "Ridge kém baseline" được nêu.
+NIGHT_HOURS = (0, 1, 2, 3, 4)
+
 MONTH_LABELS = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -643,6 +646,211 @@ def dev_baseline_comparison(dev: pd.DataFrame, alpha: float) -> dict:
 
 
 # ===========================================================================
+# Thí nghiệm 4 — Kiểm tra giả thuyết "Ridge kém ở giờ đêm" (CHỈ dữ liệu dev)
+# ===========================================================================
+def _hour_comparison(
+    tr: pd.DataFrame, te: pd.DataFrame, alpha: float
+) -> dict:
+    """So MAE của Ridge và baseline theo từng giờ trên một cửa sổ out-of-sample."""
+    from src.train import predict_baseline, train_baseline
+
+    pipe = make_ridge_pipeline(alpha)
+    pipe.fit(*get_X_y(tr))
+    X_te, y_te = get_X_y(te)
+    pred_r = np.asarray(pipe.predict(X_te), dtype=float)
+    pred_b = predict_baseline(te, train_baseline(tr), float(tr[TARGET_COLUMN].mean()))
+    y = y_te.to_numpy(dtype=float)
+
+    work = pd.DataFrame({
+        "hour": te["hour"].to_numpy(),
+        "abs_r": np.abs(y - pred_r),
+        "abs_b": np.abs(y - pred_b),
+        "y": y,
+    })
+    by_hour = []
+    for hour, grp in work.groupby("hour"):
+        mae_r = float(grp["abs_r"].mean())
+        mae_b = float(grp["abs_b"].mean())
+        mean_actual = float(grp["y"].mean())
+        by_hour.append({
+            "hour": int(hour),
+            "n_samples": int(len(grp)),
+            "MAE_ridge": round(mae_r, 2),
+            "MAE_baseline": round(mae_b, 2),
+            "mean_actual": round(mean_actual, 2),
+            # MAE tương đối: sai số tính trên quy mô lưu lượng thật sự diễn ra ở giờ đó
+            "rel_MAE_ridge": round(mae_r / mean_actual, 4) if mean_actual > 0 else None,
+            "rel_MAE_baseline": round(mae_b / mean_actual, 4) if mean_actual > 0 else None,
+            "ridge_worse": bool(mae_r > mae_b),
+        })
+    by_hour.sort(key=lambda r: r["hour"])
+
+    night = work[work["hour"].isin(NIGHT_HOURS)]
+    day = work[~work["hour"].isin(NIGHT_HOURS)]
+    n_worse = sum(1 for r in by_hour if r["ridge_worse"])
+    n_worse_night = sum(1 for r in by_hour if r["ridge_worse"] and r["hour"] in NIGHT_HOURS)
+    n_night_hours_seen = sum(1 for r in by_hour if r["hour"] in NIGHT_HOURS)
+    return {
+        "n_rows": int(len(te)),
+        "n_hours": len(by_hour),
+        "n_hours_ridge_worse": n_worse,
+        "n_hours_ridge_worse_night": n_worse_night,
+        "n_night_hours_observed": n_night_hours_seen,
+        "night": {
+            "hours": list(NIGHT_HOURS),
+            "n_samples": int(len(night)),
+            "MAE_ridge": round(float(night["abs_r"].mean()), 2) if len(night) else None,
+            "MAE_baseline": round(float(night["abs_b"].mean()), 2) if len(night) else None,
+            "rel_MAE_ridge": (
+                round(float(night["abs_r"].mean() / night["y"].mean()), 4) if len(night) else None
+            ),
+            "rel_MAE_baseline": (
+                round(float(night["abs_b"].mean() / night["y"].mean()), 4) if len(night) else None
+            ),
+        },
+        "daytime": {
+            "n_samples": int(len(day)),
+            "MAE_ridge": round(float(day["abs_r"].mean()), 2) if len(day) else None,
+            "MAE_baseline": round(float(day["abs_b"].mean()), 2) if len(day) else None,
+            "rel_MAE_ridge": (
+                round(float(day["abs_r"].mean() / day["y"].mean()), 4) if len(day) else None
+            ),
+            "rel_MAE_baseline": (
+                round(float(day["abs_b"].mean() / day["y"].mean()), 4) if len(day) else None
+            ),
+        },
+        "by_hour": by_hour,
+    }
+
+
+def experiment_night_hour_failure(dev: pd.DataFrame, alpha: float) -> dict:
+    """Kiểm tra giả thuyết "Ridge kém ở giờ đêm" trên dữ liệu DEV, không chỉ trên 2018.
+
+    FINAL TEST 2018 cho thấy Ridge kém baseline ở 00:00–04:00 (ví dụ 03:00: 142,14 so với
+    31,14). Nhưng một mẫu duy nhất **không** đủ để kết luận đó là đặc tính của mô hình —
+    nó có thể chỉ là đặc điểm của riêng năm 2018.
+
+    Vì vậy ta đo lại **cùng một phép so sánh** trên:
+      - VALIDATION 2017 (train tới 2016), và
+      - từng fold rolling-origin 2015 / 2016 / 2017.
+
+    ⚠️ CHỈ dùng dữ liệu 2012–2017. Kết quả này **không** dùng để đổi mô hình đã đóng băng.
+    """
+    assert_no_final_test_rows(dev, "exp4:night_hour")
+
+    # Dùng đúng các fold rolling-origin. LƯU Ý: fold 3 (test 2017) **trùng** với
+    # VALIDATION 2017 (cùng train tới 2016, cùng test = 2017) — nên ở đây chỉ liệt kê
+    # 3 cửa sổ khác nhau thay vì cộng thêm một cửa sổ trùng lặp.
+    results = []
+    for spec in ROLLING_FOLDS:
+        train_end = pd.Timestamp(spec["train_end"])
+        tr = dev[dev["date_time"] <= train_end]
+        te = dev[
+            (dev["date_time"] > train_end) & (dev["year"] == spec["test_year"])
+        ]
+        assert_no_final_test_rows(tr, f"exp4:fold{spec['fold']}:train")
+        assert_no_final_test_rows(te, f"exp4:fold{spec['fold']}:test")
+        if len(tr) == 0 or len(te) == 0:
+            continue
+        label = f"fold {spec['fold']} — test year {spec['test_year']}"
+        if spec["test_year"] == 2017:
+            label += " (= VALIDATION 2017)"
+        results.append({"name": label, **_hour_comparison(tr, te, alpha)})
+
+    night_loses_all = [
+        r["n_hours_ridge_worse_night"] == r["n_night_hours_observed"]
+        for r in results if r["n_night_hours_observed"] > 0
+    ]
+    return {
+        "design": (
+            "So MAE Ridge vs baseline theo tung gio tren cac cua so dev out-of-sample, "
+            "de kiem tra xieu 'Ridge kem o gio dem' co la dac tinh mo hinh hay chi la "
+            "dac diem cua rieng nam 2018. Fold 3 trung voi VALIDATION 2017 nen khong "
+            "tinh lai mot lan nua."
+        ),
+        "night_hours": list(NIGHT_HOURS),
+        "relative_MAE_definition": "MAE / (lưu lượng thực trung bình của giờ đó)",
+        "windows": results,
+        "pattern_reproducible_in_dev": bool(night_loses_all and all(night_loses_all)),
+        "n_windows": len(results),
+        "n_windows_ridge_loses_every_night_hour": (
+            sum(1 for x in night_loses_all if x)
+        ),
+    }
+
+
+# ===========================================================================
+# Thí nghiệm 5 — Log-target (KHÁM PHÁ HẬU NGHIỆM, không thay mô hình đã đóng băng)
+# ===========================================================================
+def experiment_log_target_probe(dev: pd.DataFrame, alpha: float) -> dict:
+    """Thử log-target trên VALIDATION — chỉ để KIỂM TRA GIẢ THUYẾT, không đưa vào serving.
+
+    Giả thuyết (mục §10.7): mô hình cộng tuyến tính cộng hiệu ứng tháng/thời tiết với một
+    lượng *tuyệt đối* giống nhau ở mọi giờ, trong khi thực tế hiệu ứng đó **tỷ lệ theo
+    lưu lượng**. Biến đổi `log1p(y)` làm hiệu ứng trở thành *tương đối*.
+
+    ⚠️ CHỈ đo trên VALIDATION 2017 và pseudo-test 2016–2017 (dữ liệu dev). Không đụng 2018.
+    ⚠️ Đây là **khám phá hậu nghiệm** dựa trên việc ĐÃ nhìn kết quả 2018. Kể cả khi kết
+    quả tốt hơn, nhóm **không** đổi mô hình đã đóng băng — vì 2018 đã bị xem.
+    """
+    assert_no_final_test_rows(dev, "exp5:log_target")
+
+    def _fit_predict(tr: pd.DataFrame, te: pd.DataFrame) -> np.ndarray:
+        pipe = make_ridge_pipeline(alpha)
+        X_tr, y_tr = get_X_y(tr)
+        pipe.fit(X_tr, np.log1p(y_tr.to_numpy(dtype=float)))
+        return np.expm1(np.asarray(pipe.predict(get_X_y(te)[0]), dtype=float))
+
+    windows = []
+    specs = [
+        {"name": "VALIDATION 2017 (train <= 2016)", "train_end": "2016-12-31 23:59:59",
+         "test_year": None},
+        {"name": "pseudo-test 2016-2017 (train <= 2015)", "train_end": "2015-12-31 23:59:59",
+         "test_year": None},
+    ]
+    for spec in specs:
+        train_end = pd.Timestamp(spec["train_end"])
+        tr = dev[dev["date_time"] <= train_end]
+        te = dev[dev["date_time"] > train_end]
+        assert_no_final_test_rows(tr, f"exp5:{spec['name']}:train")
+        assert_no_final_test_rows(te, f"exp5:{spec['name']}:test")
+        if len(tr) == 0 or len(te) == 0:
+            continue
+        X_te, y_te = get_X_y(te)
+
+        linear = make_ridge_pipeline(alpha)
+        linear.fit(*get_X_y(tr))
+        pred_lin = np.asarray(linear.predict(X_te), dtype=float)
+        pred_log = _fit_predict(tr, te)
+
+        rows = []
+        for label, pred in (("linear_target", pred_lin), ("log1p_target", pred_log)):
+            full = compute_metrics(y_te, pred)
+            night_mask = te["hour"].isin(NIGHT_HOURS).to_numpy()
+            night_mae = float(np.abs(y_te.to_numpy(dtype=float) - pred)[night_mask].mean())
+            rows.append({
+                "target_transform": label,
+                **full,
+                "night_MAE": round(night_mae, 2),
+            })
+        windows.append({"name": spec["name"], "n_rows": int(len(te)), "results": rows})
+
+    return {
+        "design": (
+            "fit tren log1p(traffic_volume) roi expm1 khi du bao. Chi do tren du lieu dev; "
+            "khong dua vao serving va khong thay mo hinh da dong bang."
+        ),
+        "status": "KHÁM PHÁ HẬU NGHIỆM — không thay mô hình đã đóng băng",
+        "why_cannot_be_shipped": (
+            "Giả thuyết này được nêu ra SAU khi đã nhìn kết quả FINAL TEST 2018. Chọn log-target "
+            "bây giờ sẽ là test-informed model selection — đúng thứ mà toàn bộ phương pháp của đồ án "
+            "này cảnh báo. Muốn dùng thì phải đánh giá lại trên một holdout MỚI."
+        ),
+        "windows": windows,
+    }
+
+
+# ===========================================================================
 # Main
 # ===========================================================================
 def run_all(df: pd.DataFrame, alpha: float) -> dict:
@@ -660,6 +868,8 @@ def run_all(df: pd.DataFrame, alpha: float) -> dict:
         "experiment_1c_block_neighbour": experiment_block_neighbour(dev, alpha),
         "experiment_3_rolling_origin": rolling_origin_evaluation(dev, alpha),
         "experiment_3b_covariate_drift": covariate_drift(dev),
+        "experiment_4_night_hour_failure": experiment_night_hour_failure(dev, alpha),
+        "experiment_5_log_target_probe": experiment_log_target_probe(dev, alpha),
     }
     return results
 
@@ -957,6 +1167,61 @@ def render_report(results: dict) -> str:
     )
     L.append("")
 
+    L.append("## 4. Thí nghiệm 4 — Kiểm tra giả thuyết 'Ridge kém ở giờ đêm' (chỉ dữ liệu dev)")
+    L.append("")
+    exp4 = results["experiment_4_night_hour_failure"]
+    L.append(f"- Thiết kế: {exp4['design']}")
+    L.append(f"- Giờ ban đêm: {exp4['night_hours']} · {exp4['relative_MAE_definition']}")
+    L.append("")
+    L.append("| Cửa sổ dev | n | Ridge kém ở mấy giờ | Trong đó giờ đêm | MAE đêm R / B | MAE tương đối đêm R / B | MAE ban ngày R / B | MAE tương đối ban ngày R / B |")
+    L.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
+    for w in exp4["windows"]:
+        n, d = w["night"], w["daytime"]
+        L.append(
+            f"| {w['name']} | {w['n_rows']:,} | {w['n_hours_ridge_worse']}/{w['n_hours']} | "
+            f"{w['n_hours_ridge_worse_night']}/{w['n_night_hours_observed']} | "
+            f"{n['MAE_ridge']} / {n['MAE_baseline']} | "
+            f"{n['rel_MAE_ridge']} / {n['rel_MAE_baseline']} | "
+            f"{d['MAE_ridge']} / {d['MAE_baseline']} | "
+            f"{d['rel_MAE_ridge']} / {d['rel_MAE_baseline']} |".replace(",", ".")
+        )
+    L.append("")
+    L.append(
+        f"- **Hiện tượng có tái lập trên dev không?** "
+        + (
+            f"**CÓ** — Ridge kém ở *toàn bộ* giờ đêm trong cả "
+            f"{exp4['n_windows_ridge_loses_every_night_hour']}/{exp4['n_windows']} cửa sổ dev. "
+            "Vậy đây là **đặc tính của mô hình**, không phải đặc điểm riêng của năm 2018."
+            if exp4["pattern_reproducible_in_dev"]
+            else "**KHÔNG** — không phải cửa sổ dev nào cho thấy Ridge kém ở toàn bộ giờ đêm. "
+            "Vì vậy kết luận về giờ đêm ở FINAL TEST 2018 **chưa** được xác nhận trên dữ liệu khác."
+        )
+    )
+    L.append(
+        "- **Đọc cột MAE tương đối:** ở giờ đêm, sai số **tương đối** của Ridge cao gấp đôi baseline, "
+        "trong khi ở giờ ban ngày hai bên gần nhau. Nghĩa là vấn đề giờ đêm **không** chỉ là hiệu ứng "
+        "quy mô tuyệt đối."
+    )
+    L.append("")
+
+    L.append("## 5. Thí nghiệm 5 — Log-target (KHÁM PHÁ HẬU NGHIỆM, không thay mô hình)")
+    L.append("")
+    exp5 = results["experiment_5_log_target_probe"]
+    L.append(f"- Thiết kế: {exp5['design']}")
+    L.append(f"- ⚠️ **{exp5['status']}**")
+    L.append("")
+    L.append("| Cửa sổ dev | Biến đích | MAE | RMSE | R² | MAE giờ đêm |")
+    L.append("| --- | --- | --- | --- | --- | --- |")
+    for w in exp5["windows"]:
+        for r in w["results"]:
+            L.append(
+                f"| {w['name']} | {r['target_transform']} | **{r['MAE']}** | {r['RMSE']} | "
+                f"{r['R2']} | {r['night_MAE']} |"
+            )
+    L.append("")
+    L.append(f"- **Vì sao không đưa vào mô hình chính:** {exp5['why_cannot_be_shipped']}")
+    L.append("")
+
     L.append("## Kết luận giai đoạn phát triển")
     L.append("")
     base_line = (
@@ -986,7 +1251,15 @@ def render_report(results: dict) -> str:
     )
     L.append(f"4. Rolling-origin (chỉ out-of-sample): {trend['verdict']}")
     L.append(
-        "5. Cấu hình (alpha, feature, quy tắc tiền xử lý) đã được chốt. Bước kế tiếp là "
+        "5. Kiểm tra giả thuyết 'Ridge kém ở giờ đêm' (Thí nghiệm 4): "
+        + (
+            "hiện tượng **tái lập trên toàn bộ dev** → đây là đặc tính của mô hình. "
+            f"Thử log-target (Thí nghiệm 5) **giảm mạnh** MAE giờ đêm nhưng **làm MAE tổng xấu "
+            "hơn** → giả thuyết chỉ được ủng hộ một nửa, và không thể dùng đơn giản."
+        )
+    )
+    L.append(
+        "6. Cấu hình (alpha, feature, quy tắc tiền xử lý) đã được chốt. Bước kế tiếp là "
         "`python src/evaluate.py` — đánh giá FINAL TEST 2018 đúng một lần. "
         "**Sau khi đọc kết quả 2018, không được quay lại sửa mô hình.**"
     )

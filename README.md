@@ -29,6 +29,7 @@ Dữ liệu: Metro Interstate Traffic Volume (UCI, CC BY 4.0). Xem `data/README.
       — quyết định chỉ trên TRAIN + VALIDATION, có đường bỏ clamp nếu điều kiện không đạt
 - [x] **Báo cáo tác động** của policy trên 2018 (`src/postprocess_audit.py`) — chạy SAU, chỉ đo
 - [x] **Kiểm toán bất định** (`src/uncertainty_audit.py`) — block bootstrap theo khối ngày lịch (4.000 lần, seed cố định) cho hiệu MAE/RMSE, MAE theo từng tháng; chạy SAU `evaluate.py`, chỉ đo
+- [x] **Kiểm chứng điểm yếu giờ đêm trên dữ liệu dev** (`src/experiments.py`) — Ridge kém ở toàn bộ 5 giờ đêm trong 3/3 cửa sổ rolling-origin; thử log-target như khám phá hậu nghiệm, **không** thay mô hình
 - [x] **Test: `py -m pytest tests\ -v` → 317 passed, 0 failed**
       (con số này được **tự kiểm chứng** bởi `tests/test_report.py::test_documented_test_count_matches_real_collection`)
 - [x] Báo cáo, slide, kịch bản demo, câu hỏi viva (`reports/final_report.md`, `docs/`)
@@ -348,7 +349,7 @@ release/
 ```
 
 **Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
-Con số tổng **336 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+Con số tổng **343 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
 và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
 
 ---

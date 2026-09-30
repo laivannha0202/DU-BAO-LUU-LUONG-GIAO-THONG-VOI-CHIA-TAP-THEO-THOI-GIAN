@@ -305,6 +305,101 @@ def test_experiments_report_does_not_claim_proven_neighbour_leakage():
     assert "Không phải bằng chứng nhân quả" in text
 
 
+# ===========================================================================
+# 3c. Thí nghiệm 4/5 — kiểm tra giờ đêm & log-target (CHỈ dữ liệu dev)
+# ===========================================================================
+@needs_data
+def test_night_hour_analysis_covers_only_dev_windows():
+    """Phân tích giờ đêm phải chạy trên các cửa sổ dev, không dùng 2018."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e4 = exp.experiment_night_hour_failure(dev, 0.001)
+
+    assert e4["n_windows"] == len(exp.ROLLING_FOLDS)
+    assert "2018-" not in json.dumps(e4, default=str)
+    for w in e4["windows"]:
+        assert "2018" not in w["name"]
+        assert w["n_night_hours_observed"] == len(exp.NIGHT_HOURS)
+        assert w["n_hours"] == 24
+        # 24 dòng, đúng 24 giờ, số mẫu khớp tổng
+        assert len(w["by_hour"]) == 24
+        assert sum(r["n_samples"] for r in w["by_hour"]) == w["n_rows"]
+
+
+@needs_data
+def test_night_hour_relative_mae_is_well_formed():
+    """MAE tương đối = MAE / lưu lượng thực TB, và phải khớp phép tính."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e4 = exp.experiment_night_hour_failure(dev, 0.001)
+    for w in e4["windows"]:
+        for r in w["by_hour"]:
+            assert r["mean_actual"] > 0
+            expected = r["MAE_ridge"] / r["mean_actual"]
+            assert r["rel_MAE_ridge"] == pytest.approx(expected, rel=0.01)
+            assert r["ridge_worse"] == (r["MAE_ridge"] > r["MAE_baseline"])
+        n = w["night"]
+        assert n["rel_MAE_ridge"] > 0 and n["rel_MAE_baseline"] > 0
+        assert n["n_samples"] > 0
+        d = w["daytime"]
+        assert d["n_samples"] + n["n_samples"] == w["n_rows"]
+
+
+@needs_data
+def test_night_hour_finding_is_reproducible_in_dev():
+    """Hiện tượng 'Ridge kém ở giờ đêm' phải tái lập được qua các lần chạy.
+
+    Đây là bảo vệ cho tính trung thực của kết luận: nếu kết luận phụ thuộc ngẫu nhiên thì
+    phải đổi. Ở đây mọi thứ tất định (seed cố định), nên hai lần chạy phải y hệt.
+    """
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    a = exp.experiment_night_hour_failure(dev, 0.001)
+    b = exp.experiment_night_hour_failure(dev, 0.001)
+    assert a == b, "Phân tích giờ đêm phải tất định và tái lập được"
+    assert a["pattern_reproducible_in_dev"] == (
+        all(
+            w["n_hours_ridge_worse_night"] == w["n_night_hours_observed"]
+            for w in a["windows"]
+        )
+    )
+
+
+@needs_data
+def test_log_target_probe_is_labelled_post_hoc_and_not_applied():
+    """Log-target là khám phá hậu nghiệm — phải được ghi rõ và không đụng mô hình chính."""
+    from src.features import build_features, load_clean
+
+    dev = dev_window(build_features(load_clean()))
+    e5 = exp.experiment_log_target_probe(dev, 0.001)
+
+    assert "KHÁM PHÁ HẬU NGHIỆM" in e5["status"]
+    assert "2018" in e5["why_cannot_be_shipped"]
+    assert "2018-" not in json.dumps(e5, default=str), "Log-target probe dùng 2018"
+
+    # Mỗi cửa sổ phải so sánh được 2 biến đích với nhau
+    for w in e5["windows"]:
+        transforms = {r["target_transform"] for r in w["results"]}
+        assert transforms == {"linear_target", "log1p_target"}
+        for r in w["results"]:
+            assert r["night_MAE"] > 0
+            assert r["n"] == w["n_rows"]
+
+
+@needs_data
+def test_experiments_module_does_not_fit_on_2018():
+    """Không hàm nào của experiments.py được phép gọi .fit trên dữ liệu 2018."""
+    source = (ROOT / "src" / "experiments.py").read_text(encoding="utf-8")
+    # final_test_window chỉ tồn tại trong uncertainty_audit.py, không ở đây
+    assert "def final_test_window" not in source
+    # Không được nạp artifact của FINAL TEST trong module thí nghiệm phát triển
+    assert "RIDGE_PIPELINE_PATH" not in source
+
+
+
 @needs_data
 def test_rolling_origin_folds_are_all_out_of_sample():
     """Mọi fold phải out-of-sample và không overlap với train."""

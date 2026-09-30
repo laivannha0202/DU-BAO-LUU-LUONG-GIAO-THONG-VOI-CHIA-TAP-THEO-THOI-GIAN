@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 336 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 343 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -231,7 +231,7 @@ trên `X_train`.
 
 Quy tắc 4 được **cưỡng chế bằng mã nguồn**, không chỉ bằng lời hứa: `src/experiments.py` gọi
 `assert_no_final_test_rows()` ở mọi hàm và sẽ dừng chương trình nếu bất kỳ dòng năm 2018 nào lọt vào
-(`tests/test_experiments.py` — 21 test bảo vệ điều này).
+(`tests/test_experiments.py` — 26 test bảo vệ điều này).
 
 ---
 
@@ -633,7 +633,95 @@ Khi có tuyết, MAE **gấp 2,22 lần** so với không có hiện tượng c�
 hình **dự báo cao hơn thực tế gần 239 xe/giờ** trong những giờ có tuyết. Giải thích hợp lý: trong
 tuyết, nhiều xe không ra đường, nhưng mô hình chỉ có 1 giờ dữ liệu thời tiết để suy ra điều đó.
 
-## 10.6 Kết luận phân tích lỗi
+## 10.7 Mô hình kém ở giờ đêm — mô tả, bằng chứng và hướng phát triển
+
+*Phần 2018 sinh bởi `src/uncertainty_audit.py` (§3 của `uncertainty_audit.md`); phần kiểm
+chứng trên dev sinh bởi `src/experiments.py` (mục 4 và 5 của `experiments_report.md`).*
+
+### Mô tả hiện tượng
+
+Trên FINAL TEST 2018, Ridge kém hơn baseline ở **7/24 giờ**, tất cả đều là giờ thấp điểm hoặc
+khuya:
+
+| Giờ | n | Lưu lượng thực TB | MAE Ridge | MAE baseline | MAE tương đối R / B |
+| --- | --- | --- | --- | --- | --- |
+| 00:00 | 273 | 830,62 | 176,39 | 110,72 | 0,2124 / 0,1333 |
+| 01:00 | 273 | 505,97 | 160,99 | 69,01 | 0,3182 / 0,1364 |
+| 02:00 | 264 | 380,31 | 157,06 | 52,95 | 0,4130 / 0,1392 |
+| **03:00** | 270 | 371,57 | **142,14** | **31,14** | 0,3825 / 0,0838 |
+| 04:00 | 272 | 735,43 | 120,63 | 77,22 | 0,1640 / 0,1050 |
+| 22:00 | 273 | 2.233,71 | 348,61 | 323,83 | 0,1561 / 0,1450 |
+| 23:00 | 273 | 1.512,34 | 308,77 | 256,17 | 0,2042 / 0,1694 |
+
+**MAE tương đối** (MAE chia cho lưu lượng thực trung bình của chính giờ đó) cho thấy đây
+**không chỉ** là hiệu ứng quy mô: ở giờ 00–04, sai số tương đối của Ridge là **0,2674** so với
+**0,1208** của baseline — gần gấp đôi; trong khi ban ngày hai bên gần nhau (Ridge 0,0712,
+baseline 0,0807).
+
+### Bằng chứng: hiện tượng này CÓ THẬT, không chỉ riêng năm 2018
+
+Đây là bước kiểm chứng quan trọng: một mẫu duy nhất (2018) không đủ để nói đó là đặc tính của
+mô hình. Vì vậy nhóm đo lại **cùng một phép so sánh** trên các cửa sổ dev out-of-sample:
+
+| Cửa sổ dev | n | Ridge kém ở mấy giờ | Trong đó giờ đêm | MAE đêm R / B | MAE tương đối đêm R / B | MAE tương đối ban ngày R / B |
+| --- | --- | --- | --- | --- | --- | --- |
+| fold 1 — test 2015 | 3.593 | 18/24 | **5/5** | 210,54 / 73,27 | 0,3679 / 0,1280 | 0,0896 / 0,0852 |
+| fold 2 — test 2016 | 7.838 | 20/24 | **5/5** | 182,30 / 103,07 | 0,3102 / 0,1754 | 0,0993 / 0,0962 |
+| fold 3 — test 2017 (= VALIDATION 2017) | 8.713 | 7/24 | **5/5** | 160,81 / 82,24 | 0,2681 / 0,1371 | 0,0734 / 0,0804 |
+
+**[QUYẾT ĐỊNH] Kết luận:** Ridge kém ở **toàn bộ 5 giờ đêm trong cả 3/3 cửa sổ dev**. Vậy đây
+là **đặc tính của mô hình**, không phải đặc điểm ngẫu nhiên của năm 2018. Mô hình chỉ hơn
+baseline ở những giờ có lưu lượng lớn và biến động mạnh.
+
+### Giả thuyết
+
+> **Mô hình cộng tuyến tính** nên hiệu ứng của tháng và thời tiết được cộng thêm với một
+> lượng **tuyệt đối** gần như không đổi ở mọi giờ. Nhưng thực tế, một cơn mưa làm giảm lưu
+> lượng **tương đối** (ví dụ 20 %), và 20 % của 3.500 xe/giờ là 700 xe, còn 20 % của 400 xe/giờ
+> chỉ là 80 xe. Vì thế ở giờ đêm — nơi lưu lượng thấp — cùng một hệ số tuyệt đối lại **quá
+> lớn**, kéo dự báo lệch nhiều hơn. Baseline thì không có hiệu ứng thời tiết nào để bị kéo
+> theo, nên ở vùng lưu lượng thấp và ít biến động, bảng trung bình gần như đã tối ưu.
+
+⚠️ **Đây vẫn là giả thuyết.** Nhóm đã thử kiểm chứng nó bằng log-target.
+
+### Kiểm chứng giả thuyết: log-target (khám phá hậu nghiệm, KHÔNG thay mô hình chính)
+
+Nếu hiệu ứng thật sự là *tương đối*, thì biến đổi `log1p(traffic_volume)` làm cho nó trở thành
+tương đối, và MAE giờ đêm phải giảm mạnh. Nhóm thử trên **chỉ dữ liệu dev**:
+
+| Cửa sổ dev | Biến đích | MAE | RMSE | R² | **MAE giờ đêm** |
+| --- | --- | --- | --- | --- | --- |
+| VALIDATION 2017 | tuyến tính (mô hình chính) | **272,12** | 421,46 | 0,9548 | 160,81 |
+| VALIDATION 2017 | log1p | 295,00 | 445,73 | 0,9494 | **85,84** |
+| pseudo-test 2016–2017 | tuyến tính (mô hình chính) | **306,48** | 472,61 | 0,9422 | 176,97 |
+| pseudo-test 2016–2017 | log1p | 320,09 | 486,48 | 0,9388 | **93,52** |
+
+**Đọc kết quả — giả thuyết chỉ được ủng hộ một nửa:**
+
+- ✅ **Ủng hộ:** MAE giờ đêm **giảm gần một nửa** (160,81 → 85,84 và 176,97 → 93,52). Điều
+  này đúng như giả thuyết dự đoán.
+- ❌ **Không giải quyết được toàn bộ:** MAE **tổng thể lại xấu hơn** (272,12 → 295,00 và
+  306,48 → 320,09), vì `log1p` nén thang lưu lượng cao và làm mô hình sai ở vùng cao điểm —
+  nơi chiếm phần lớn sai số tuyệt đối.
+
+**[QUYẾT ĐỊNH] Vì sao nhóm KHÔNG đổi mô hình chính:**
+
+1. Giả thuyết này được nêu ra **sau khi đã nhìn** FINAL TEST 2018. Chọn log-target bây giờ
+   là **test-informed model selection** — đúng thứ mà toàn bộ phương pháp đồ án này cảnh báo.
+2. Kết quả còn phụ thuộc mô hình: log-target đổi trade-off giữa giờ đêm và giờ cao điểm, nên
+   cần một quyết định dài hạn về ưu tiên vận hành mà nhóm **không** có cơ sở để đưa ra từ dữ
+   liệu hiện có.
+3. Muốn dùng thì phải đánh giá lại trên **một holdout mới**, không phải trên 2018 đã xem.
+
+### Hướng phát triển (chưa thực hiện)
+
+| Hướng | Vì sao hợp lý | Cảnh báo |
+| --- | --- | --- |
+| **Tương tác `giờ × thời tiết`** | Cho phép hệ số thời tiết khác nhau theo từng khung giờ, thay vì một hệ số chung — sát với giả thuyết hơn log-target và không phá thang lưu lượng cao | Phải chọn trên validation; cần cẩn thận với mẫu nhỏ ở giờ đêm |
+| **Mô hình phi tuyến (`HistGradientBoosting`)** | Tự học tương tác mà không cần đặc trưng thủ công; ở 18/24 giờ Ridge vẫn hơn baseline nên có thể giữ được lợi thế ban ngày | Dễ rơi vào bẫy chọn mô hình theo test; đề tài thiên về minh hoạ phương pháp |
+| **Log-target có chọn lọc** (ví dụ chỉ dùng cho giờ thấp) | Kết quả ở trên cho thấy log-target thắng rõ ở giờ đêm và thua ở giờ cao điểm | Cách chia nhánh phải chốt từ validation, không từ 2018 |
+
+## 10.8 Kết luận phân tích lỗi
 
 Mô hình **vượt baseline trên toàn bộ 7/7 ngày trong tuần và 17/24 giờ**, nhưng **sai số tập trung ở
 ba nơi, đều có lý do giải thích được**:
@@ -1042,12 +1130,12 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_data.py` | 39 | collapse trùng, bất biến trong nhóm trùng, quy tắc giá trị vô lý, `holiday` với `keep_default_na=False`, đối chiếu lịch với dataset |
 | `test_features.py` | 19 | Đặc trưng lịch, ngữ nghĩa ngày lễ, time split có assert, random split chỉ để minh hoạ |
 | `test_pipeline.py` | 20 | `SimpleImputer` nằm trong pipeline và trước scaler, imputer/scaler/encoder fit TRAIN only, xử lý NaN, artifact load được |
-| `test_experiments.py` | 21 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, rolling-origin chỉ out-of-sample |
+| `test_experiments.py` | 26 | Bảo vệ FINAL TEST 2018 (`assert_no_final_test_rows`), arm mới dùng chung tập test, tái lập được theo seed, phân tích giờ đêm và log-target chỉ trên dev, rolling-origin chỉ out-of-sample |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-weather multi-hot, **không train-serving skew**, số hữu hạn, cảnh báo phạm vi, chính sách hậu xử lý |
 | `test_api.py` | 81 | Route, `/health`, `/api/model-info`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact, JS hợp lệ |
 | `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
 | `test_report.py` | 89 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, môi trường tái lập, chính tả "rò rỉ", không lộ đường dẫn cá nhân |
-| `test_uncertainty_audit.py` | 11 | Bootstrap cặp theo khối ngày lịch tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018 |
+| `test_uncertainty_audit.py` | 13 | Bootstrap cặp theo khối ngày lịch tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018, phân tích giờ đêm trên 2018 |
 | **Tổng** | **336** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
@@ -1216,7 +1304,7 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 | Rõ ngoài phạm vi | §14.7 |
 | Rõ hạn chế | §14.8 |
 | Số liệu lấy từ artifact, không gõ tay | toàn bộ; có test kiểm tra frontend không hard-code |
-| Đo lường được bằng máy | 336 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
+| Đo lường được bằng máy | 343 test, `py -m pytest tests\ -v`; số test tự đối chiếu bằng `pytest --collect-only` |
 | Người dùng biết khi nào mô hình không đáng tin | cảnh báo `in_dataset_range`, `state_fair_calendar_unknown` trong mọi response |
 
 ---
@@ -1263,7 +1351,7 @@ Nhóm đã hoàn thành đề tài với kết quả:
    mô hình không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm
    của đề tài.
 4. **Về minh bạch:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết) thay vì chỉ trích chỉ số tổng.
-5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 336 test pass.
+5. **Về sản phẩm:** web/API chạy được, chỉ nạp artifact, có validation đầy đủ, 343 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1308,7 +1396,7 @@ reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md (nhật ký dự án), slides-outline.md, demo-script.md,
             viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động, đã bàn giao)
-tests/      336 test
+tests/      343 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1371,7 +1459,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b (chỉ 2012–2017) | Đo lạc quan do đánh giá ngẫu nhiên: 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; phát hiện điểm yếu ở ngày lễ và tuyết |
-| 6 | FastAPI + 3 màn hình + 336 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
+| 6 | FastAPI + 3 màn hình + 343 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew |
 
 ## 17.5 Tài liệu phát hành
 

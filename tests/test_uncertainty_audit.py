@@ -244,3 +244,37 @@ def test_audit_markdown_reports_the_ci_and_month_count():
     # Phải nói rõ điều kiện đi kèm
     assert "Điều kiện đi kèm" in text
     assert "RAW MODEL" in text
+
+
+# ===========================================================================
+# 5. Phân tích giờ đêm trên 2018 (MÔ TẢ — nằm đúng ở script chạy sau evaluate.py)
+# ===========================================================================
+@needs_audit
+def test_night_hour_block_exists_and_is_consistent():
+    a = _load_audit()
+    nh = a["final_test"]["night_hour"]
+    assert nh["n_hours"] == 24
+    assert len(nh["by_hour"]) == 24
+    assert nh["n_hours_ridge_worse"] + nh["n_hours_ridge_better"] == 24
+    assert (
+        nh["n_hours_ridge_worse"] == sum(1 for r in nh["by_hour"] if r["ridge_worse"])
+    )
+    for r in nh["by_hour"]:
+        assert r["mean_actual"] > 0
+        assert r["rel_MAE_ridge"] == pytest.approx(
+            r["MAE_ridge"] / r["mean_actual"], rel=0.01
+        )
+        assert r["ridge_worse"] == (r["MAE_ridge"] > r["MAE_baseline"])
+    assert nh["night"]["n_samples"] + nh["daytime"]["n_samples"] == a["final_test"]["n_rows"]
+    assert nh["night_hours"] == [0, 1, 2, 3, 4]
+
+
+@needs_audit
+def test_audit_night_hour_section_appears_in_markdown():
+    text = AUDIT_MD.read_text(encoding="utf-8")
+    assert "giờ nào trên 2018" in text
+    a = _load_audit()
+    nh = a["final_test"]["night_hour"]
+    assert f"{nh['n_hours_ridge_worse']}/{nh['n_hours']} giờ" in text
+    # Phải trỏ về nơi kiểm chứng trên dev
+    assert "experiments_report.md" in text

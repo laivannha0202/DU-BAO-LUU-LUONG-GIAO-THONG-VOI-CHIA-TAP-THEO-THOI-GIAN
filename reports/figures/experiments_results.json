@@ -833,5 +833,885 @@
         "2017": 0.3532
       }
     }
+  },
+  "experiment_4_night_hour_failure": {
+    "design": "So MAE Ridge vs baseline theo tung gio tren cac cua so dev out-of-sample, de kiem tra xieu 'Ridge kem o gio dem' co la dac tinh mo hinh hay chi la dac diem cua rieng nam 2018. Fold 3 trung voi VALIDATION 2017 nen khong tinh lai mot lan nua.",
+    "night_hours": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "relative_MAE_definition": "MAE / (lưu lượng thực trung bình của giờ đó)",
+    "windows": [
+      {
+        "name": "fold 1 — test year 2015",
+        "n_rows": 3593,
+        "n_hours": 24,
+        "n_hours_ridge_worse": 18,
+        "n_hours_ridge_worse_night": 5,
+        "n_night_hours_observed": 5,
+        "night": {
+          "hours": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "n_samples": 766,
+          "MAE_ridge": 210.54,
+          "MAE_baseline": 73.27,
+          "rel_MAE_ridge": 0.3679,
+          "rel_MAE_baseline": 0.128
+        },
+        "daytime": {
+          "n_samples": 2827,
+          "MAE_ridge": 357.26,
+          "MAE_baseline": 339.64,
+          "rel_MAE_ridge": 0.0896,
+          "rel_MAE_baseline": 0.0852
+        },
+        "by_hour": [
+          {
+            "hour": 0,
+            "n_samples": 161,
+            "MAE_ridge": 246.6,
+            "MAE_baseline": 120.45,
+            "mean_actual": 822.15,
+            "rel_MAE_ridge": 0.3,
+            "rel_MAE_baseline": 0.1465,
+            "ridge_worse": true
+          },
+          {
+            "hour": 1,
+            "n_samples": 143,
+            "MAE_ridge": 206.51,
+            "MAE_baseline": 70.28,
+            "mean_actual": 535.48,
+            "rel_MAE_ridge": 0.3857,
+            "rel_MAE_baseline": 0.1312,
+            "ridge_worse": true
+          },
+          {
+            "hour": 2,
+            "n_samples": 156,
+            "MAE_ridge": 212.42,
+            "MAE_baseline": 43.88,
+            "mean_actual": 394.46,
+            "rel_MAE_ridge": 0.5385,
+            "rel_MAE_baseline": 0.1113,
+            "ridge_worse": true
+          },
+          {
+            "hour": 3,
+            "n_samples": 142,
+            "MAE_ridge": 215.84,
+            "MAE_baseline": 29.59,
+            "mean_actual": 365.46,
+            "rel_MAE_ridge": 0.5906,
+            "rel_MAE_baseline": 0.081,
+            "ridge_worse": true
+          },
+          {
+            "hour": 4,
+            "n_samples": 164,
+            "MAE_ridge": 172.29,
+            "MAE_baseline": 95.33,
+            "mean_actual": 707.38,
+            "rel_MAE_ridge": 0.2436,
+            "rel_MAE_baseline": 0.1348,
+            "ridge_worse": true
+          },
+          {
+            "hour": 5,
+            "n_samples": 136,
+            "MAE_ridge": 175.72,
+            "MAE_baseline": 270.08,
+            "mean_actual": 2102.95,
+            "rel_MAE_ridge": 0.0836,
+            "rel_MAE_baseline": 0.1284,
+            "ridge_worse": false
+          },
+          {
+            "hour": 6,
+            "n_samples": 155,
+            "MAE_ridge": 352.84,
+            "MAE_baseline": 444.78,
+            "mean_actual": 4205.01,
+            "rel_MAE_ridge": 0.0839,
+            "rel_MAE_baseline": 0.1058,
+            "ridge_worse": false
+          },
+          {
+            "hour": 7,
+            "n_samples": 137,
+            "MAE_ridge": 505.54,
+            "MAE_baseline": 478.66,
+            "mean_actual": 4514.51,
+            "rel_MAE_ridge": 0.112,
+            "rel_MAE_baseline": 0.106,
+            "ridge_worse": true
+          },
+          {
+            "hour": 8,
+            "n_samples": 147,
+            "MAE_ridge": 512.54,
+            "MAE_baseline": 488.1,
+            "mean_actual": 4391.22,
+            "rel_MAE_ridge": 0.1167,
+            "rel_MAE_baseline": 0.1112,
+            "ridge_worse": true
+          },
+          {
+            "hour": 9,
+            "n_samples": 133,
+            "MAE_ridge": 462.25,
+            "MAE_baseline": 430.03,
+            "mean_actual": 4241.92,
+            "rel_MAE_ridge": 0.109,
+            "rel_MAE_baseline": 0.1014,
+            "ridge_worse": true
+          },
+          {
+            "hour": 10,
+            "n_samples": 158,
+            "MAE_ridge": 343.92,
+            "MAE_baseline": 334.52,
+            "mean_actual": 4211.46,
+            "rel_MAE_ridge": 0.0817,
+            "rel_MAE_baseline": 0.0794,
+            "ridge_worse": true
+          },
+          {
+            "hour": 11,
+            "n_samples": 133,
+            "MAE_ridge": 337.68,
+            "MAE_baseline": 308.07,
+            "mean_actual": 4521.33,
+            "rel_MAE_ridge": 0.0747,
+            "rel_MAE_baseline": 0.0681,
+            "ridge_worse": true
+          },
+          {
+            "hour": 12,
+            "n_samples": 166,
+            "MAE_ridge": 372.47,
+            "MAE_baseline": 346.14,
+            "mean_actual": 4756.43,
+            "rel_MAE_ridge": 0.0783,
+            "rel_MAE_baseline": 0.0728,
+            "ridge_worse": true
+          },
+          {
+            "hour": 13,
+            "n_samples": 148,
+            "MAE_ridge": 377.78,
+            "MAE_baseline": 315.64,
+            "mean_actual": 4723.36,
+            "rel_MAE_ridge": 0.08,
+            "rel_MAE_baseline": 0.0668,
+            "ridge_worse": true
+          },
+          {
+            "hour": 14,
+            "n_samples": 161,
+            "MAE_ridge": 346.22,
+            "MAE_baseline": 286.8,
+            "mean_actual": 4989.52,
+            "rel_MAE_ridge": 0.0694,
+            "rel_MAE_baseline": 0.0575,
+            "ridge_worse": true
+          },
+          {
+            "hour": 15,
+            "n_samples": 142,
+            "MAE_ridge": 347.91,
+            "MAE_baseline": 284.31,
+            "mean_actual": 5234.48,
+            "rel_MAE_ridge": 0.0665,
+            "rel_MAE_baseline": 0.0543,
+            "ridge_worse": true
+          },
+          {
+            "hour": 16,
+            "n_samples": 162,
+            "MAE_ridge": 398.82,
+            "MAE_baseline": 402.82,
+            "mean_actual": 5622.27,
+            "rel_MAE_ridge": 0.0709,
+            "rel_MAE_baseline": 0.0716,
+            "ridge_worse": false
+          },
+          {
+            "hour": 17,
+            "n_samples": 133,
+            "MAE_ridge": 360.29,
+            "MAE_baseline": 372.35,
+            "mean_actual": 5356.28,
+            "rel_MAE_ridge": 0.0673,
+            "rel_MAE_baseline": 0.0695,
+            "ridge_worse": false
+          },
+          {
+            "hour": 18,
+            "n_samples": 157,
+            "MAE_ridge": 296.3,
+            "MAE_baseline": 285.25,
+            "mean_actual": 4277.55,
+            "rel_MAE_ridge": 0.0693,
+            "rel_MAE_baseline": 0.0667,
+            "ridge_worse": true
+          },
+          {
+            "hour": 19,
+            "n_samples": 138,
+            "MAE_ridge": 254.94,
+            "MAE_baseline": 270.32,
+            "mean_actual": 3387.49,
+            "rel_MAE_ridge": 0.0753,
+            "rel_MAE_baseline": 0.0798,
+            "ridge_worse": false
+          },
+          {
+            "hour": 20,
+            "n_samples": 159,
+            "MAE_ridge": 228.51,
+            "MAE_baseline": 249.79,
+            "mean_actual": 2906.4,
+            "rel_MAE_ridge": 0.0786,
+            "rel_MAE_baseline": 0.0859,
+            "ridge_worse": false
+          },
+          {
+            "hour": 21,
+            "n_samples": 143,
+            "MAE_ridge": 315.9,
+            "MAE_baseline": 276.47,
+            "mean_actual": 2737.18,
+            "rel_MAE_ridge": 0.1154,
+            "rel_MAE_baseline": 0.101,
+            "ridge_worse": true
+          },
+          {
+            "hour": 22,
+            "n_samples": 159,
+            "MAE_ridge": 436.36,
+            "MAE_baseline": 373.86,
+            "mean_actual": 2207.79,
+            "rel_MAE_ridge": 0.1976,
+            "rel_MAE_baseline": 0.1693,
+            "ridge_worse": true
+          },
+          {
+            "hour": 23,
+            "n_samples": 160,
+            "MAE_ridge": 362.87,
+            "MAE_baseline": 249.19,
+            "mean_actual": 1456.35,
+            "rel_MAE_ridge": 0.2492,
+            "rel_MAE_baseline": 0.1711,
+            "ridge_worse": true
+          }
+        ]
+      },
+      {
+        "name": "fold 2 — test year 2016",
+        "n_rows": 7838,
+        "n_hours": 24,
+        "n_hours_ridge_worse": 20,
+        "n_hours_ridge_worse_night": 5,
+        "n_night_hours_observed": 5,
+        "night": {
+          "hours": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "n_samples": 1686,
+          "MAE_ridge": 182.3,
+          "MAE_baseline": 103.07,
+          "rel_MAE_ridge": 0.3102,
+          "rel_MAE_baseline": 0.1754
+        },
+        "daytime": {
+          "n_samples": 6152,
+          "MAE_ridge": 388.02,
+          "MAE_baseline": 376.0,
+          "rel_MAE_ridge": 0.0993,
+          "rel_MAE_baseline": 0.0962
+        },
+        "by_hour": [
+          {
+            "hour": 0,
+            "n_samples": 353,
+            "MAE_ridge": 223.6,
+            "MAE_baseline": 158.59,
+            "mean_actual": 849.5,
+            "rel_MAE_ridge": 0.2632,
+            "rel_MAE_baseline": 0.1867,
+            "ridge_worse": true
+          },
+          {
+            "hour": 1,
+            "n_samples": 342,
+            "MAE_ridge": 184.05,
+            "MAE_baseline": 102.86,
+            "mean_actual": 535.08,
+            "rel_MAE_ridge": 0.344,
+            "rel_MAE_baseline": 0.1922,
+            "ridge_worse": true
+          },
+          {
+            "hour": 2,
+            "n_samples": 330,
+            "MAE_ridge": 178.6,
+            "MAE_baseline": 84.31,
+            "mean_actual": 418.75,
+            "rel_MAE_ridge": 0.4265,
+            "rel_MAE_baseline": 0.2013,
+            "ridge_worse": true
+          },
+          {
+            "hour": 3,
+            "n_samples": 331,
+            "MAE_ridge": 169.17,
+            "MAE_baseline": 61.12,
+            "mean_actual": 385.48,
+            "rel_MAE_ridge": 0.4388,
+            "rel_MAE_baseline": 0.1586,
+            "ridge_worse": true
+          },
+          {
+            "hour": 4,
+            "n_samples": 330,
+            "MAE_ridge": 153.19,
+            "MAE_baseline": 104.72,
+            "mean_actual": 734.12,
+            "rel_MAE_ridge": 0.2087,
+            "rel_MAE_baseline": 0.1427,
+            "ridge_worse": true
+          },
+          {
+            "hour": 5,
+            "n_samples": 332,
+            "MAE_ridge": 169.3,
+            "MAE_baseline": 204.16,
+            "mean_actual": 2115.56,
+            "rel_MAE_ridge": 0.08,
+            "rel_MAE_baseline": 0.0965,
+            "ridge_worse": false
+          },
+          {
+            "hour": 6,
+            "n_samples": 338,
+            "MAE_ridge": 342.27,
+            "MAE_baseline": 358.8,
+            "mean_actual": 4167.52,
+            "rel_MAE_ridge": 0.0821,
+            "rel_MAE_baseline": 0.0861,
+            "ridge_worse": false
+          },
+          {
+            "hour": 7,
+            "n_samples": 331,
+            "MAE_ridge": 447.34,
+            "MAE_baseline": 470.78,
+            "mean_actual": 4812.13,
+            "rel_MAE_ridge": 0.093,
+            "rel_MAE_baseline": 0.0978,
+            "ridge_worse": false
+          },
+          {
+            "hour": 8,
+            "n_samples": 329,
+            "MAE_ridge": 453.43,
+            "MAE_baseline": 461.88,
+            "mean_actual": 4520.73,
+            "rel_MAE_ridge": 0.1003,
+            "rel_MAE_baseline": 0.1022,
+            "ridge_worse": false
+          },
+          {
+            "hour": 9,
+            "n_samples": 313,
+            "MAE_ridge": 423.82,
+            "MAE_baseline": 415.76,
+            "mean_actual": 4312.48,
+            "rel_MAE_ridge": 0.0983,
+            "rel_MAE_baseline": 0.0964,
+            "ridge_worse": true
+          },
+          {
+            "hour": 10,
+            "n_samples": 331,
+            "MAE_ridge": 353.06,
+            "MAE_baseline": 341.95,
+            "mean_actual": 4122.29,
+            "rel_MAE_ridge": 0.0856,
+            "rel_MAE_baseline": 0.083,
+            "ridge_worse": true
+          },
+          {
+            "hour": 11,
+            "n_samples": 328,
+            "MAE_ridge": 374.74,
+            "MAE_baseline": 359.64,
+            "mean_actual": 4388.25,
+            "rel_MAE_ridge": 0.0854,
+            "rel_MAE_baseline": 0.082,
+            "ridge_worse": true
+          },
+          {
+            "hour": 12,
+            "n_samples": 334,
+            "MAE_ridge": 408.41,
+            "MAE_baseline": 397.02,
+            "mean_actual": 4598.57,
+            "rel_MAE_ridge": 0.0888,
+            "rel_MAE_baseline": 0.0863,
+            "ridge_worse": true
+          },
+          {
+            "hour": 13,
+            "n_samples": 313,
+            "MAE_ridge": 435.53,
+            "MAE_baseline": 401.56,
+            "mean_actual": 4595.27,
+            "rel_MAE_ridge": 0.0948,
+            "rel_MAE_baseline": 0.0874,
+            "ridge_worse": true
+          },
+          {
+            "hour": 14,
+            "n_samples": 316,
+            "MAE_ridge": 455.14,
+            "MAE_baseline": 417.59,
+            "mean_actual": 4800.0,
+            "rel_MAE_ridge": 0.0948,
+            "rel_MAE_baseline": 0.087,
+            "ridge_worse": true
+          },
+          {
+            "hour": 15,
+            "n_samples": 310,
+            "MAE_ridge": 453.32,
+            "MAE_baseline": 418.38,
+            "mean_actual": 5074.8,
+            "rel_MAE_ridge": 0.0893,
+            "rel_MAE_baseline": 0.0824,
+            "ridge_worse": true
+          },
+          {
+            "hour": 16,
+            "n_samples": 318,
+            "MAE_ridge": 434.87,
+            "MAE_baseline": 425.62,
+            "mean_actual": 5593.02,
+            "rel_MAE_ridge": 0.0778,
+            "rel_MAE_baseline": 0.0761,
+            "ridge_worse": true
+          },
+          {
+            "hour": 17,
+            "n_samples": 302,
+            "MAE_ridge": 468.97,
+            "MAE_baseline": 449.21,
+            "mean_actual": 5208.02,
+            "rel_MAE_ridge": 0.09,
+            "rel_MAE_baseline": 0.0863,
+            "ridge_worse": true
+          },
+          {
+            "hour": 18,
+            "n_samples": 323,
+            "MAE_ridge": 373.23,
+            "MAE_baseline": 362.09,
+            "mean_actual": 4182.88,
+            "rel_MAE_ridge": 0.0892,
+            "rel_MAE_baseline": 0.0866,
+            "ridge_worse": true
+          },
+          {
+            "hour": 19,
+            "n_samples": 313,
+            "MAE_ridge": 326.12,
+            "MAE_baseline": 303.9,
+            "mean_actual": 3203.57,
+            "rel_MAE_ridge": 0.1018,
+            "rel_MAE_baseline": 0.0949,
+            "ridge_worse": true
+          },
+          {
+            "hour": 20,
+            "n_samples": 318,
+            "MAE_ridge": 339.76,
+            "MAE_baseline": 320.36,
+            "mean_actual": 2755.94,
+            "rel_MAE_ridge": 0.1233,
+            "rel_MAE_baseline": 0.1162,
+            "ridge_worse": true
+          },
+          {
+            "hour": 21,
+            "n_samples": 328,
+            "MAE_ridge": 366.7,
+            "MAE_baseline": 350.06,
+            "mean_actual": 2592.87,
+            "rel_MAE_ridge": 0.1414,
+            "rel_MAE_baseline": 0.135,
+            "ridge_worse": true
+          },
+          {
+            "hour": 22,
+            "n_samples": 331,
+            "MAE_ridge": 427.99,
+            "MAE_baseline": 404.75,
+            "mean_actual": 2142.84,
+            "rel_MAE_ridge": 0.1997,
+            "rel_MAE_baseline": 0.1889,
+            "ridge_worse": true
+          },
+          {
+            "hour": 23,
+            "n_samples": 344,
+            "MAE_ridge": 336.87,
+            "MAE_baseline": 294.55,
+            "mean_actual": 1427.25,
+            "rel_MAE_ridge": 0.236,
+            "rel_MAE_baseline": 0.2064,
+            "ridge_worse": true
+          }
+        ]
+      },
+      {
+        "name": "fold 3 — test year 2017 (= VALIDATION 2017)",
+        "n_rows": 8713,
+        "n_hours": 24,
+        "n_hours_ridge_worse": 7,
+        "n_hours_ridge_worse_night": 5,
+        "n_night_hours_observed": 5,
+        "night": {
+          "hours": [
+            0,
+            1,
+            2,
+            3,
+            4
+          ],
+          "n_samples": 1813,
+          "MAE_ridge": 160.81,
+          "MAE_baseline": 82.24,
+          "rel_MAE_ridge": 0.2681,
+          "rel_MAE_baseline": 0.1371
+        },
+        "daytime": {
+          "n_samples": 6900,
+          "MAE_ridge": 301.37,
+          "MAE_baseline": 330.27,
+          "rel_MAE_ridge": 0.0734,
+          "rel_MAE_baseline": 0.0804
+        },
+        "by_hour": [
+          {
+            "hour": 0,
+            "n_samples": 364,
+            "MAE_ridge": 205.4,
+            "MAE_baseline": 151.62,
+            "mean_actual": 920.09,
+            "rel_MAE_ridge": 0.2232,
+            "rel_MAE_baseline": 0.1648,
+            "ridge_worse": true
+          },
+          {
+            "hour": 1,
+            "n_samples": 365,
+            "MAE_ridge": 160.98,
+            "MAE_baseline": 83.85,
+            "mean_actual": 554.21,
+            "rel_MAE_ridge": 0.2905,
+            "rel_MAE_baseline": 0.1513,
+            "ridge_worse": true
+          },
+          {
+            "hour": 2,
+            "n_samples": 359,
+            "MAE_ridge": 157.98,
+            "MAE_baseline": 58.14,
+            "mean_actual": 408.71,
+            "rel_MAE_ridge": 0.3865,
+            "rel_MAE_baseline": 0.1422,
+            "ridge_worse": true
+          },
+          {
+            "hour": 3,
+            "n_samples": 363,
+            "MAE_ridge": 147.84,
+            "MAE_baseline": 41.98,
+            "mean_actual": 385.81,
+            "rel_MAE_ridge": 0.3832,
+            "rel_MAE_baseline": 0.1088,
+            "ridge_worse": true
+          },
+          {
+            "hour": 4,
+            "n_samples": 362,
+            "MAE_ridge": 131.6,
+            "MAE_baseline": 75.11,
+            "mean_actual": 728.13,
+            "rel_MAE_ridge": 0.1807,
+            "rel_MAE_baseline": 0.1032,
+            "ridge_worse": true
+          },
+          {
+            "hour": 5,
+            "n_samples": 362,
+            "MAE_ridge": 203.92,
+            "MAE_baseline": 220.21,
+            "mean_actual": 2161.78,
+            "rel_MAE_ridge": 0.0943,
+            "rel_MAE_baseline": 0.1019,
+            "ridge_worse": false
+          },
+          {
+            "hour": 6,
+            "n_samples": 362,
+            "MAE_ridge": 340.59,
+            "MAE_baseline": 395.45,
+            "mean_actual": 4222.28,
+            "rel_MAE_ridge": 0.0807,
+            "rel_MAE_baseline": 0.0937,
+            "ridge_worse": false
+          },
+          {
+            "hour": 7,
+            "n_samples": 362,
+            "MAE_ridge": 449.91,
+            "MAE_baseline": 505.97,
+            "mean_actual": 4819.54,
+            "rel_MAE_ridge": 0.0934,
+            "rel_MAE_baseline": 0.105,
+            "ridge_worse": false
+          },
+          {
+            "hour": 8,
+            "n_samples": 361,
+            "MAE_ridge": 457.16,
+            "MAE_baseline": 516.72,
+            "mean_actual": 4683.52,
+            "rel_MAE_ridge": 0.0976,
+            "rel_MAE_baseline": 0.1103,
+            "ridge_worse": false
+          },
+          {
+            "hour": 9,
+            "n_samples": 361,
+            "MAE_ridge": 344.01,
+            "MAE_baseline": 379.17,
+            "mean_actual": 4475.68,
+            "rel_MAE_ridge": 0.0769,
+            "rel_MAE_baseline": 0.0847,
+            "ridge_worse": false
+          },
+          {
+            "hour": 10,
+            "n_samples": 363,
+            "MAE_ridge": 238.71,
+            "MAE_baseline": 279.89,
+            "mean_actual": 4278.2,
+            "rel_MAE_ridge": 0.0558,
+            "rel_MAE_baseline": 0.0654,
+            "ridge_worse": false
+          },
+          {
+            "hour": 11,
+            "n_samples": 364,
+            "MAE_ridge": 242.49,
+            "MAE_baseline": 275.79,
+            "mean_actual": 4575.04,
+            "rel_MAE_ridge": 0.053,
+            "rel_MAE_baseline": 0.0603,
+            "ridge_worse": false
+          },
+          {
+            "hour": 12,
+            "n_samples": 364,
+            "MAE_ridge": 237.3,
+            "MAE_baseline": 260.07,
+            "mean_actual": 4807.17,
+            "rel_MAE_ridge": 0.0494,
+            "rel_MAE_baseline": 0.0541,
+            "ridge_worse": false
+          },
+          {
+            "hour": 13,
+            "n_samples": 364,
+            "MAE_ridge": 237.13,
+            "MAE_baseline": 252.62,
+            "mean_actual": 4810.7,
+            "rel_MAE_ridge": 0.0493,
+            "rel_MAE_baseline": 0.0525,
+            "ridge_worse": false
+          },
+          {
+            "hour": 14,
+            "n_samples": 365,
+            "MAE_ridge": 243.45,
+            "MAE_baseline": 250.67,
+            "mean_actual": 5001.03,
+            "rel_MAE_ridge": 0.0487,
+            "rel_MAE_baseline": 0.0501,
+            "ridge_worse": false
+          },
+          {
+            "hour": 15,
+            "n_samples": 363,
+            "MAE_ridge": 259.61,
+            "MAE_baseline": 287.28,
+            "mean_actual": 5333.35,
+            "rel_MAE_ridge": 0.0487,
+            "rel_MAE_baseline": 0.0539,
+            "ridge_worse": false
+          },
+          {
+            "hour": 16,
+            "n_samples": 363,
+            "MAE_ridge": 372.7,
+            "MAE_baseline": 426.12,
+            "mean_actual": 5834.37,
+            "rel_MAE_ridge": 0.0639,
+            "rel_MAE_baseline": 0.073,
+            "ridge_worse": false
+          },
+          {
+            "hour": 17,
+            "n_samples": 363,
+            "MAE_ridge": 353.9,
+            "MAE_baseline": 396.61,
+            "mean_actual": 5484.41,
+            "rel_MAE_ridge": 0.0645,
+            "rel_MAE_baseline": 0.0723,
+            "ridge_worse": false
+          },
+          {
+            "hour": 18,
+            "n_samples": 364,
+            "MAE_ridge": 276.18,
+            "MAE_baseline": 312.22,
+            "mean_actual": 4416.27,
+            "rel_MAE_ridge": 0.0625,
+            "rel_MAE_baseline": 0.0707,
+            "ridge_worse": false
+          },
+          {
+            "hour": 19,
+            "n_samples": 364,
+            "MAE_ridge": 232.32,
+            "MAE_baseline": 274.13,
+            "mean_actual": 3421.48,
+            "rel_MAE_ridge": 0.0679,
+            "rel_MAE_baseline": 0.0801,
+            "ridge_worse": false
+          },
+          {
+            "hour": 20,
+            "n_samples": 364,
+            "MAE_ridge": 236.7,
+            "MAE_baseline": 276.11,
+            "mean_actual": 2974.95,
+            "rel_MAE_ridge": 0.0796,
+            "rel_MAE_baseline": 0.0928,
+            "ridge_worse": false
+          },
+          {
+            "hour": 21,
+            "n_samples": 364,
+            "MAE_ridge": 300.84,
+            "MAE_baseline": 306.67,
+            "mean_actual": 2796.57,
+            "rel_MAE_ridge": 0.1076,
+            "rel_MAE_baseline": 0.1097,
+            "ridge_worse": false
+          },
+          {
+            "hour": 22,
+            "n_samples": 364,
+            "MAE_ridge": 378.42,
+            "MAE_baseline": 373.07,
+            "mean_actual": 2348.56,
+            "rel_MAE_ridge": 0.1611,
+            "rel_MAE_baseline": 0.1589,
+            "ridge_worse": true
+          },
+          {
+            "hour": 23,
+            "n_samples": 363,
+            "MAE_ridge": 323.14,
+            "MAE_baseline": 289.41,
+            "mean_actual": 1577.23,
+            "rel_MAE_ridge": 0.2049,
+            "rel_MAE_baseline": 0.1835,
+            "ridge_worse": true
+          }
+        ]
+      }
+    ],
+    "pattern_reproducible_in_dev": true,
+    "n_windows": 3,
+    "n_windows_ridge_loses_every_night_hour": 3
+  },
+  "experiment_5_log_target_probe": {
+    "design": "fit tren log1p(traffic_volume) roi expm1 khi du bao. Chi do tren du lieu dev; khong dua vao serving va khong thay mo hinh da dong bang.",
+    "status": "KHÁM PHÁ HẬU NGHIỆM — không thay mô hình đã đóng băng",
+    "why_cannot_be_shipped": "Giả thuyết này được nêu ra SAU khi đã nhìn kết quả FINAL TEST 2018. Chọn log-target bây giờ sẽ là test-informed model selection — đúng thứ mà toàn bộ phương pháp của đồ án này cảnh báo. Muốn dùng thì phải đánh giá lại trên một holdout MỚI.",
+    "windows": [
+      {
+        "name": "VALIDATION 2017 (train <= 2016)",
+        "n_rows": 8713,
+        "results": [
+          {
+            "target_transform": "linear_target",
+            "MAE": 272.12,
+            "RMSE": 421.46,
+            "R2": 0.9548,
+            "n": 8713,
+            "night_MAE": 160.81
+          },
+          {
+            "target_transform": "log1p_target",
+            "MAE": 295.0,
+            "RMSE": 445.73,
+            "R2": 0.9494,
+            "n": 8713,
+            "night_MAE": 85.84
+          }
+        ]
+      },
+      {
+        "name": "pseudo-test 2016-2017 (train <= 2015)",
+        "n_rows": 16551,
+        "results": [
+          {
+            "target_transform": "linear_target",
+            "MAE": 306.48,
+            "RMSE": 472.61,
+            "R2": 0.9422,
+            "n": 16551,
+            "night_MAE": 176.97
+          },
+          {
+            "target_transform": "log1p_target",
+            "MAE": 320.09,
+            "RMSE": 486.48,
+            "R2": 0.9388,
+            "n": 16551,
+            "night_MAE": 93.52
+          }
+        ]
+      }
+    ]
   }
 }
