@@ -1,0 +1,25 @@
+# render.yaml — Blueprint triển khai Web Service lên Render.com
+#
+# Dùng: Render Dashboard -> New -> Blueprint -> trỏ tới repo này.
+# Render đọc chính file này, không cần nhập tay Build/Start/Health.
+#
+# Lưu ý:
+# - PORT do Render cấp, KHÔNG hard-code: startCommand dùng $PORT.
+# - Python version lấy từ file .python-version (3.14.7) — không ghi lặp ở đây.
+# - Serving KHÔNG train, KHÔNG đọc data/raw hay data/processed/traffic_clean.csv.
+# - Artifact cần có trong repo: models/ridge_pipeline.joblib, models/model_metadata.json,
+#   models/serving_policy.json, models/run_config.json (tất cả đã được commit).
+
+services:
+  - type: web
+    name: traffic-forecast-i94
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements-deploy.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"

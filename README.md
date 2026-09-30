@@ -192,6 +192,59 @@ Server **không crash** khi nhận input sai (đã có test dồn nhiều reques
 
 ---
 
+## Deploy lên Render
+
+Web Service public chạy trực tiếp artifact đã đóng băng. **Không train lại**, **không cần dataset**.
+
+Repo có sẵn [`render.yaml`](render.yaml) (Render Blueprint), nên Render tự điền Build/Start/Health
+từ file đó — không phải nhập tay.
+
+- Python: **3.14.7** (Render đọc file [`.python-version`](.python-version); đây là đúng phiên bản
+  đã sinh ra `models/ridge_pipeline.joblib` — xem `models/environment.json`).
+- Dependency: [`requirements-deploy.txt`](requirements-deploy.txt) — chỉ phần phục vụ web/API,
+  pin đúng version của môi trường sinh model (đổi version sklearn/numpy có thể làm hỏng artifact).
+
+Build Command:
+
+```
+pip install -r requirements-deploy.txt
+```
+
+Start Command:
+
+```
+uvicorn app.main:app --host 0.0.0.0 --port $PORT
+```
+
+Health Check:
+
+```
+/health
+```
+
+Các điểm cần biết:
+
+- `PORT` do Render cấp — **không hard-code** trong `render.yaml`.
+- `/health` trả **200** khi `models/ridge_pipeline.joblib` load được, **503 + lý do rõ ràng** khi thiếu artifact.
+- Không cần `data/raw/` và `data/processed/traffic_clean.csv` (2 tệp này bị `.gitignore` loại khỏi repo).
+  Các JSON báo cáo trong `reports/figures/` và `data/processed/data_audit.json` đã được commit nên
+  Dashboard & Model Card hiển thị đầy đủ.
+- Render dùng `uvicorn` một tiến trình, 1 worker — tải nhẹ, phù hợp demo/nghiệm thu.
+- Nếu dùng gói **Free**, service ngủ sau ~15 phút không có truy cập; lần mở lại đầu tiên chậm vài giây.
+
+Các bước tạo service (làm trực tiếp trên render.com):
+
+1. Đăng nhập <https://render.com> (GitHub → Authorize).
+2. **New + → Blueprint** → chọn repo `laivannha0202/DU-BAO-LUU-LUONG-GIAO-THONG-VOI-CHIA-TAP-THEO-THOI-GIAN`.
+3. Render đọc `render.yaml`: tên `traffic-forecast-i94`, Runtime `python`, Region, Plan.
+4. **Apply** → chờ Build & Deploy.
+5. Deploy xong, Render hiển thị URL public dạng `https://<ten-service>.onrender.com` trên trang
+   Service → **Copy URL**. Mở URL đó và kiểm tra `/health` trả 200.
+
+> Địa chỉ public thật chỉ tồn tại **sau khi** Render tạo service; README này cố tình không ghi trước URL.
+
+---
+
 ## Cấu trúc thư mục
 
 ```
@@ -270,6 +323,9 @@ tests/
   fixtures/sample_traffic.csv
 requirements.txt          # khoảng version tương thích (>=) — dùng khi cài mới
 requirements-lock.txt     # phiên bản chính xác của môi trường đã sinh artifact
+requirements-deploy.txt   # chỉ phần phục vụ web/API — dùng cho deploy Render
+render.yaml               # Render Blueprint (build/start/health check)
+.python-version           # 3.14.7 — Render đọc file này để chọn Python runtime
 release/
   final_report.docx       # bản nộp (đã commit)
   final_report.pdf        # bản nộp (đã commit)
