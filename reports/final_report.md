@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 366 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 385 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -1155,6 +1155,41 @@ nguồn rằng `build_policy()` chỉ gọi bằng chứng cho `train` và `vali
 `tests/test_report.py::test_pipeline_order_freezes_policy_before_final_test` kiểm tra mọi tài liệu
 bàn giao đều mô tả đúng thứ tự này.
 
+### 12.5.2b Đóng băng phải chạy lại được (idempotent)
+
+"Đóng băng" chỉ có ý nghĩa nếu quyết định được ghi **một lần** và giữ nguyên vĩnh viễn. Ban
+đầu `freeze_serving_policy.py` ghi `frozen_at_utc = datetime.now(...)` ở mỗi lần chạy và
+tái dùng nó trong `serving_policy.md`, nên `models/serving_policy.json` **đổi hash dù quyết
+định không đổi**. Hậu quả: (1) không tái lập được trên máy sạch; (2) một script mang tên
+"freeze" lại ghi đè chính policy đã đóng băng mà không cảnh báo; (3) không chứng minh được
+rằng chạy lại chỉ khác timestamp.
+
+Cách sửa: `build_policy()` giờ trả về **nội dung** quyết định — mọi trường **trừ**
+`frozen_at_utc` — nên kết quả là hằng số và so sánh được giữa các lần chạy. Số thực so
+theo dung sai `1e-6` vì phép tính float có thể khác nhẹ giữa các nền tảng.
+
+| Tình huống | Không cờ | `--check` | `--force` |
+| --- | --- | --- | --- |
+| Chưa có `serving_policy.json` | Tạo mới (ghi mốc hiện tại), exit 0 | Exit 1, không tạo file | — |
+| Đã có, nội dung khớp | **Không ghi lại file**, giữ mốc cũ, exit 0 | Exit 0, **không ghi file nào** | Ký lại + cảnh báo |
+| Đã có, nội dung lệch | In diff, không ghi đè, exit ≠ 0 | In diff, exit 1, không ghi file nào | Ghi đè + cảnh báo, exit 0 |
+
+`content_sha256` là chữ ký chống sửa tay: script **băm lại chính file đang có** rồi so với
+giá trị lưu — lệch nghĩa là file đã bị sửa tay sau khi đóng băng, nên dừng chứ không ghi
+đè. `reports/figures/serving_policy.md` lấy mốc đóng băng từ JSON, không lấy từ đồng hồ.
+`--force` là **đóng băng lại** và bắt buộc phải ghi lý do vào `docs/project-log.md`.
+
+| | Số test |
+| --- | --- |
+| `tests/test_serving_policy.py::test_running_freeze_twice_gives_byte_identical_policy` | Chạy hai lần → bytes `serving_policy.json` giống hệt, `frozen_at_utc` giữ nguyên |
+| `test_rerun_on_matching_policy_does_not_touch_the_file` | Khớp → không ghi lại (kiểm cả hash lẫn mtime) |
+| `test_changed_content_exits_nonzero_and_never_overwrites` | Lệch → exit ≠ 0, file không bị ghi đè |
+| `test_changed_content_prints_a_readable_diff` | Diff chỉ rõ đường dẫn trường và cả hai giá trị |
+| `test_force_overwrites_and_warns_that_it_is_a_refreeze` | `--force` ghi đè được + cảnh báo `docs/project-log.md` |
+| `test_check_writes_no_file_at_all` | `--check` không đụng hash/mtime của bất kỳ file nào |
+| `test_hand_edited_policy_is_detected_and_not_overwritten` | Sửa tay → phát hiện qua chữ ký, không ghi đè |
+| `test_serving_policy_md_shows_only_the_timestamp_stored_in_json` | Tài liệu chỉ chứa mốc từ JSON, không có thời điểm hiện tại |
+
 ### 12.5.3 Quy tắc quyết định (viết trước khi chạy)
 
 Adopt `max(0, ·)` **khi và chỉ khi** cả ba điều kiện sau đều đúng, tất cả đo trên
@@ -1236,7 +1271,7 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 
 # 13. Kiểm thử tự động
 
-**Kết quả: `py -m pytest tests\ -v` → 366 passed, 0 failed.**
+**Kết quả: `py -m pytest tests\ -v` → 385 passed, 0 failed.**
 
 | File | Số test | Phạm vi |
 | --- | --- | --- |
@@ -1246,10 +1281,10 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_experiments.py` | 36 | Chặn FINAL TEST 2018 (`assert_no_final_test_rows`), arm chung tập test, tái lập theo seed, phân tích giờ đêm / log-target / alpha chỉ trên dev |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-hot, **không train-serving skew**, chính sách hậu xử lý |
 | `test_api.py` | 81 | Route, `/health`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact |
-| `test_serving_policy.py` | 27 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR |
+| `test_serving_policy.py` | 46 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR, **đóng băng lặp lại được** (`--check` / `--force`) |
 | `test_report.py` | 99 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, chính tả "rò rỉ" |
 | `test_uncertainty_audit.py` | 16 | Bootstrap theo khối ngày tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018 |
-| **Tổng** | **366** | |
+| **Tổng** | **385** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
 chạy `pytest --collect-only` trên chính bộ test rồi bắt README, báo cáo, slide, kịch bản demo
@@ -1411,7 +1446,7 @@ FINAL TEST 2018 **không** tham gia quyết định. Căn cứ và điều kiệ
 
 - **Rõ mục đích dùng** §14.6 · **rõ ngoài phạm vi** §14.7 · **rõ hạn chế** §14.8.
 - **Số liệu lấy từ artifact, không gõ tay** — toàn bộ; có test kiểm tra frontend không hard-code.
-- **Đo lường được bằng máy** — 366 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
+- **Đo lường được bằng máy** - 385 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
   `pytest --collect-only`.
 - **Người dùng biết khi nào mô hình không đáng tin** — cảnh báo `in_dataset_range`,
   `state_fair_calendar_unknown` trong mọi response.
@@ -1443,7 +1478,7 @@ phần *dễ hơn* của năm; và **an toàn** — không dùng cho mục đíc
    "mô hình nhìn thấy hàng xóm": phần lớn hiệu ứng không do kích thước tập huấn luyện, và mô hình
    không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm.
 4. **Về minh bạch và sản phẩm:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết, giờ đêm) thay vì
-   chỉ trích chỉ số tổng; web/API chạy được, chỉ nạp artifact, 366 test pass.
+   chỉ trích chỉ số tổng; web/API chạy được, chỉ nạp artifact, 385 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1481,7 +1516,7 @@ models/     ridge_pipeline.joblib + metadata + baseline + serving_policy
 reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md, slides-outline.md, demo-script.md, viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động)
-tests/      366 test
+tests/      385 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1509,6 +1544,16 @@ py -m uvicorn app.main:app --reload
 > mất ý nghĩa của FINAL TEST. `postprocess_audit.py` và `uncertainty_audit.py` chỉ **đo** hậu quả
 > **sau** khi policy đã đóng băng, và cả hai đều từ chối chạy nếu điều kiện tiên quyết chưa có
 > (chi tiết §12.5.1).
+
+> **Kiểm chứng bước đóng băng trên máy sạch** (chạy được bất cứ lúc nào, không ghi file nào):
+>
+> ```bat
+> py src\freeze_serving_policy.py --check
+> ```
+>
+> Exit 0 = nội dung policy khớp với bản đã đóng băng (số thực so trong dung sai
+> `1e-6`); exit 1 = lệch, kèm diff. Lệnh này là tiêu chí tái lập chính thức cho
+> `models/serving_policy.json` (chi tiết §12.5.2b).
 
 Nếu chỉ muốn cài theo khoảng version tương thích thay vì tái lập tuyệt đối, dùng
 `py -m pip install -r requirements.txt`. Phiên bản thật của môi trường đã sinh artifact
@@ -1539,7 +1584,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b, 8 (chỉ 2012–2017) | Tách được kích thước / mức năm / khoảng cách thời gian; đo lạc quan 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; điểm yếu ở ngày lễ, tuyết, giờ đêm |
-| 6 | FastAPI + 3 màn hình + 366 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew; bootstrap bất định + kiểm toán alpha |
+| 6 | FastAPI + 3 màn hình + 385 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew; bootstrap bất định + kiểm toán alpha |
 
 ## 17.5 Tài liệu phát hành
 

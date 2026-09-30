@@ -32,7 +32,7 @@ Dữ liệu: Metro Interstate Traffic Volume (UCI, CC BY 4.0). Xem `data/README.
 - [x] **Kiểm toán bất định** (`src/uncertainty_audit.py`) — block bootstrap theo khối ngày lịch (4.000 lần, seed cố định) cho hiệu MAE/RMSE, MAE theo từng tháng; chạy SAU `evaluate.py`, chỉ đo
 - [x] **Kiểm chứng điểm yếu giờ đêm trên dữ liệu dev** (`src/experiments.py`) — Ridge kém ở toàn bộ 5 giờ đêm trong 3/3 cửa sổ rolling-origin; thử log-target như khám phá hậu nghiệm, **không** thay mô hình
 - [x] **Thí nghiệm lag (độc lập, KHÔNG vào serving)** — lag 1/24/168 giờ ghép theo **thời điểm** (không `shift()` theo dòng); kết quả **không ủng hộ** giả thuyết "lag tự tạo rò rỉ", nhưng cách dựng lag sai thì có
-- [x] **Test: `py -m pytest tests\ -v` → 366 passed, 0 failed**
+- [x] **Test: `py -m pytest tests\ -v` → 385 passed, 0 failed**
       (con số này được **tự kiểm chứng** bởi `tests/test_report.py::test_documented_test_count_matches_real_collection`)
 - [x] Báo cáo, slide, kịch bản demo, câu hỏi viva (`reports/final_report.md`, `docs/`)
 
@@ -48,6 +48,7 @@ py src\eda.py               :: EDA chỉ trên TRAIN
 py src\train.py             :: baseline + tune alpha + lưu model  -> ĐÓNG BĂNG cấu hình
 py src\experiments.py       :: thí nghiệm phát triển, CHỈ 2012-2017 (không đụng 2018)
 py src\freeze_serving_policy.py :: ĐÓNG BĂNG chính sách max(0,·) — CHỈ dùng TRAIN + VALIDATION
+                                  :: (chạy lại được: nội dung khớp thì không ghi lại file)
 py src\evaluate.py          :: FINAL TEST 2018 — mở 2018 ra đánh giá lần đầu
 py src\postprocess_audit.py :: báo cáo tác động của policy trên 2018 — chạy SAU, KHÔNG quyết định gì
 py src\uncertainty_audit.py :: bootstrap + MAE theo tháng trên 2018 — chạy SAU, CHỈ đo
@@ -79,6 +80,40 @@ Sau đó mở trình duyệt: **http://localhost:8000** (OpenAPI docs: http://lo
 > Sau khi đọc kết quả 2018, **không** quay lại sửa mô hình, sửa `alpha`, hay sửa policy.
 >
 > Lưu ý PowerShell: dùng dấu gạch chéo ngược `\` cho đường dẫn script và `\ -v` cho pytest.
+
+---
+
+## Đóng băng chính sách: chạy lại được (idempotent)
+
+Bước 6 ở trên **đóng băng** `models/serving_policy.json`. "Đóng băng" nghĩa là quyết định
+được ghi **một lần** và giữ nguyên vĩnh viễn — nên script phải chạy lại được mà không
+làm thay đổi file:
+
+| Tình huống | `py src\freeze_serving_policy.py` (không cờ) | `--check` | `--force` |
+| --- | --- | --- | --- |
+| Chưa có `serving_policy.json` | Tạo mới, ghi `frozen_at_utc` = hiện tại, exit 0 | Exit 1, **không** tạo file | — |
+| Đã có, nội dung **khớp** | **Không ghi lại file**, giữ `frozen_at_utc` cũ, exit 0 | Exit 0, **không** ghi file nào | Ký lại, có cảnh báo |
+| Đã có, nội dung **lệch** | In diff, **không** ghi đè, exit khác 0 | In diff, exit 1, **không** ghi file nào | Ghi đè, có cảnh báo, exit 0 |
+
+```bat
+py src\freeze_serving_policy.py --check   :: xác minh trên máy sạch, KHÔNG ghi file nào
+```
+
+Vài điểm cần biết:
+
+- **Nội dung khác `frozen_at_utc`** mới là thứ phải tái lập được. Số thực được so theo
+  dung sai (`1e-6`) vì phép tính float có thể khác nhẹ giữa các nền tảng.
+- `frozen_at_utc` là **thời điểm đóng băng thật** — giữ nguyên, không đặt lại thành
+  "bây giờ" và không backdate. `reports/figures/serving_policy.md` đọc mốc này từ JSON.
+- `content_sha256` là chữ ký chống sửa tay: script **băm lại chính file đang có** rồi so
+  với giá trị lưu. Lệch ⇒ file đã bị sửa tay sau khi đóng băng ⇒ dừng, không ghi đè.
+- `--force` là **đóng băng lại**, không phải chạy lại thường. Chỉ dùng khi thực sự có
+  chủ đích, và **phải ghi lý do vào [`docs/project-log.md`](docs/project-log.md)**.
+
+Vì sao phải làm vậy: nếu mỗi lần chạy đều dùng `datetime.now()` thì
+`models/serving_policy.json` đổi hash dù quyết định không đổi. Hậu quả là (1) không tái
+lập được trên máy sạch, (2) một script tên "freeze" lại ghi đè chính policy đã đóng băng
+mà không cảnh báo, (3) không chứng minh được rằng chạy lại chỉ khác timestamp.
 
 ---
 
@@ -284,6 +319,7 @@ src/
   train.py                # baseline + Ridge pipeline, tune alpha, lưu artifact
   experiments.py          # thí nghiệm phát triển — CHỈ 2012-2017, có guard 2018
   freeze_serving_policy.py # ĐÓNG BĂNG chính sách max(0,·) — chỉ TRAIN + VALIDATION
+                           # (chạy lại được; có --check / --force)
   evaluate.py             # FINAL TEST 2018 — chạy SAU khi policy đã đóng băng
   postprocess_audit.py    # báo cáo tác động trên 2018 — chạy SAU, không quyết định gì
   uncertainty_audit.py    # bootstrap + MAE theo tháng trên 2018 — chạy SAU, chỉ đo
@@ -342,7 +378,7 @@ tests/
   test_experiments.py     # bảo vệ FINAL TEST 2018, drift out-of-sample
   test_serving.py         # °C->K, holiday tự tính, multi-weather, KHÔNG train-serving skew
   test_api.py             # route, validation, lỗi, dashboard lấy số từ artifact
-  test_serving_policy.py  # policy không test-informed, D1-D3, RAW vs DEPLOYED
+  test_serving_policy.py  # policy không test-informed, D1-D3, RAW vs DEPLOYED, đóng băng lặp lại được
   test_report.py          # tài liệu khớp artifact, số test đồng bộ, thứ tự pipeline
   fixtures/sample_traffic.csv
 requirements.txt          # khoảng version tương thích (>=) — dùng khi cài mới
@@ -357,7 +393,7 @@ release/
 ```
 
 **Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
-Con số tổng **366 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+Con số tổng **385 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
 và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
 
 ---
@@ -377,6 +413,43 @@ Có hai cách cài, dùng cho hai mục đích khác nhau:
 Phiên bản thật của môi trường đã dùng để sinh artifact được ghi ở
 [`models/environment.json`](models/environment.json) — đọc được bằng máy, không phải gõ tay.
 Toàn bộ script dùng `seed = 42` (`models/run_config.json`).
+
+### Kiểm toán tính tất định của các artifact trong `models/`
+
+Đã chạy `py src\train.py` **hai lần** trên cùng dữ liệu, vào hai thư mục tạm, rồi so
+SHA256 từng file (không bao giờ ghi đè `models/` thật):
+
+| Artifact | Byte giống nhau giữa 2 lần chạy? | Ghi chú |
+| --- | --- | --- |
+| `models/ridge_pipeline.joblib` | ✅ Có | Xem cảnh báo bên dưới |
+| `models/run_config.json` | ✅ Có | Thuần JSON, không phụ thuộc môi trường |
+| `models/model_metadata.json` | ✅ Có | Số đã `round()` cố định |
+| `models/baseline_table.csv` | ✅ Có | Ghi bằng pandas, thứ tự `groupby` ổn định |
+| `models/baseline_meta.json` | ✅ Có | |
+| `models/environment.json` | ✅ Có | Ghi tay từ `pip`, không do `train.py` sinh |
+| `models/serving_policy.json` | ✅ Có | **Sau bản sửa này** — xem § đóng băng idempotent |
+| `reports/figures/alpha_tuning.json` | ✅ Có | |
+
+**Cảnh báo về `ridge_pipeline.joblib`.** Trên *máy này, với đúng các phiên bản đã ghim*
+thì byte giống hệt. Nhưng đây **không phải bảo đảm giữa các môi trường**: file này là
+pickle, mà pickle nhúng cả *tên lớp và tên thuộc tính* của sklearn
+(`Ridge`, `ColumnTransformer`, `sparse_output`, `handle_unknown`, `strategy`, `float64`).
+Đổi phiên bản sklearn/numpy/joblib — hoặc đổi protocol pickle — có thể đổi byte **ngay cả
+khi mọi con số học được giống hệt**. Vì vậy:
+
+> **Tiêu chí tái lập của repo này KHÔNG phải "hash giống" cho `ridge_pipeline.joblib`.**
+> Hãy dùng `py src\freeze_serving_policy.py --check` cho `serving_policy.json`
+> (nội dung phải khớp trong dung sai), và với `ridge_pipeline.joblib` thì so **số**:
+>
+> | So số | Dung sai chấp nhận |
+> | --- | --- |
+> | `model.coef_`, `model.intercept_` | ≤ `1e-9` |
+> | `imputer.statistics_` | ≤ `1e-9` |
+> | `scaler.mean_`, `scaler.scale_`, `scaler.var_` | ≤ `1e-9` |
+> | `encoder.categories_` | phải bằng nhau tuyệt đối |
+> | Metric MAE / RMSE / R² trong `model_metadata.json` | ≤ `1e-6` |
+>
+> Ở lần kiểm toán này, mọi sai khác đo được đều bằng `0.000e+00`.
 
 ---
 

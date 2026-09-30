@@ -252,7 +252,7 @@ postprocessing."
 3. **Biết mô hình hỏng ở đâu** cũng là kết quả: ngày lễ, tuyết, sương mù, giờ đêm
 4. **Nói trung thực, kể cả khi bất tiện**: không gán cơ chế cho một con số khi chưa tách được
    các yếu tố — bản đầu của báo cáo đã từng kết luận sai, và nhóm đã sửa
-5. **Minh bạch**: 366 test pass, 0 fail; web/API chạy thật, chỉ nạp artifact
+5. **Minh bạch**: 385 test pass, 0 fail; web/API chạy thật, chỉ nạp artifact
 
 **Câu kết:**
 > "Trong bài toán chuỗi thời gian, **cách ta chia tập quan trọng ngang với việc ta chọn mô hình** —
@@ -271,5 +271,5 @@ postprocessing."
 | A3 | Bảng PSI theo năm | GV hỏi về drift |
 | A4 | Rolling-origin 3 fold | GV hỏi "có drift không" |
 | A5 | Bảng so sánh feature train vs serving | GV hỏi về train-serving skew |
-| A6 | Danh sách 366 test theo nhóm | GV hỏi về kiểm thử |
+| A6 | Danh sách 385 test theo nhóm | GV hỏi về kiểm thử |
 | A7 | Chi tiết collapse 5.445 nhóm trùng | GV hỏi về tiền xử lý |
