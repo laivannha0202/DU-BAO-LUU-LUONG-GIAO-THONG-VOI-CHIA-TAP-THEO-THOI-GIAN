@@ -126,8 +126,12 @@ nhiều mô hình phức tạp.
 ## 3.1 Nguồn và giấy phép
 
 - **Metro Interstate Traffic Volume**, UCI Machine Learning Repository.
-- Giấy phép: **CC BY 4.0**. Trích dẫn bắt buộc: Hamed Tabatabaeyan, Meng Lu, et al. (2020).
-- Tải bằng `py src\download_data.py`; SHA256 được ghi trong `data/README.md` để xác thực.
+- Giấy phép: **CC BY 4.0**.
+- **Trích dẫn chuẩn (bắt buộc ghi nguồn):**
+  Hogue, J. (2019). Metro Interstate Traffic Volume [Dataset].
+  UCI Machine Learning Repository. https://doi.org/10.24432/C5X60B
+- Tải bằng `py src\download_data.py`; SHA256, tên tác giả, năm, DOI và giấy phép được
+  ghi ở `data/README.md` — hai tài liệu này dùng **cùng một** trích dẫn.
 
 ## 3.2 Quy mô
 
