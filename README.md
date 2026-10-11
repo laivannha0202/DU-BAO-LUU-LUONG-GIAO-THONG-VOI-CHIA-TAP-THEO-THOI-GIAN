@@ -32,8 +32,13 @@ Dữ liệu: Metro Interstate Traffic Volume (UCI, CC BY 4.0). Xem `data/README.
 - [x] **Kiểm toán bất định** (`src/uncertainty_audit.py`) — block bootstrap theo khối ngày lịch (4.000 lần, seed cố định) cho hiệu MAE/RMSE, MAE theo từng tháng; chạy SAU `evaluate.py`, chỉ đo
 - [x] **Kiểm chứng điểm yếu giờ đêm trên dữ liệu dev** (`src/experiments.py`) — Ridge kém ở toàn bộ 5 giờ đêm trong 3/3 cửa sổ rolling-origin; thử log-target như khám phá hậu nghiệm, **không** thay mô hình
 - [x] **Thí nghiệm lag (độc lập, KHÔNG vào serving)** — lag 1/24/168 giờ ghép theo **thời điểm** (không `shift()` theo dòng); kết quả **không ủng hộ** giả thuyết "lag tự tạo rò rỉ", nhưng cách dựng lag sai thì có
-- [x] **Test: `py -m pytest tests\ -v` → 385 passed, 0 failed**
+- [x] **Test: `py -m pytest tests\ -v` → 392 passed, 0 failed**
       (con số này được **tự kiểm chứng** bởi `tests/test_report.py::test_documented_test_count_matches_real_collection`)
+      - **Lưu ý:** "392 passed" chỉ đúng với **môi trường gốc đã ghim** (Python 3.14.7 +
+        `requirements-lock.txt`) **sau khi đã chạy pipeline**. Trên máy khác (Python/OS/phiên bản
+        thư viện khác), một số test có thể **skip** (thiếu artifact/dữ liệu) hoặc **cảnh báo**
+        (phiên bản gói lệch) — kèm lý do rõ ràng, chứ không phải lỗi. Số test **thu thập được**
+        (392) vẫn được tự đối chiếu bằng `pytest --collect-only`.
 - [x] Báo cáo, slide, kịch bản demo, câu hỏi viva (`reports/final_report.md`, `docs/`)
 
 ---
@@ -79,6 +84,13 @@ Sau đó mở trình duyệt: **http://localhost:8000** (OpenAPI docs: http://lo
 >
 > Sau khi đọc kết quả 2018, **không** quay lại sửa mô hình, sửa `alpha`, hay sửa policy.
 >
+> **Thứ tự lệnh trên là thứ tự TÁI LẬP — không phải nhật ký thời gian thật.** Trong thực tế,
+> FINAL TEST 2018 đã được mở **một lần** trước các phân tích hậu nghiệm (giờ đêm, log-target, độ
+> nhạy `alpha`, lag — các commit `P2-A`, `P2-B`, `P3` xác nhận), và chính vì vậy chúng được ghi là
+> **khám phá hậu nghiệm**: các phân tích đó **không** làm thay đổi mô hình, `alpha`, đặc trưng hay
+> policy đã đóng băng. Điều được bảo đảm (và có test cưỡng chế) là **không có vòng lặp tối ưu nào
+> đi qua 2018**: mọi lựa chọn mô hình/policy vẫn chỉ dựa trên TRAIN + VALIDATION 2012–2017.
+>
 > Lưu ý PowerShell: dùng dấu gạch chéo ngược `\` cho đường dẫn script và `\ -v` cho pytest.
 
 ---
@@ -101,8 +113,12 @@ py src\freeze_serving_policy.py --check   :: xác minh trên máy sạch, KHÔNG
 
 Vài điểm cần biết:
 
-- **Nội dung khác `frozen_at_utc`** mới là thứ phải tái lập được. Số thực được so theo
-  dung sai (`1e-6`) vì phép tính float có thể khác nhẹ giữa các nền tảng.
+- **Nội dung khác `frozen_at_utc`** mới là thứ phải tái lập được. Trường **quyết định** (tên/
+  phiên bản policy, quy tắc, các cờ D1–D3, `final_test_used_for_selection`, kích thước tập)
+  được so **nghiêm ngặt**; chỉ các **số float trong khối `evidence`** mới dùng dung sai
+  `0,5` — vì `Ridge(solver="lsqr")` trên ma trận one-hot gần cộng tuyến cho số lệch nhẹ giữa
+  các nền tảng (ví dụ `min_raw_prediction` −869,35 so với −869,30). Dung sai này đủ nhỏ để
+  vẫn bắt được sai số thật (lệch ≥ 5).
 - `frozen_at_utc` là **thời điểm đóng băng thật** — giữ nguyên, không đặt lại thành
   "bây giờ" và không backdate. `reports/figures/serving_policy.md` đọc mốc này từ JSON.
 - `content_sha256` là chữ ký chống sửa tay: script **băm lại chính file đang có** rồi so
@@ -133,6 +149,19 @@ Chi tiết: `reports/figures/evaluation_report.md` (2018), `reports/figures/expe
   CI 95 % **[+3,80; +22,00]** (không chứa 0), Ridge thắng ở **8/9 tháng**.
 - **Nhưng** trên dữ liệu dev 2012–2017, Ridge chỉ thắng ở **1/4 cửa sổ** (pseudo-test 2016–2017
   và 3 fold rolling-origin). Ở 3 cửa sổ kia, khoảng tin cậy nằm hẳn về phía baseline.
+
+### Đối chiếu 4 thí nghiệm bắt buộc của đề ↔ mục báo cáo ↔ artifact
+
+| # | Thí nghiệm bắt buộc | Mục trong báo cáo | Khoá JSON / file artifact | Hình |
+| --- | --- | --- | --- | --- |
+| 1 | Random split vs time split | §11.1–§11.3 | `experiments_results.json` → `experiment_1_random_vs_time_split`, `experiment_1b_leakage_controlled`, `experiment_1c_block_neighbour` | `eda_traffic_by_month_year.png` |
+| 2 | Baseline vs mô hình | §7.1, §7.2, §9.1 | `evaluation_results.json` → `final_test.baseline`, `final_test.ridge`; `models/model_metadata.json` | `final_mae_by_hour_dow.png` |
+| 3 | Drift theo năm/mùa (rolling-origin, PSI) | §11.4, §11.7 | `experiments_results.json` → `experiment_3_rolling_origin`, `experiment_3b_covariate_drift` | — (bảng số) |
+| 4 | Phân tích lỗi ngày lễ + thời tiết cực đoan | §10.3–§10.5 | `evaluation_results.json` → `error_analysis.holiday`, `error_analysis.weather_main`, `error_analysis.extreme_weather` | `final_mae_by_weather.png` |
+
+> ⚠️ "Thí nghiệm 4" trong `reports/figures/experiments_report.md` là **giờ đêm** (§10.7 của báo cáo),
+> **KHÁC** "thí nghiệm 4" bắt buộc của đề ở bảng trên (ngày lễ + thời tiết cực đoan). Số hiệu
+> "Thí nghiệm 1–8" trong `experiments_report.md` là đánh số **nội bộ** giai đoạn phát triển 2012–2017.
 
 ---
 
@@ -393,7 +422,7 @@ release/
 ```
 
 **Phân bổ test:** xem bảng ở §13 của `reports/final_report.md`.
-Con số tổng **385 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
+Con số tổng **392 test** được tự kiểm chứng: `test_report.py` chạy `pytest --collect-only`
 và bắt tài liệu phải khớp đúng số đó — nên tài liệu **không thể** nói sai số test.
 
 ---
@@ -511,7 +540,7 @@ Kết quả:
 | --- | --- | --- | --- |
 | `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 45 bảng, **7 ảnh nhúng** |
 | `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **25 trang A4**, dấu tiếng Việt đầy đủ |
-| `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | **12 slide** (1 bìa + 11 nội dung), 4 ảnh thật |
+| `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | **11 slide** (1 bìa + 10 nội dung), 4 ảnh thật |
 
 - Báo cáo **25 trang A4** — nằm trong khoảng mục tiêu 15–25 trang.
 - Nếu muốn định dạng đẹp hơn cho DOCX: đặt file mẫu `reference.docx` (mẫu định dạng của

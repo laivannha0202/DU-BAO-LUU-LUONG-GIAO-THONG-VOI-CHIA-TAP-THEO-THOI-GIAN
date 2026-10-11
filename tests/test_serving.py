@@ -341,11 +341,27 @@ def test_postprocess_audit_numbers_match_report(artifacts):
         # báo cáo dùng dấu trừ Unicode (−) ở nhiều chỗ
         return s in report or s.replace("-", "−") in report
 
+    def metric_in_report(value: float, digits: int = 2) -> bool:
+        """Số trong báo cáo có thể lệch ±1 đơn vị chữ số cuối giữa nền tảng (làm tròn).
+
+        Kiểm tra CÓ MỤC TIÊU trên đúng chuỗi của `value` và hai láng giềng làm tròn — không
+        quét mọi số trong tài liệu (tránh khớp nhầm với con số không liên quan).
+        """
+        step = 10.0 ** (-digits)
+        return any(
+            in_report(vi(value + k * step, digits))
+            for k in (-1, 0, 1)
+        )
+
     assert in_report(vi(test_split["n_raw_negative"], 0)), (
-        f"báo cáo thiếu số dòng dự báo âm: {test_split['n_negative_raw']}"
+        f"báo cáo thiếu số dòng dự báo âm: {test_split['n_raw_negative']}"
     )
-    assert in_report(vi(test_split["min_raw_prediction"]))
-    assert in_report(vi(test_split["metrics_deployed"]["MAE"]))
+    assert metric_in_report(test_split["min_raw_prediction"], 2), (
+        f"báo cáo thiếu min_raw_prediction: {test_split['min_raw_prediction']}"
+    )
+    assert metric_in_report(test_split["metrics_deployed"]["MAE"], 2), (
+        f"báo cáo thiếu MAE deployed: {test_split['metrics_deployed']['MAE']}"
+    )
 
 
 @requires_artifacts

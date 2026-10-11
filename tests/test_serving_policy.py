@@ -402,7 +402,14 @@ requires_freeze_inputs = pytest.mark.skipif(
 
 @pytest.fixture(scope="session")
 def real_content() -> dict:
-    """Nội dung policy tính bằng `build_policy()` THẬT — gọi một lần cho cả module."""
+    """Nội dung policy tính bằng `build_policy()` THẬT — gọi một lần cho cả module.
+
+    `build_policy()` cần `data/processed/traffic_clean.csv` + `models/ridge_pipeline.joblib`.
+    Trên clone sạch chưa chạy pipeline, thiếu dữ liệu sẽ làm fixture ném FileNotFoundError và
+    biến hai test dùng nó thành ERROR — nên ở đây SKIP kèm hướng dẫn thay vì để lỗi.
+    """
+    if not (CLEAN_DATA.exists() and RIDGE.exists()):
+        pytest.skip(REASON_NO_INPUTS)
     from src.freeze_serving_policy import build_policy
 
     return build_policy()
@@ -691,15 +698,72 @@ def test_content_hash_detects_a_single_field_edit(real_content):
 
 # --- 8.7. So sánh số thực theo dung sai -------------------------------------
 def test_float_comparison_uses_tolerance():
-    """Float có thể khác nhẹ giữa nền tảng — chênh nhỏ KHÔNG được coi là lệch."""
+    """Float trong `evidence` có thể khác nhẹ giữa nền tảng — chênh nhỏ KHÔNG bị coi là lệch."""
     from src.freeze_serving_policy import compare_content
 
-    assert compare_content({"v": 272.12}, {"v": 272.12 + 1e-9}) == []
-    assert compare_content({"v": 272.12}, {"v": 272.1200004}) == []
-    # nhưng lệch thật thì phải bị bắt
-    diffs = compare_content({"v": 272.12}, {"v": 272.90})
+    # `min_raw_prediction` đã commit là -869.35; chạy lại trên nền tảng khác cho -869.30.
+    assert compare_content(
+        {"evidence": {"train": {"min_raw_prediction": -869.35}}},
+        {"evidence": {"train": {"min_raw_prediction": -869.30}}},
+    ) == []
+    # lệch 0,05 (< dung sai 0,5) vẫn phải khớp
+    assert compare_content(
+        {"evidence": {"validation": {"metrics_raw": {"RMSE": 421.46}}}},
+        {"evidence": {"validation": {"metrics_raw": {"RMSE": 421.51}}}},
+    ) == []
+    # nhưng lệch thật (RMSE 416,78 -> 500) thì phải bị bắt
+    diffs = compare_content(
+        {"evidence": {"final": {"RMSE": 416.78}}},
+        {"evidence": {"final": {"RMSE": 500.0}}},
+    )
     assert len(diffs) == 1
-    assert diffs[0]["path"] == "v"
+    assert diffs[0]["path"] == "evidence.final.RMSE"
+
+
+def test_evidence_float_diff_of_five_or_more_is_flagged():
+    """Lệch từ 5 trở lên là sai số thật, KHÔNG được nuốt vào dung sai nền tảng."""
+    from src.freeze_serving_policy import compare_content
+
+    for delta in (5.0, 5.5, 50.0):
+        diffs = compare_content(
+            {"evidence": {"train": {"min_raw_prediction": -869.35}}},
+            {"evidence": {"train": {"min_raw_prediction": -869.35 - delta}}},
+        )
+        assert len(diffs) == 1, f"lệch {delta} phải bị bắt"
+
+
+def test_decision_field_change_is_always_flagged():
+    """Đổi một TRƯỜNG QUYẾT ĐỊNH thì luôn lệch, dù chênh rất nhỏ.
+
+    Tên/phiên bản policy, quy tắc, các cờ quyết định và kích thước tập KHÔNG được
+    nới dung sai — nếu không, một sửa tay nhỏ ở đây có thể lọt.
+    """
+    from src.freeze_serving_policy import compare_content
+
+    assert compare_content({"policy_id": "non_negative_projection"}, {"policy_id": "none"}) != []
+    assert compare_content({"version": "frozen-1.0"}, {"version": "frozen-1.1"}) != []
+    assert compare_content(
+        {"decision_trace": {"policy_adopted": True}},
+        {"decision_trace": {"policy_adopted": False}},
+    ) != []
+    assert compare_content(
+        {"final_test_used_for_selection": False},
+        {"final_test_used_for_selection": True},
+    ) != []
+    # số nguyên đếm (kích thước tập) ngoài `evidence` cũng phải khớp tuyệt đối
+    assert compare_content({"n_rows": 25329}, {"n_rows": 25330}) != []
+
+
+def test_evidence_integer_count_is_still_exact():
+    """`n_rows` nằm trong `evidence` nhưng là số NGUYÊN — lệch 1 dòng vẫn phải bị bắt."""
+    from src.freeze_serving_policy import compare_content
+
+    diffs = compare_content(
+        {"evidence": {"train": {"n_rows": 25329}}},
+        {"evidence": {"train": {"n_rows": 25330}}},
+    )
+    assert len(diffs) == 1
+    assert diffs[0]["path"] == "evidence.train.n_rows"
 
 
 def test_booleans_are_not_treated_as_numbers():

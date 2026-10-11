@@ -52,12 +52,23 @@ Nên script chạy theo ba nhánh:
      đè**. Chỉ ghi đè khi có cờ `--force`, kèm cảnh báo phải ghi lý do vào
      `docs/project-log.md`.
 
-"Nội dung" ở đây là **mọi trường trừ `frozen_at_utc`**. Số thực được so theo dung sai
-(`FLOAT_ABS_TOL` / `FLOAT_REL_TOL`) vì phép tính float có thể khác nhẹ chút giữa các nền
-tảng; chỉ khi đó mới coi là khớp. `content_sha256` là hàm băm của toàn bộ thân policy
-(bao gồm `frozen_at_utc`) nên nó cũng bị loại khỏi phép so nội dung — thay vào đó nó
-được **kiểm tra tự tham chiếu**: băm lại thân của chính file đang có rồi so với giá trị
-lưu. Nếu hai bên lệch thì file đã bị sửa tay và được coi là không khớp.
+"Nội dung" ở đây là **mọi trường trừ `frozen_at_utc`**. Cách so được tách thành HAI chế độ:
+
+  - **Trường quyết định — so NGHIÊM NGẶT.** Tên/phiên bản policy (`policy_id`, `version`),
+    quy tắc (`rule`, `decision_rule`), các cờ quyết định (`decision_trace`, `policy_adopted`,
+    `final_test_used_for_selection`), kích thước tập (`n_rows` — số nguyên) và `selected_on`
+    phải khớp tuyệt đối. Số nguyên và chuỗi/bool không được phép lệch dù chỉ một đơn vị.
+  - **Số float trong khối `evidence` — nới dung sai (`EVIDENCE_FLOAT_ABS_TOL`).** Đây là các
+    phép tính `Ridge(solver="lsqr")` trên ma trận one-hot gần cộng tuyến; cùng một mã nguồn
+    chạy trên nền tảng/BLAS khác có thể lệch nhẹ (ví dụ `min_raw_prediction` -869.35 so với
+    -869.30, RMSE 416.78 so với 416.77). Nếu bắt chúng khớp tuyệt đối thì `--check` đỏ trên
+    máy khác dù quyết định không đổi. Vì vậy chỉ các float trong `evidence` mới dùng dung sai
+    rộng `abs_tol = 0.5` (đủ lớn để bỏ qua sai khác nền tảng, đủ nhỏ để bắt sai số thật ≥ 5).
+
+`content_sha256` là hàm băm của toàn bộ thân policy (bao gồm `frozen_at_utc`) nên nó cũng bị
+loại khỏi phép so nội dung — thay vào đó nó được **kiểm tra tự tham chiếu**: băm lại thân của
+chính file đang có rồi so với giá trị lưu. Nếu hai bên lệch thì file đã bị sửa tay và được coi
+là không khớp.
 
 Usage:
     python src/freeze_serving_policy.py            # đóng băng (lặp lại được) hoặc báo lệch
@@ -109,9 +120,23 @@ EXIT_USAGE = 2
 #: Thay vào đó `content_sha256` được kiểm tra tự tham chiếu — xem `check_integrity`.
 CONTENT_EXCLUDED_FIELDS = ("frozen_at_utc", "content_sha256")
 
-#: Dung sai khi so số thực giữa hai lần tính (float có thể khác nhẹ giữa nền tảng/BLAS).
-FLOAT_ABS_TOL = 1e-6
-FLOAT_REL_TOL = 1e-9
+#: Dung sai khi so số thực trong khối `evidence` giữa hai lần tính.
+#:
+#: Vì sao KHÔNG còn `1e-6` như trước: `Ridge(solver="lsqr")` với `alpha=0.001` trên ma trận
+#: one-hot gần cộng tuyến cho ra số float lệch nhẹ giữa các nền tảng/BLAS khác nhau — ví dụ
+#: `min_raw_prediction` -869.35 (bản đã commit) so với -869.30 (chạy lại), hay RMSE FINAL TEST
+#: 416.78 so với 416.77. Dung sai `1e-6` khiến `--check` đỏ trên máy khác dù quyết định không
+#: đổi. `abs_tol = 0.5` đủ lớn để bỏ qua sai khác nền tảng, mà vẫn bắt được sai số thật (ví dụ
+#: lệch 5 trở lên, hoặc đổi hẳn một con số).
+#:
+#: QUAN TRỌNG: dung sai này CHỈ áp cho số float nằm trong khối `evidence`. Các trường quyết
+#: định (`policy_id`, `version`, `rule`, `decision_rule`, `decision_trace`,
+#: `final_test_used_for_selection`, `selected_on`, kích thước tập `n_rows`...) luôn được so
+#: NGHIÊM NGẶT — xem `_is_evidence_path` và `_collect_diffs`.
+EVIDENCE_FLOAT_ABS_TOL = 0.5
+#: Số thực ngoài khối `evidence` (trường quyết định) phải khớp tuyệt đối.
+DECISION_FLOAT_ABS_TOL = 0.0
+EVIDENCE_FLOAT_REL_TOL = 0.0
 
 #: Quy tắc quyết định — viết ra đây để kiểm chứng, không phải suy ra sau khi xem kết quả
 DECISION_RULE = {
@@ -379,13 +404,22 @@ def _is_number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _same_number(a: Any, b: Any) -> bool:
+def _is_evidence_path(where: str) -> bool:
+    """True nếu đường dẫn nằm trong khối `evidence` (số float phụ thuộc nền tảng).
+
+    Chỉ nhánh này mới được nới dung sai. Mọi trường khác — đặc biệt các trường quyết
+    định và kích thước tập — luôn so NGHIÊM NGẶT.
+    """
+    return where == "evidence" or where.startswith("evidence.")
+
+
+def _same_number(a: Any, b: Any, abs_tol: float = DECISION_FLOAT_ABS_TOL) -> bool:
     """Số thực so theo dung sai; bool KHÔNG được coi là số (True != 1 ở đây)."""
     if isinstance(a, bool) or isinstance(b, bool):
         return isinstance(a, bool) and isinstance(b, bool) and a == b
     if not (_is_number(a) and _is_number(b)):
         return False
-    return math.isclose(float(a), float(b), rel_tol=FLOAT_REL_TOL, abs_tol=FLOAT_ABS_TOL)
+    return math.isclose(float(a), float(b), rel_tol=EVIDENCE_FLOAT_REL_TOL, abs_tol=abs_tol)
 
 
 def _show(value: Any) -> str:
@@ -418,13 +452,26 @@ def _collect_diffs(where: str, on_disk: Any, fresh: Any, out: list[dict]) -> Non
     # PHẢI return ở đây — nếu không, một cặp số khớp trong dung sai sẽ rơi xuống
     # nhánh so sánh bằng `!=` bên dưới và bị báo là khác biệt.
     if _is_number(on_disk) and _is_number(fresh):
-        if not _same_number(on_disk, fresh):
+        both_int = isinstance(on_disk, int) and isinstance(fresh, int)
+        if both_int:
+            # Số NGUYÊN (vd `n_rows`, `n_raw_negative`, số đếm) luôn khớp tuyệt đối,
+            # kể cả khi nằm trong `evidence` — lệch 1 đơn vị vẫn là lệch thật.
+            same = on_disk == fresh
+            tol_label = "nguyên (khớp tuyệt đối)"
+        else:
+            # CHỈ số FLOAT trong khối `evidence` mới được nới dung sai; trường quyết
+            # định luôn khớp tuyệt đối.
+            in_evidence = _is_evidence_path(where)
+            tol = EVIDENCE_FLOAT_ABS_TOL if in_evidence else DECISION_FLOAT_ABS_TOL
+            same = _same_number(on_disk, fresh, abs_tol=tol)
+            tol_label = f"{'evidence ' if in_evidence else ''}{tol:g}"
+        if not same:
             out.append({
                 "path": where,
                 "on_disk": _show(on_disk),
                 "fresh": _show(fresh),
                 "note": f"chênh lệch {abs(float(on_disk) - float(fresh)):.6g} "
-                        f"(dung sai {FLOAT_ABS_TOL:g})",
+                        f"(dung sai {tol_label})",
             })
         return
     if type(on_disk) is not type(fresh) or on_disk != fresh:
