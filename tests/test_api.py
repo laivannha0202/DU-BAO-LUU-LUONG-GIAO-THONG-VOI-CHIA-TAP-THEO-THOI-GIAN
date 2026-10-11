@@ -377,6 +377,53 @@ def test_optional_precipitation_defaults_to_zero(client, valid_payload):
 
 
 @requires_artifacts
+def test_missing_precipitation_produces_warnings(client, valid_payload):
+    """Không gửi rain/snow -> phải có cảnh báo, KHÔNG im lặng thay bằng 0."""
+    payload = {k: v for k, v in valid_payload.items()
+               if k not in ("rain_1h_mm", "snow_1h_mm")}
+    body = client.post("/api/traffic-forecast", json=payload).json()
+    joined = " ".join(body["warnings"])
+    assert "rain_1h_mm" in joined, "thiếu cảnh báo cho rain_1h_mm không được cung cấp"
+    assert "snow_1h_mm" in joined, "thiếu cảnh báo cho snow_1h_mm không được cung cấp"
+
+
+@requires_artifacts
+def test_missing_rain_with_rainy_weather_produces_stronger_warning(client, valid_payload):
+    """Không gửi lượng mưa mà weather có Rain -> cảnh báo mạnh hơn (mâu thuẫn hiện tượng)."""
+    # không gửi rain/snow, weather = Clear -> cảnh báo trung tính
+    neutral_payload = {k: v for k, v in valid_payload.items()
+                       if k not in ("rain_1h_mm", "snow_1h_mm")}
+    neutral = " ".join(client.post("/api/traffic-forecast", json=neutral_payload).json()["warnings"])
+    assert "rain_1h_mm" in neutral
+
+    # cùng thiếu lượng mưa nhưng weather có Rain -> cảnh báo mạnh nêu rõ mâu thuẫn hiện tượng
+    rainy_payload = dict(neutral_payload, weather=["Rain"])
+    rainy = " ".join(client.post("/api/traffic-forecast", json=rainy_payload).json()["warnings"])
+    assert "rain_1h_mm" in rainy
+    assert "Rain" in rainy and "THAY THẾ" in rainy, (
+        f"cần cảnh báo mạnh nêu hiện tượng mưa + giá trị thay thế:\n{rainy}"
+    )
+
+
+@requires_artifacts
+def test_explicit_zero_precipitation_produces_no_warning(client, valid_payload):
+    """Gửi 0 tường minh -> KHÔNG được cảnh báo (người dùng chủ động khai 0)."""
+    payload = dict(valid_payload, rain_1h_mm=0.0, snow_1h_mm=0.0, weather=["Rain"])
+    body = client.post("/api/traffic-forecast", json=payload).json()
+    joined = " ".join(body["warnings"])
+    assert "rain_1h_mm" not in joined, body["warnings"]
+    assert "snow_1h_mm" not in joined, body["warnings"]
+
+
+def test_predict_js_never_silently_replaces_blank_precipitation_with_zero():
+    """Ở mức MÃ NGUỒN: predict.js không còn mẫu tự đổi ô trống thành 0."""
+    js = (STATIC_DIR / "js" / "predict.js").read_text(encoding="utf-8")
+    assert '=== "" ? 0' not in js, (
+        "predict.js vẫn còn mẫu tự điền 0 cho ô trống — phải bỏ hẳn trường khỏi request"
+    )
+
+
+@requires_artifacts
 def test_state_fair_must_be_same_year(client, valid_payload):
     r = client.post(
         "/api/traffic-forecast",

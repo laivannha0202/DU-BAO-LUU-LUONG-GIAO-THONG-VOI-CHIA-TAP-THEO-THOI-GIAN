@@ -108,8 +108,12 @@
     var temp = parseFloat($("temperature").value);
     var cloudsRaw = $("clouds").value;
     var clouds = parseInt(cloudsRaw, 10);
-    var rain = $("rain").value === "" ? 0 : parseFloat($("rain").value);
-    var snow = $("snow").value === "" ? 0 : parseFloat($("snow").value);
+    // Mưa/tuyết là TUỲ CHỌN. Ô để trống KHÔNG được tự đổi thành 0 — nếu trống thì bỏ hẳn
+    // trường khỏi request để API trả cảnh báo "không được cung cấp". Chỉ kiểm tra khi có nhập.
+    var rainRaw = $("rain").value.trim();
+    var snowRaw = $("snow").value.trim();
+    var rain = rainRaw === "" ? null : parseFloat(rainRaw);
+    var snow = snowRaw === "" ? null : parseFloat(snowRaw);
     var checked = weatherList.querySelectorAll('input[name="weather"]:checked');
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateVal)) {
@@ -130,8 +134,8 @@
     } else if (clouds < 0 || clouds > 100) {
       setFieldError("clouds", "Độ phủ mây phải nằm trong khoảng 0 … 100."); ok = false;
     }
-    if (isNaN(rain) || rain < 0) { setFieldError("rain", "Lượng mưa phải ≥ 0 mm."); ok = false; }
-    if (isNaN(snow) || snow < 0) { setFieldError("snow", "Lượng tuyết phải ≥ 0 mm."); ok = false; }
+    if (rain !== null && (isNaN(rain) || rain < 0)) { setFieldError("rain", "Lượng mưa phải ≥ 0 mm."); ok = false; }
+    if (snow !== null && (isNaN(snow) || snow < 0)) { setFieldError("snow", "Lượng tuyết phải ≥ 0 mm."); ok = false; }
     if (!checked.length) {
       setFieldError("weather", "Chọn ít nhất một hiện tượng thời tiết."); ok = false;
     }
@@ -150,10 +154,12 @@
       date_time: $("date").value + "T" + $("time").value + ":00",
       temperature_celsius: parseFloat($("temperature").value),
       clouds_all: parseInt($("clouds").value, 10),
-      rain_1h_mm: $("rain").value === "" ? 0 : parseFloat($("rain").value),
-      snow_1h_mm: $("snow").value === "" ? 0 : parseFloat($("snow").value),
       weather: weather
     };
+    // Ô trống -> KHÔNG gửi trường; API sẽ cảnh báo "không được cung cấp" thay vì ta tự điền 0.
+    // Nhập tường minh (kể cả "0") -> gửi, và API không cảnh báo.
+    if ($("rain").value.trim() !== "") { body.rain_1h_mm = parseFloat($("rain").value); }
+    if ($("snow").value.trim() !== "") { body.snow_1h_mm = parseFloat($("snow").value); }
     if ($("state-fair").value) { body.state_fair_start_date = $("state-fair").value; }
     return body;
   }

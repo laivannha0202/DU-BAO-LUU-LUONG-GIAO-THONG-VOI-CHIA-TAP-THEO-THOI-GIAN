@@ -336,6 +336,10 @@ def traffic_forecast(
 ) -> dict[str, Any]:
     """Dự báo lưu lượng cho MỘT mốc thời gian."""
     data = payload.model_dump()
+    # Phân biệt "không gửi" với "gửi 0" cho mưa/tuyết: Pydantic v2 giữ tập trường đã gửi
+    # tường minh trong `model_fields_set`. `predict()` dùng nó để cảnh báo khi backend phải
+    # thay bằng 0 ngầm định, thay vì âm thầm điền 0.
+    data["_provided_fields"] = set(payload.model_fields_set)
     return predict(art, data)
 
 

@@ -44,6 +44,11 @@ from src.weather import (  # noqa: E402
 
 STATE_FAIR_HOLIDAY_NAME = "State Fair"
 
+#: Hiện tượng thời tiết ngụ ý CÓ mưa / CÓ tuyết. Dùng để nâng mức cảnh báo khi người dùng
+#: không gửi lượng mưa/tuyết nhưng lại khai báo một hiện tượng cần có lượng đó.
+RAIN_IMPLYING_WEATHER: frozenset[str] = frozenset({"Rain", "Drizzle", "Thunderstorm"})
+SNOW_IMPLYING_WEATHER: frozenset[str] = frozenset({"Snow"})
+
 #: Tên thứ trong tuần (0 = Thứ 2) — chỉ để hiển thị, không ảnh hưởng mô hình
 DAY_OF_WEEK_NAMES: tuple[str, ...] = (
     "Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật",
@@ -245,10 +250,55 @@ def build_scope(art: Artifacts, date_time: datetime) -> tuple[dict[str, Any], li
 # ---------------------------------------------------------------------------
 # 5. Dự báo
 # ---------------------------------------------------------------------------
+def _precipitation_warnings(weather: list[str], provided: set[str] | None) -> list[str]:
+    """Cảnh báo khi người dùng KHÔNG gửi lượng mưa/tuyết (backend dùng 0 thay thế).
+
+    `provided` là tập tên trường người dùng ĐÃ gửi tường minh (lấy từ `model_fields_set`
+    của Pydantic v2 ở tầng API). Phân biệt rõ:
+      - không gửi `rain_1h_mm`            -> cảnh báo (đã thay bằng 0 ngầm định);
+      - không gửi VÀ `weather` có mưa     -> cảnh báo MẠNH hơn (0 mm mâu thuẫn hiện tượng);
+      - gửi tường minh `0`                -> KHÔNG cảnh báo (người dùng chủ động khai 0).
+
+    Khi `provided is None` (gọi trực tiếp `predict()` không qua API, ví dụ trong test), coi
+    như người dùng đã gửi đủ — để không đổi hành vi của các đường gọi cũ.
+    """
+    if provided is None:
+        return []
+    weather_set = set(weather)
+    warnings: list[str] = []
+    if "rain_1h_mm" not in provided:
+        if weather_set & RAIN_IMPLYING_WEATHER:
+            warnings.append(
+                "rain_1h_mm không được cung cấp nhưng `weather` có hiện tượng mưa "
+                f"({', '.join(sorted(weather_set & RAIN_IMPLYING_WEATHER))}) — hệ thống vẫn dùng "
+                "0 mm (giá trị THAY THẾ, không phải quan sát thật). Hãy nhập lượng mưa thật (mm) "
+                "để mô hình chính xác; nhập 0 nếu chắc chắn không mưa."
+            )
+        else:
+            warnings.append(
+                "rain_1h_mm không được cung cấp — hệ thống dùng 0 mm (không mưa). "
+                "Nhập 0 nếu không mưa, hoặc nhập lượng mưa thật (mm) nếu có."
+            )
+    if "snow_1h_mm" not in provided:
+        if weather_set & SNOW_IMPLYING_WEATHER:
+            warnings.append(
+                "snow_1h_mm không được cung cấp nhưng `weather` có tuyết (Snow) — hệ thống vẫn "
+                "dùng 0 mm (giá trị THAY THẾ, không phải quan sát thật). Hãy nhập lượng tuyết thật "
+                "(mm) để mô hình chính xác; nhập 0 nếu chắc chắn không có tuyết."
+            )
+        else:
+            warnings.append(
+                "snow_1h_mm không được cung cấp — hệ thống dùng 0 mm (không có tuyết). "
+                "Nhập 0 nếu không có tuyết, hoặc nhập lượng tuyết thật (mm) nếu có."
+            )
+    return warnings
+
+
 def predict(art: Artifacts, payload: dict[str, Any]) -> dict[str, Any]:
     """Trả về dict khớp `app.schemas.ForecastResponse`."""
     date_time: datetime = payload["date_time"]
     weather = sorted(set(payload["weather"]))
+    provided = payload.get("_provided_fields")
 
     features = engineer_features(payload)
     derived = features.pop("_derived")
@@ -287,6 +337,7 @@ def predict(art: Artifacts, payload: dict[str, Any]) -> dict[str, Any]:
 
     model_meta = art.metadata
     warnings = list(warnings)
+    warnings.extend(_precipitation_warnings(weather, provided))
     if not policy.get("policy_artifact_present", False):
         warnings.append(
             "Thiếu artifact `models/serving_policy.json` — đang dùng mặc định "
