@@ -1,0 +1,59 @@
+name: CI
+
+# Chứng minh repo chạy được trên MỘT MÁY KHÁC (ubuntu-latest, Python 3.12) — không chỉ
+# trên máy Windows đã sinh artifact. Hai job:
+#   clean-clone   : clone sạch, CHƯA có dữ liệu/processed — chỉ cài requirements.txt rồi
+#                   pytest. Yêu cầu 0 failed, 0 error (skip được vì thiếu artifact/dữ liệu).
+#   full-pipeline : chạy ĐÚNG thứ tự lệnh trong README (cần truy cập UCI để tải dữ liệu),
+#                   rồi pytest. Job này phụ thuộc việc UCI còn cho tải.
+#
+# KHÔNG dùng continue-on-error: nếu lộ lỗi phụ thuộc nền tảng thì để CI đỏ và ghi lại,
+# không che.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  clean-clone:
+    name: clean-clone (no data)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cài dependency
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: pytest (chưa có dữ liệu -> kỳ vọng 0 failed, 0 error)
+        run: python -m pytest tests -q
+
+  full-pipeline:
+    name: full-pipeline (tải UCI + chạy hết + pytest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cài dependency
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+      - name: Tải dữ liệu gốc (UCI)
+        run: python src/download_data.py
+      - name: Pipeline — đúng thứ tự trong README
+        run: |
+          python src/data.py
+          python src/eda.py
+          python src/train.py
+          python src/experiments.py
+          python src/freeze_serving_policy.py --check
+          python src/evaluate.py
+          python src/postprocess_audit.py
+          python src/uncertainty_audit.py
+      - name: pytest (kỳ vọng 0 failed, 0 error)
+        run: python -m pytest tests -q
