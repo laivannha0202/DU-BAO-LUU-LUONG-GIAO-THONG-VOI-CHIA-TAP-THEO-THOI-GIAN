@@ -8,7 +8,7 @@ Script này:
 1. Tải file .zip chính thức từ UCI.
 2. Giải nén để lấy Metro_Interstate_Traffic_Volume.csv.
 3. Đặt vào data/raw/.
-4. In ra SHA256 checksum để ghi vào data/README.md (mục "Tệp sử dụng & checksum").
+4. Đối chiếu SHA256 với giá trị kỳ vọng trong `data/README.md`; lệch thì báo lỗi và thoát mã khác 0.
 """
 
 import hashlib
@@ -21,6 +21,11 @@ from pathlib import Path
 URL = "https://archive.ics.uci.edu/static/public/492/metro+interstate+traffic+volume.zip"
 RAW_DIR = Path(__file__).resolve().parent.parent / "data" / "raw"
 CSV_NAME = "Metro_Interstate_Traffic_Volume.csv"
+
+#: SHA256 kỳ vọng của file CSV giải nén — đối chiếu với `data/README.md`
+#: ("Tệp sử dụng & checksum"). Nếu lệch, script báo lỗi và thoát mã khác 0 để KHÔNG âm thầm
+#: dùng một file dữ liệu khác với file đã sinh ra mọi con số trong báo cáo.
+EXPECTED_SHA256 = "749c90d720360a4215bb15345526073c079ba4cc95e3fa558796d083f85fce9e"
 
 
 def download_and_extract() -> Path:
@@ -68,7 +73,19 @@ def main():
     sha256 = hashlib.sha256(csv_path.read_bytes()).hexdigest()
     print(f"\nĐã lưu: {csv_path}")
     print(f"SHA256: {sha256}")
-    print("\n→ Ghi checksum này vào data/README.md, mục 'Tệp sử dụng & checksum'.")
+
+    if EXPECTED_SHA256 and sha256 != EXPECTED_SHA256:
+        print(
+            "\nLỖI: SHA256 KHÔNG khớp giá trị kỳ vọng trong data/README.md.\n"
+            f"  kỳ vọng: {EXPECTED_SHA256}\n"
+            f"  thực tế: {sha256}\n"
+            "File tải về có thể đã đổi trên UCI, hoặc bị hỏng. KHÔNG dùng file này để sinh\n"
+            "artifact — mọi con số trong báo cáo được tạo từ đúng checksum kỳ vọng.",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+
+    print(f"\nOK: SHA256 khớp giá trị kỳ vọng trong data/README.md.")
 
 
 if __name__ == "__main__":

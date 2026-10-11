@@ -267,25 +267,25 @@ def export_pdf(verbose: bool = True) -> Path | None:
 
     body_font = "Body"
     styles = {
-        "h1": ParagraphStyle("h1", fontName="Body-Bold", fontSize=15, leading=19,
-                             spaceBefore=12, spaceAfter=7, textColor=colors.HexColor("#1f4e79")),
-        "h2": ParagraphStyle("h2", fontName="Body-Bold", fontSize=12, leading=15.5,
-                             spaceBefore=10, spaceAfter=5, textColor=colors.HexColor("#1f4e79")),
-        "h3": ParagraphStyle("h3", fontName="Body-Bold", fontSize=10.5, leading=14,
-                             spaceBefore=8, spaceAfter=4),
-        "h4": ParagraphStyle("h4", fontName="Body-Bold", fontSize=9.8, leading=13,
-                             spaceBefore=6, spaceAfter=3, textColor=colors.HexColor("#44484d")),
-        "body": ParagraphStyle("body", fontName=body_font, fontSize=9.2, leading=12.9,
-                               alignment=TA_JUSTIFY, spaceAfter=4),
-        "code": ParagraphStyle("code", fontName="Mono", fontSize=7.8, leading=10.2,
+        "h1": ParagraphStyle("h1", fontName="Body-Bold", fontSize=15, leading=18.5,
+                             spaceBefore=10, spaceAfter=6, textColor=colors.HexColor("#1f4e79")),
+        "h2": ParagraphStyle("h2", fontName="Body-Bold", fontSize=12, leading=15,
+                             spaceBefore=8, spaceAfter=4, textColor=colors.HexColor("#1f4e79")),
+        "h3": ParagraphStyle("h3", fontName="Body-Bold", fontSize=10.5, leading=13.5,
+                             spaceBefore=7, spaceAfter=3),
+        "h4": ParagraphStyle("h4", fontName="Body-Bold", fontSize=9.8, leading=12.6,
+                             spaceBefore=5, spaceAfter=3, textColor=colors.HexColor("#44484d")),
+        "body": ParagraphStyle("body", fontName=body_font, fontSize=9.1, leading=12.3,
+                               alignment=TA_JUSTIFY, spaceAfter=3),
+        "code": ParagraphStyle("code", fontName="Mono", fontSize=7.7, leading=9.9,
                                backColor=colors.HexColor("#f5f6f8"), borderPadding=5,
-                               leftIndent=5, rightIndent=5, spaceAfter=6),
-        "quote": ParagraphStyle("quote", fontName=body_font, fontSize=9, leading=12.6,
+                               leftIndent=5, rightIndent=5, spaceAfter=5),
+        "quote": ParagraphStyle("quote", fontName=body_font, fontSize=9, leading=12.3,
                                 leftIndent=9, textColor=colors.HexColor("#3a3f45"),
                                 borderColor=colors.HexColor("#1f4e79"), borderWidth=0,
-                                spaceAfter=6),
-        "cell": ParagraphStyle("cell", fontName=body_font, fontSize=7.5, leading=9.6),
-        "cellb": ParagraphStyle("cellb", fontName="Body-Bold", fontSize=8, leading=10.4),
+                                spaceAfter=5),
+        "cell": ParagraphStyle("cell", fontName=body_font, fontSize=7.4, leading=9.3),
+        "cellb": ParagraphStyle("cellb", fontName="Body-Bold", fontSize=7.9, leading=10.1),
     }
 
     story: list = []
@@ -523,6 +523,11 @@ def export_pptx(verbose: bool = True) -> Path | None:
         if not re.match(r"^Slide\s+\d+", lines[0].strip()):
             continue  # phan "Phu luc" khong phai slide danh so
         title = re.sub(r"^Slide\s+\d+\s*[—\-–:]\s*", "", lines[0].strip())
+        # Bìa đề tài: exporter đã tạo slide tiêu đề ở trên (khối "Slide tiêu đề"), nên BỎ QUA
+        # "Slide 1 — Bìa đề tài" của outline — nếu không sẽ có HAI bìa trùng nhau.
+        # Slide tiêu đề của exporter là bìa DUY NHẤT; các slide còn lại là nội dung.
+        if title.strip().lower().startswith("bìa đề tài"):
+            continue
         n_slide += 1
         s = add_slide()
 

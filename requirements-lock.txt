@@ -1,6 +1,6 @@
 # requirements-lock.txt - TA(I LẬP TUYỆT ĐỐI)
 #
-# Output cua: py -m pip freeze   ( tren dung chay `py src	rain.py` va `py src\evaluate.py`)
+# Output cua: py -m pip freeze   (tren dung moi truong da chay `py src\train.py` va `py src\evaluate.py`)
 #
 # Dung file nay khi can KET QUA y giong het voi bao cao.
 # Dung `requirements.txt` (toan tu >=) khi can cai tren may moi va chap nhan

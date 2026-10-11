@@ -9,7 +9,7 @@
 | **Bộ dữ liệu** | Metro Interstate Traffic Volume — UCI ML Repository, giấy phép CC BY 4.0 |
 | **Mô hình** | Ridge Regression (L2), `alpha = 0,001`, solver `lsqr` |
 | **Checkpoint** | 3.1 — hoàn thiện Web/API + Test + Tài liệu |
-| **Trạng thái** | Đã chạy thật: 385 test pass, 0 fail; server `http://localhost:8000` chạy được |
+| **Trạng thái** | Đã chạy thật: 392 test pass, 0 fail; server `http://localhost:8000` chạy được |
 
 > **Ghi chú về nguồn số liệu.** Mọi con số trong báo cáo này được lấy từ artifact do mã nguồn sinh ra:
 > `models/model_metadata.json`, `models/run_config.json`, `models/baseline_meta.json`,
@@ -561,6 +561,15 @@ tuyên bố không thể chứng minh. Điều cần chứng minh là **không c
 và điều đó đã được cưỡng chế bằng `assert_no_final_test_rows()` trong toàn bộ mã nguồn thí nghiệm
 phát triển.
 
+> **Thứ tự thực tế (nói thẳng).** Thứ tự lệnh `train → experiments → freeze_serving_policy →
+> evaluate` ở §17.2 là thứ tự **tái lập**, không phải nhật ký thời gian thật. Trong thực tế, FINAL
+> TEST 2018 đã được mở **một lần** trước các phân tích hậu nghiệm — giờ đêm, log-target, độ nhạy
+> `alpha`, lag (`docs/project-log.md` và `reports/figures/experiments_report.md` ghi rõ các phân tích
+> này là "khám phá hậu nghiệm"). Các phân tích đó **không** làm thay đổi mô hình đã đóng băng, không
+> đổi `alpha`, không đổi đặc trưng và không đổi serving policy. Điều bảo đảm được — và là điều có ý
+> nghĩa học thuật — là **không có vòng lặp tối ưu nào đi qua 2018**: mọi lựa chọn vẫn chỉ dựa trên
+> TRAIN + VALIDATION 2012–2017.
+
 ---
 
 # 10. Phân tích lỗi chi tiết
@@ -825,6 +834,22 @@ chỉ số tổng. Riêng điểm giờ đêm đã được tách riêng và ki�
 > **Cảnh báo phân loại.** Toàn bộ mục này chạy trong cửa sổ **2012–2017**
 > (34.042 dòng), **không chứa dòng nào của năm 2018**. Đây là số liệu **phát triển phương pháp**,
 > không phải kết quả trên FINAL TEST, và **không được trộn vào bảng kết luận chính thức ở §9**.
+
+## Bảng đối chiếu: 4 thí nghiệm BẮT BUỘC của đề ↔ mục báo cáo ↔ artifact / hình
+
+| # | Thí nghiệm bắt buộc của đề | Mục trong báo cáo | Khoá JSON / file artifact | Hình |
+| --- | --- | --- | --- | --- |
+| 1 | **Random split và time split** | §11.1 (Thí nghiệm 1), §11.2 (1b), §11.3 (1c) | `reports/figures/experiments_results.json` → `experiment_1_random_vs_time_split`, `experiment_1b_leakage_controlled`, `experiment_1c_block_neighbour` | `eda_traffic_by_month_year.png` |
+| 2 | **Baseline và mô hình** | §7.1 (baseline), §7.2 (Ridge), §9.1 (kết quả FINAL TEST) | `reports/figures/evaluation_results.json` → `final_test.baseline`, `final_test.ridge`; `models/model_metadata.json` | `final_mae_by_hour_dow.png` |
+| 3 | **Drift theo năm / mùa (rolling-origin, PSI)** | §11.4 (Thí nghiệm 3 — rolling-origin), §11.7 (Thí nghiệm 3b — PSI) | `reports/figures/experiments_results.json` → `experiment_3_rolling_origin`, `experiment_3b_covariate_drift` | — (bảng số; hình `eda_weather_distribution.png` minh hoạ phân bố) |
+| 4 | **Phân tích lỗi ngày lễ và thời tiết cực đoan** | §10.3 (ngày lễ), §10.4 (thời tiết), §10.5 (thời tiết cực đoan) | `reports/figures/evaluation_results.json` → `error_analysis.holiday`, `error_analysis.weather_main`, `error_analysis.extreme_weather` | `final_mae_by_weather.png` |
+
+> ⚠️ **Đừng nhầm "Thí nghiệm 4" giữa hai tài liệu.** "Thí nghiệm 4" trong
+> `reports/figures/experiments_report.md` là **kiểm tra giả thuyết giờ đêm** (tương ứng §10.7 của
+> báo cáo này) — **KHÁC** với **thí nghiệm 4 bắt buộc của đề** ở bảng trên (phân tích lỗi ngày lễ +
+> thời tiết cực đoan). Số hiệu "Thí nghiệm 1–8" trong `experiments_report.md` là đánh số **nội bộ**
+> của giai đoạn phát triển 2012–2017, không trùng với cách đánh số 4 thí nghiệm bắt buộc của đề.
+
 
 ## 11.1 Thí nghiệm 1 — random split so với time split
 
@@ -1246,7 +1271,7 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 
 # 13. Kiểm thử tự động
 
-**Kết quả: `py -m pytest tests\ -v` → 385 passed, 0 failed.**
+**Kết quả: `py -m pytest tests\ -v` → 392 passed, 0 failed.**
 
 | File | Số test | Phạm vi |
 | --- | --- | --- |
@@ -1255,11 +1280,11 @@ Test `client_without_artifacts` chỉ vào thư mục model rỗng để kiểm 
 | `test_pipeline.py` | 20 | `SimpleImputer` trong pipeline và trước scaler, mọi bộ tiền xử lý fit TRAIN only, xử lý NaN |
 | `test_experiments.py` | 36 | Chặn FINAL TEST 2018 (`assert_no_final_test_rows`), arm chung tập test, tái lập theo seed, phân tích giờ đêm / log-target / alpha chỉ trên dev |
 | `test_serving.py` | 29 | °C→K, `is_holiday` tự tính, multi-hot, **không train-serving skew**, chính sách hậu xử lý |
-| `test_api.py` | 81 | Route, `/health`, dự báo hợp lệ, 12 ca validation sai, web route 200, dashboard lấy số từ artifact |
-| `test_serving_policy.py` | 46 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR, **đóng băng lặp lại được** (`--check` / `--force`) |
+| `test_api.py` | 85 | Route, `/health`, dự báo hợp lệ, 12 ca validation sai, cảnh báo khi thiếu mưa/tuyết, web route 200, dashboard lấy số từ artifact |
+| `test_serving_policy.py` | 49 | Policy không test-informed, điều kiện D1–D3, phân biệt RAW MODEL vs DEPLOYED PREDICTOR, **đóng băng lặp lại được** (`--check` / `--force`), dung sai float theo khối `evidence` |
 | `test_report.py` | 99 | Tài liệu khớp artifact, không bịa số, số test đồng bộ, thứ tự pipeline, chính tả "rò rỉ" |
 | `test_uncertainty_audit.py` | 16 | Bootstrap theo khối ngày tái lập được, script chỉ đo, kết luận khớp số liệu, cửa sổ dev không có 2018 |
-| **Tổng** | **385** | |
+| **Tổng** | **392** | |
 
 **Con số này không được gõ tay.** `tests/test_report.py::test_documented_test_count_matches_real_collection`
 chạy `pytest --collect-only` trên chính bộ test rồi bắt README, báo cáo, slide, kịch bản demo
@@ -1388,17 +1413,21 @@ xem §12.5). Số của nó được báo ở §12.5.7 và **không được g�
 7. **Không dùng cho mục đích safety-critical.**
 8. **Mô hình tuyến tính** — không nắm hiệu ứng phi tuyến phức tạp, và có thể lệch đáng kể ở tình
    huống chưa từng xuất hiện trong dữ liệu huấn luyện.
-9. Ở **giờ đêm** (00:00–04:00, 22:00–23:00) baseline lại tốt hơn Ridge (ví dụ 03:00: baseline
+9. **Đầu vào thời tiết là thời tiết QUAN SÁT tại đúng giờ đó**, không phải thời tiết dự báo. Khi
+   triển khai dự báo thật cho tương lai, phải dùng **thời tiết dự báo**, và **sai số dự báo thời
+   tiết sẽ cộng thêm vào sai số của mô hình** này. Mô hình **chưa** được đánh giá với thời tiết dự
+   báo, nên mọi số liệu MAE/RMSE ở trên là **cận dưới** của sai số trong điều kiện vận hành thật.
+10. Ở **giờ đêm** (00:00–04:00, 22:00–23:00) baseline lại tốt hơn Ridge (ví dụ 03:00: baseline
    31,14 so với Ridge 142,14) → Ridge không phải lựa chọn tối ưu cho mọi khung giờ. Chi tiết ở
    §10.7.
-10. **Dự báo thô âm** ở 34/6.533 dòng của FINAL TEST (đều giờ 0–4 ban đêm, 32/34 là ngày lễ, thấp
+11. **Dự báo thô âm** ở 34/6.533 dòng của FINAL TEST (đều giờ 0–4 ban đêm, 32/34 là ngày lễ, thấp
     nhất −911,35). API chặn về 0 theo policy `max(0, ·)` và báo cờ `clipped_to_zero`; số liệu ở
     §14.5 tính trên dự báo **thô** (MAE 259,73), sau khi chặn là 257,54.
-11. **Hiệu ưu thế so với baseline không nhất quán theo thời gian.** Trên 2018 Ridge thắng
+12. **Hiệu ưu thế so với baseline không nhất quán theo thời gian.** Trên 2018 Ridge thắng
     13,16 MAE (CI 95 % [+3,80; +22,00]); trên 3/4 cửa sổ dev 2012–2017 Ridge **thua** baseline
     với khoảng tin cậy nằm hẳn về phía baseline (§9.3). Mô hình chỉ đáng tin hơn khi tập
     huấn luyện đủ dày.
-12. **Hiệu chuẩn L2 gần như không có tác dụng.** Trên validation, `alpha ∈ [0; 0,01]` cho MAE
+13. **Hiệu chuẩn L2 gần như không có tác dụng.** Trên validation, `alpha ∈ [0; 0,01]` cho MAE
     chênh nhau chỉ **0,09**; OLS (`alpha = 0`) chỉ tốt hơn alpha đã đóng băng **0,07** (§8.1).
     Vậy hiệu năng gần như đến từ hồi quy tuyến tính, không phải từ L2. Nhóm giữ
     `alpha = 0,001` vì FINAL TEST đã bị xem — đổi bây giờ là test-informed model selection.
@@ -1421,7 +1450,7 @@ FINAL TEST 2018 **không** tham gia quyết định. Căn cứ và điều kiệ
 
 - **Rõ mục đích dùng** §14.6 · **rõ ngoài phạm vi** §14.7 · **rõ hạn chế** §14.8.
 - **Số liệu lấy từ artifact, không gõ tay** — toàn bộ; có test kiểm tra frontend không hard-code.
-- **Đo lường được bằng máy** — 385 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
+- **Đo lường được bằng máy** — 392 test (`py -m pytest tests\ -v`), số test tự đối chiếu bằng
   `pytest --collect-only`.
 - **Người dùng biết khi nào mô hình không đáng tin** — cảnh báo `in_dataset_range`,
   `state_fair_calendar_unknown` trong mọi response.
@@ -1430,11 +1459,13 @@ FINAL TEST 2018 **không** tham gia quyết định. Căn cứ và điều kiệ
 
 # 15. Hạn chế và ngoài phạm vi sử dụng
 
-Danh sách đầy đủ 12 hạn chế nằm ở **§14.8** (Model Card). Nếu phải nói trong 30 giây, nhóm chọn 5
+Danh sách đầy đủ 13 hạn chế nằm ở **§14.8** (Model Card). Nếu phải nói trong 30 giây, nhóm chọn 5
 điểm có **hệ quả với quyết định của người dùng**: **phạm vi địa lý** — một trạm đo, không đại diện toàn
 thành phố; **ngày lễ** — MAE gấp 4,3 lần ngày thường, trên mẫu chỉ 7 ngày lịch; **giờ đêm** — baseline
 thắng Ridge ở 5/5 giờ 00–04 (§10.7); **phạm vi thời gian** — test 2018 chỉ 9 tháng đầu năm, và đó là
-phần *dễ hơn* của năm; và **an toàn** — không dùng cho mục đích safety-critical.
+phần *dễ hơn* của năm; và **an toàn** — không dùng cho mục đích safety-critical. Ngoài ra, vì đầu vào
+là **thời tiết quan sát** (không phải thời tiết dự báo), sai số thời tiết dự báo sẽ **cộng thêm** vào
+sai số mô hình khi vận hành thật (§14.8, hạn chế 9).
 
 ---
 
@@ -1453,7 +1484,7 @@ phần *dễ hơn* của năm; và **an toàn** — không dùng cho mục đíc
    "mô hình nhìn thấy hàng xóm": phần lớn hiệu ứng không do kích thước tập huấn luyện, và mô hình
    không có đặc trưng lag nên không thể nhớ giá trị dòng lân cận. Đây là bài học trung tâm.
 4. **Về minh bạch và sản phẩm:** chỉ ra được mô hình hỏng ở đâu (ngày lễ, tuyết, giờ đêm) thay vì
-   chỉ trích chỉ số tổng; web/API chạy được, chỉ nạp artifact, 385 test pass.
+   chỉ trích chỉ số tổng; web/API chạy được, chỉ nạp artifact, 392 test pass.
 
 ## 16.2 Hướng mở rộng
 
@@ -1491,7 +1522,7 @@ models/     ridge_pipeline.joblib + metadata + baseline + serving_policy
 reports/    final_report.md (file này) + figures/*.md, *.json, *.png
 docs/       project-log.md, slides-outline.md, demo-script.md, viva-questions.md
 release/    final_report.docx, final_report.pdf, slides.pptx  (sinh tự động)
-tests/      385 test
+tests/      392 test
 ```
 
 ## 17.2 Lệnh tái lập toàn bộ (Windows)
@@ -1548,7 +1579,7 @@ kết quả · vấn đề) nằm ở **`docs/project-log.md`**.
 | 3 | Baseline + Ridge pipeline + tune alpha | `alpha = 0,001`; vượt baseline ngay trên validation |
 | 4 | Thí nghiệm 1, 1b, 1c, 3, 3b, 8 (chỉ 2012–2017) | Tách được kích thước / mức năm / khoảng cách thời gian; đo lạc quan 5,43 MAE |
 | 5 | Đóng băng serving policy → FINAL TEST 2018 + phân tích lỗi | Policy chốt trên TRAIN+VAL; MAE 259,73; điểm yếu ở ngày lễ, tuyết, giờ đêm |
-| 6 | FastAPI + 3 màn hình + 385 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew; bootstrap bất định + kiểm toán alpha |
+| 6 | FastAPI + 3 màn hình + 392 test + tài liệu + bản phát hành | Web/API chạy thật, không train-serving skew; bootstrap bất định + kiểm toán alpha |
 | 7 | Đóng băng chạy lại được (`--check` / `--force`) | `serving_policy.json` giữ nguyên hash khi chạy lại |
 
 ## 17.5 Tài liệu phát hành
@@ -1569,7 +1600,7 @@ py src\export_docs.py pptx
 | --- | --- | --- | --- |
 | `release/final_report.docx` | `reports/final_report.md` | pandoc (pypandoc-binary) | 17 mục, 58 bảng, 7 ảnh nhúng |
 | `release/final_report.pdf` | `reports/final_report.md` | reportlab + font Arial | **25 trang A4** |
-| `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | 12 slide, 4 ảnh thật |
+| `release/slides.pptx` | `docs/slides-outline.md` | python-pptx | 11 slide, 4 ảnh thật |
 
 **25 trang A4** nằm trong khoảng mục tiêu 15–25 trang. Nếu thiếu một công cụ, script in "BỎ QUA"
 kèm lý do và **không** tạo file rỗng — để không ai tưởng đã xuất xong.
